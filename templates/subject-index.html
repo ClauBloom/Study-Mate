@@ -486,6 +486,10 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
   border-bottom: 1px solid var(--syo-border-muted);
   color: inherit;
   text-decoration: none;
+  /* 附件行全是链接：禁掉原生"拖链接"（会出幽灵图并抢走拖拽），
+     并禁止拖拽时选中文字——整个面板都要能当拖拽手柄用 */
+  -webkit-user-drag: none;
+  user-select: none;
   transition: background-color 140ms var(--syo-ease-out), color 140ms var(--syo-ease-out);
 }
 .learn-attachment:hover { background: var(--syo-bg-base); color: var(--syo-accent); }
@@ -794,6 +798,40 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
     } else {
       attachHintEl.textContent = attachCount + ' 项 · 可拖动或滚动查看';
     }
+  }
+
+  /* 在链接上按下拖动 = 滚动，不是拖链接、也不是点击跳转。
+     容器的 mousedown 已经能启动 Sayo 的惯性（事件会从链接冒泡上来），
+     但浏览器默认还会做两件事，必须压掉：
+       · 原生链接拖拽（幽灵图会把后续 mousemove 抢走）→ dragstart preventDefault
+       · 松手时把这次拖拽当成一次 click → 位移超过阈值就吞掉这次 click
+     原地点击（位移 < 5px）与键盘回车不受影响，照常打开链接。 */
+  if (attachBox) {
+    attachBox.addEventListener('dragstart', function (event) { event.preventDefault(); });
+
+    var pressX = 0, pressY = 0, pressed = false;
+
+    attachBox.addEventListener('mousedown', function (event) {
+      pressed = true;
+      pressX = event.clientX;
+      pressY = event.clientY;
+    });
+    attachBox.addEventListener('touchstart', function (event) {
+      if (!event.touches || !event.touches.length) return;
+      pressed = true;
+      pressX = event.touches[0].clientX;
+      pressY = event.touches[0].clientY;
+    }, { passive: true });
+
+    /* 捕获阶段拦，先于链接的默认跳转 */
+    attachBox.addEventListener('click', function (event) {
+      if (!pressed) return;          // 键盘回车等：clientX/Y 为 0，不拦
+      pressed = false;
+      if (Math.abs(event.clientX - pressX) > 5 || Math.abs(event.clientY - pressY) > 5) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
   }
 
   /* 内容不足一屏 → 隐藏提示条（is-short）；滚到底 → 隐藏（is-end） */
