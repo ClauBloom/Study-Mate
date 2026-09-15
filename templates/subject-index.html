@@ -416,16 +416,56 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
   color: var(--syo-fg-muted);
 }
 
-/* ── 附件区：纵向惯性滚动容器 ── */
-/* Sayo 的 .syo-inertia 默认是横排卡片轨道；附件要竖排，
-   所以这里覆盖（惯性 JS 本身是双轴的，纵向一样有惯性） */
+/* ── 附件区：纵向惯性滚动容器 ──
+   Sayo 的 .syo-inertia 默认是横排卡片轨道；附件要竖排，所以这里覆盖
+   （惯性 JS 本身是双轴的，纵向一样有惯性）。
+   滚动区必须"看起来就能滚"，否则用户只会看到一列被截断的附件：
+     · 面板外观（底色 + 描边 + 圆角）—— 和页面内容区分开，像个窗口
+     · 常驻滚动条 —— 一进页面就能看到右侧有滚动条
+     · 底部提示条（sticky）—— 明说"向下滚动查看更多"，滚到底自动隐藏
+     · tabindex=0 —— 键盘也能滚（见下方 HTML），焦点环给可见反馈 */
 .learn-attachments {
   display: block;
   max-height: 360px;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 4px 10px 0 12px;
+  background: var(--syo-bg-surface);
+  border: 1px solid var(--syo-border);
+  border-radius: var(--syo-radius-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--syo-fg-muted) var(--syo-bg-base);
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  cursor: grab;
 }
+.learn-attachments:focus-visible { outline: 2px solid var(--syo-accent); outline-offset: 2px; }
+
+/* 常驻滚动条（Chrome/Safari）：一进页面就看得见 */
+.learn-attachments::-webkit-scrollbar { width: 9px; }
+.learn-attachments::-webkit-scrollbar-track { background: var(--syo-bg-base); border-radius: 999px; }
+.learn-attachments::-webkit-scrollbar-thumb {
+  background: var(--syo-fg-muted);
+  border: 2px solid var(--syo-bg-surface);
+  border-radius: 999px;
+}
+.learn-attachments:hover::-webkit-scrollbar-thumb { background: var(--syo-accent); }
+
+/* 底部提示条：吸在可视区底部；滚到底或内容不足一屏时由脚本隐藏 */
+.learn-attachments__more {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -10px 0 -12px;
+  padding: 20px 12px 8px;
+  background: linear-gradient(to bottom, transparent, var(--syo-bg-surface) 62%);
+  font-family: var(--syo-font-mono);
+  font-size: .6875rem;
+  color: var(--syo-fg-muted);
+  text-align: center;
+  pointer-events: none;
+}
+.learn-attachments.is-end .learn-attachments__more,
+.learn-attachments.is-short .learn-attachments__more { display: none; }
 
 .learn-attachments__group + .learn-attachments__group { margin-top: var(--syo-space-4); }
 
@@ -448,7 +488,8 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
   text-decoration: none;
   transition: background-color 140ms var(--syo-ease-out), color 140ms var(--syo-ease-out);
 }
-.learn-attachment:hover { background: var(--syo-bg-surface); color: var(--syo-accent); }
+.learn-attachment:hover { background: var(--syo-bg-base); color: var(--syo-accent); }
+.learn-attachment:last-child { border-bottom: 0; }
 
 .learn-attachment__title { font-size: .875rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .learn-attachment__meta {
@@ -623,14 +664,17 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
       <h2 class="learn-section__title" id="learn-attachments-title">附件<span class="learn-section__hint" id="learn-attachments-hint">拖动列表可惯性滚动</span></h2>
     </div>
 
-    <!-- 纵向惯性滚动容器：Sayo 的 data-syo-inertia 自动初始化（.learn-attachments 覆盖成竖排） -->
-    <div class="syo-inertia learn-attachments" data-syo-inertia>
+    <!-- 纵向惯性滚动容器：Sayo 的 data-syo-inertia 自动初始化（.learn-attachments 覆盖成竖排）。
+         tabindex + role + aria-label 让键盘也能滚动，并且读屏能知道这是个可滚区域 -->
+    <div class="syo-inertia learn-attachments" data-syo-inertia
+         tabindex="0" role="region" aria-label="附件列表，可用方向键或拖动滚动">
 
       <!--
         ============================================================
         生成器渲染规范 2
         ============================================================
-        · 占位符整行替换为全部附件分组（容器与滚动行为由模板提供，生成器只出内容）；
+        · 占位符整行替换为全部附件分组（容器、滚动行为与底部提示条由模板提供，生成器只出分组内容，
+          不要动容器上的 tabindex/role/aria-label，也不要删掉末尾的 .learn-attachments__more 提示条）；
           一个附件都没有时替换为：
           <p class="learn-attachments__empty">还没有附件。速查文档、术语表、学习记录都会出现在这里。</p>
         · 分组顺序固定，空分组整组省略：
@@ -652,6 +696,9 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
         ============================================================
       -->
       <!-- @LEARN:ATTACHMENTS -->
+
+      <!-- 吸底提示条：内容超出一屏时出现，滚到底自动隐藏（脚本切换 class） -->
+      <p class="learn-attachments__more" aria-hidden="true">向下滚动查看更多 ↓</p>
 
     </div>
   </section>
@@ -734,17 +781,32 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
     });
   });
 
-  /* ---------- 附件区：没有附件时提示 ---------- */
+  /* ---------- 附件区：计数、空状态与"可滚动"提示 ---------- */
   var attachHintEl = document.getElementById('learn-attachments-hint');
+  var attachBox = document.querySelector('.learn-attachments');
+  var attachCount = document.querySelectorAll('.learn-attachment').length;
+
   if (attachHintEl) {
-    var attachCount = document.querySelectorAll('.learn-attachment').length;
     var attachEmpty = document.querySelector('.learn-attachments__empty');
     if (attachCount === 0) {
       if (attachEmpty) attachEmpty.hidden = false;
       attachHintEl.textContent = '还没有附件';
     } else {
-      attachHintEl.textContent = attachCount + ' 项 · 拖动列表可惯性滚动';
+      attachHintEl.textContent = attachCount + ' 项 · 可拖动或滚动查看';
     }
+  }
+
+  /* 内容不足一屏 → 隐藏提示条（is-short）；滚到底 → 隐藏（is-end） */
+  if (attachBox) {
+    var syncAttachHint = function () {
+      var overflow = attachBox.scrollHeight - attachBox.clientHeight;
+      var atEnd = attachBox.scrollTop >= overflow - 4;
+      attachBox.classList.toggle('is-short', overflow <= 4);
+      attachBox.classList.toggle('is-end', overflow > 4 && atEnd);
+    };
+    syncAttachHint();
+    attachBox.addEventListener('scroll', syncAttachHint, { passive: true });
+    window.addEventListener('resize', syncAttachHint);
   }
 })();
 </script>
