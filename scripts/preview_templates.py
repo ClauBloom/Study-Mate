@@ -15,7 +15,7 @@
     .preview/.learning/assets/…                          共享层（sayo + learn-theme.css）
     .preview/.learning/subjects/typescript-web-api/index.html        科目主页（12 节点 / 7 篇课件）
     .preview/.learning/subjects/typescript-web-api/empty.html        科目主页空状态
-    .preview/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html   示例课件
+    .preview/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html   示例课件（来自 templates/lesson.html）
 
 注意：这里渲染用的是**假数据**，只为了看样式与交互；真实生成器是 Task 13 的 scripts/gen_home.py。
 """
@@ -283,133 +283,6 @@ def render_subject(template, slug='typescript-web-api', empty=False):
 # 示例课件（验证课件层：Sayo 编辑区 + 练习 + 提示块 + 资源 + 提问提示）
 # ══════════════════════════════════════════════════════════════════
 
-SAMPLE_LESSON = '''<!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HTTP 基础：请求、响应与状态码 · TypeScript Web API</title>
-<link rel="stylesheet" href="../../../assets/sayo/sayo.css">
-<link rel="stylesheet" href="../../../assets/learn-theme.css">
-<link rel="stylesheet" href="../assets/style.css">
-<script>
-  (function () {
-    var q = null, saved = null;
-    try { q = new URLSearchParams(window.location.search).get('theme'); } catch (e) {}
-    try { saved = localStorage.getItem('le-theme'); } catch (e) {}
-    if (q === 'dark' || q === 'light') document.documentElement.setAttribute('data-theme', q);
-    else if (saved === 'dark' || saved === 'light') document.documentElement.setAttribute('data-theme', saved);
-  })();
-</script>
-</head>
-<body class="lesson-body">
-
-<nav class="lesson-bar">
-  <a href="../index.html">← 返回课程</a>
-  <span>HTTP 基础</span>
-  <span class="lesson-bar__no">0001</span>
-</nav>
-
-<article class="lesson">
-  <header class="lesson-header">
-    <span class="lesson-header__eyebrow">0001 · 所属节点：HTTP 基础</span>
-    <h1>HTTP 基础：请求、响应与状态码</h1>
-    <p class="lesson-goal"><b>本节目标：</b>能说清一次请求从浏览器发出到服务端返回的完整路径，并读懂常见状态码到底在说什么。</p>
-  </header>
-
-  <h2>先看一个麻烦</h2>
-  <p>你在地址栏敲下回车，页面就出来了。中间发生了什么？如果只会写 <code>app.get('/orders')</code>，那么接口一 404、一 401，你就只能靠猜——因为不知道"请求"和"响应"这两样东西到底长什么样。</p>
-  <p>先记住一件事：<strong>浏览器和服务端之间来回传的，是纯文本</strong>。看懂这段文本，排错就有据可依。</p>
-
-  <h2>一次请求长什么样</h2>
-  <p>用 <code>curl -v</code> 打开开关，你就能看到原始的请求与响应。请求头部分长这样：</p>
-
-  <div class="syo-editor">
-    <div class="syo-editor-titlebar">
-      <span class="syo-editor-dots">
-        <span class="syo-editor-dot syo-editor-dot--red"></span>
-        <span class="syo-editor-dot syo-editor-dot--yellow"></span>
-        <span class="syo-editor-dot syo-editor-dot--green"></span>
-      </span>
-      <span class="syo-editor-filename">request.http</span>
-    </div>
-    <div class="syo-editor-body">
-      <div class="syo-editor-gutter"><span>1</span><span>2</span><span>3</span><span>4</span></div>
-      <div class="syo-editor-code">
-        <span class="line"><span class="syn-keyword">GET</span> /orders/42 <span class="syn-operator">HTTP/1.1</span></span>
-        <span class="line"><span class="syn-type">Host</span>: api.example.com</span>
-        <span class="line"><span class="syn-type">Authorization</span>: Bearer eyJhbGciOi...</span>
-        <span class="line"><span class="syn-type">Accept</span>: application/json</span>
-      </div>
-    </div>
-  </div>
-
-  <p>三件事值得注意：</p>
-  <ul>
-    <li><strong>方法 + 路径</strong>（<code>GET /orders/42</code>）决定"要什么"</li>
-    <li><strong>请求头</strong>是元信息：我是谁、我要什么格式、我接受什么压缩</li>
-    <li>带 body 的方法（POST/PUT/PATCH）才有请求体，GET 通常没有</li>
-  </ul>
-
-  <div class="lesson-tip">
-    <b>小技巧</b>
-    <p>排错时先看请求头和响应头，再怀疑业务代码。绝大多数"接口不通"是头写错了：少了 <code>Content-Type</code>、token 过期、跨域预检没过。</p>
-  </div>
-
-  <h2>状态码在说什么</h2>
-  <table>
-    <thead><tr><th>状态码</th><th>含义</th><th>你该做什么</th></tr></thead>
-    <tbody>
-      <tr><td><code>200</code></td><td>成功，返回了内容</td><td>解析响应体</td></tr>
-      <tr><td><code>201</code></td><td>创建成功</td><td>通常带 <code>Location</code> 头指向新资源</td></tr>
-      <tr><td><code>400</code></td><td>请求本身有问题</td><td>检查参数、body 格式</td></tr>
-      <tr><td><code>401</code></td><td>没认证 / 认证失败</td><td>检查 token 有没有带上、是否过期</td></tr>
-      <tr><td><code>404</code></td><td>资源不存在</td><td>检查路径与资源 id</td></tr>
-      <tr><td><code>500</code></td><td>服务端自己炸了</td><td>看服务端日志，不是客户端问题</td></tr>
-    </tbody>
-  </table>
-
-  <div class="lesson-warn">
-    <b>常见误区</b>
-    <p>把 401 和 403 混为一谈：<code>401</code> 是"你没证明你是谁"，<code>403</code> 是"我知道你是谁，但你没权限"。前者补凭证，后者找管理员。</p>
-  </div>
-
-  <h2>练一下</h2>
-  <div class="quiz" data-quiz='[
-    {"q":"客户端发来 POST /orders，服务端成功创建订单，最合适的状态码是？","opts":["200 OK","201 Created","204 No Content"],"ans":1,"why":"新建资源用 201，并用 Location 头指向新资源；204 表示成功但没有响应体。"},
-    {"q":"浏览器控制台报 401，最可能的原因是？","opts":["路由路径写错了","请求头里的凭证缺失或过期","服务端代码抛了异常"],"ans":1,"why":"401 是认证问题：凭证没带上、格式不对或已过期；路径错通常是 404。"}
-  ]'></div>
-
-  <div class="lesson-practice">
-    <div class="lesson-practice__head">
-      <span class="lesson-practice__level">L2 改造</span>
-      <h3 class="lesson-practice__title">把一次 404 改成 200</h3>
-    </div>
-    <p>在你自己的项目里挑一个返回 404 的接口，用 <code>curl -v</code> 打出原始请求，找出路径或方法哪里不对，改到返回 200。</p>
-  </div>
-
-  <h2>参考资料</h2>
-  <ul class="lesson-resources">
-    <li><a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Messages" target="_blank" rel="noreferrer">MDN · HTTP 消息</a>
-      <span class="lesson-resources__meta">官方文档 · 请求与响应报文结构的权威说明</span></li>
-    <li><a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Status" target="_blank" rel="noreferrer">MDN · HTTP 状态码</a>
-      <span class="lesson-resources__meta">官方文档 · 状态码速查，排错时常看</span></li>
-  </ul>
-
-  <div class="lesson-ask">
-    <b>没看懂？随时问</b>
-    把看不懂的段落（或报错）原样复制回会话，前后加 <code>【提问】…【/提问】</code> 标记，我会只解释这一段，不打断你的进度。
-  </div>
-
-  <footer class="lesson-footer">Learn-everything · 0001 HTTP 基础 · 本地学习工作区</footer>
-</article>
-
-<script src="../../../assets/sayo/sayo.js"></script>
-<script src="../assets/quiz.js" defer></script>
-</body>
-</html>
-'''
-
 # ══════════════════════════════════════════════════════════════════
 # 主流程
 # ══════════════════════════════════════════════════════════════════
@@ -425,10 +298,15 @@ def main():
     os.makedirs(os.path.join(subject, 'lessons'))
     os.makedirs(os.path.join(subject, 'assets'))
 
-    # 模拟 install/生成流程：共享层放 .learning/assets/（一份）
+    # 模拟 install/生成流程：共享层放 .learning/assets/（一份）。
+    # 清单必须与 templates/assets/README.md 一致——新增共享文件时两处都要加
     src_assets = os.path.join(ROOT, 'templates', 'assets')
-    shutil.copytree(os.path.join(src_assets, 'sayo'), os.path.join(assets, 'sayo'))
-    shutil.copy(os.path.join(src_assets, 'learn-theme.css'), assets)
+    shared_files = ('learn-theme.css', 'learn-theme.js')
+    shared_dirs = ('sayo',)
+    for name in shared_files:
+        shutil.copy(os.path.join(src_assets, name), assets)
+    for name in shared_dirs:
+        shutil.copytree(os.path.join(src_assets, name), os.path.join(assets, name))
 
     # 模拟 Task 8 建科目：课件层组件拷进科目 assets/（每科目一份）
     for name in ('style.css', 'quiz.js'):
@@ -436,6 +314,8 @@ def main():
 
     home = open(os.path.join(ROOT, 'templates', 'home-index.html'), encoding='utf-8').read()
     subj = open(os.path.join(ROOT, 'templates', 'subject-index.html'), encoding='utf-8').read()
+    # 课件直接从骨架拷过来：templates/lesson.html 既是起点也是示例，避免两处各写一份
+    lesson = open(os.path.join(ROOT, 'templates', 'lesson.html'), encoding='utf-8').read()
 
     outputs = {
         os.path.join(OUT, 'index.html'): home.replace('<!-- @LEARN:SUBJECT_CARDS -->', render_cards(), 1),
@@ -443,7 +323,7 @@ def main():
             '<!-- @LEARN:SUBJECT_CARDS -->', '<div class="learn-subject-list"></div>', 1),
         os.path.join(subject, 'index.html'): render_subject(subj),
         os.path.join(subject, 'empty.html'): render_subject(subj, empty=True),
-        os.path.join(subject, 'lessons', '0001-http-basics.html'): SAMPLE_LESSON,
+        os.path.join(subject, 'lessons', '0001-http-basics.html'): lesson,
     }
     for path, content in outputs.items():
         with open(path, 'w', encoding='utf-8') as f:

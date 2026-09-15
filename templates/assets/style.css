@@ -43,6 +43,10 @@
 .lesson-bar a:hover { color: var(--syo-accent); }
 .lesson-bar__no { margin-left: auto; font-family: var(--syo-font-mono); color: var(--syo-fg-muted); }
 
+/* 顶栏右侧的主题开关：课件是学生“从文件管理器直接打开”的页面，
+   没有主页那套导航，所以开关必须长在课件自己身上（见 lesson.html） */
+.lesson-bar__toggle { margin-left: var(--syo-space-3); }
+
 .lesson {
   max-width: var(--lesson-width);
   margin: 0 auto;

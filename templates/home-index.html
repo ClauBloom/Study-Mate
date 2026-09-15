@@ -12,20 +12,10 @@
 <link rel="stylesheet" href=".learning/assets/sayo/sayo.css">
 <link rel="stylesheet" href=".learning/assets/learn-theme.css">
 
-<!-- 主题初始化：首帧渲染前应用已保存的主题，避免闪白/闪黑。
-     这是模板骨架的一部分，gen_home.py 原样保留。
-     约定：data-theme="light" 用我们的暖色系；"dark" 用 Sayo 的 Primer 暗色。
-     URL 加 ?theme=dark / ?theme=light 可临时预览（不写入偏好）。 -->
-<script>
-  (function () {
-    var root = document.documentElement;
-    var q = null, saved = null;
-    try { q = new URLSearchParams(window.location.search).get('theme'); } catch (e) {}
-    try { saved = localStorage.getItem('le-theme'); } catch (e) {}
-    if (q === 'dark' || q === 'light') root.setAttribute('data-theme', q);
-    else if (saved === 'dark' || saved === 'light') root.setAttribute('data-theme', saved);
-  })();
-</script>
+<!-- 主题：首帧前应用已保存的主题（共享逻辑在 assets/learn-theme.js，
+     亮色=我们的暖色系、暗色=Sayo 的 Primer 暗色；URL 加 ?theme=dark 可临时预览） -->
+<script src=".learning/assets/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -266,7 +256,6 @@ body.is-ready .learn-subject-card { animation: none; }
 
   var root = document.documentElement;
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var THEME_KEY = 'le-theme';
 
   /* ---------- 视差启停：只有暗色主题开视差 ----------
      Sayo 的视差是 mousemove 绑定，与主题无关，所以在切主题时要显式启停。
@@ -295,20 +284,11 @@ body.is-ready .learn-subject-card { animation: none; }
     syncParallax();
   }
 
-  /* ---------- 主题切换（初始主题已在 <head> 中应用） ---------- */
-  var checkbox = document.getElementById('learn-theme-checkbox');
-  function syncCheckbox() {
-    if (checkbox) checkbox.checked = root.getAttribute('data-theme') === 'light';
-  }
-  syncCheckbox();
-  if (checkbox) {
-    checkbox.addEventListener('change', function () {
-      var next = checkbox.checked ? 'light' : 'dark';
-      root.setAttribute('data-theme', next);
-      try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
-      syncParallax();
-    });
-  }
+  /* ---------- 主题开关（主题本身已在 <head> 里应用） ----------
+     切主题后要重算视差：亮色主题用静态网格，不开视差 */
+  var themeCheckbox = document.getElementById('learn-theme-checkbox');
+  LearnTheme.wire(themeCheckbox);
+  if (themeCheckbox) themeCheckbox.addEventListener('change', syncParallax);
 
   /* ---------- 今天日期（导航栏右上角） ---------- */
   var dateText = '';

@@ -37,5 +37,9 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
 
 ## 其他文件
 
+- `lesson.html`：**课件骨架**。不是生成器输入，而是**拷着用**的起点——learning-coach 写课件时整份拷到
+  `<subject>/lessons/NNNN-x.html` 再改内容。顶栏（含亮/暗主题开关）、三个样式/脚本引用、提问提示块都已就位，
+  里面的 HTTP 正文是示范。学生常被总控用 `xdg-open` 直接打开课件，所以**主题开关必须长在课件自己身上**，
+  别删。
 - `MEMORY.md` / `subject.yaml` / `MISSION.md` / `RESOURCES.md` / `GLOSSARY.md`：科目与记忆模板（Task 3 的非前端部分，由对应会话产出）
-- `assets/`：前端资源（Sayo UI、共享主题层、课件层组件）——**摆放位置与各页面引用路径见 `assets/README.md`**
+- `assets/`：前端资源（Sayo UI、共享主题层与主题逻辑、课件层组件）——**摆放位置与各页面引用路径见 `assets/README.md`**
