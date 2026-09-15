@@ -1,4 +1,4 @@
-# Learn-everything
+# StudyMate
 
 基于 DSH 的长期自学 Agent：多科目各自管理、一份共享学习记忆、可视化课程大纲、人话讲解、四层练习、划词提问。
 
