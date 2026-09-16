@@ -38,7 +38,7 @@ disable-model-invocation: true
 
 ## 边界
 
-- 资料来源不确定时标注"待总控用 research 核实"，先不写进 resources
+- 资料来源不确定时标注"待总控核实"，先不写进 resources
 - objective 写成可观察的结果（"能独立实现 X"），"了解 X"这类无法验收的写法留给别的场合
 - **四个科目元数据文件（`subject.yaml`/`MISSION.md`/`RESOURCES.md`/`GLOSSARY.md`）一律由总控维护**：你只产出初始资源清单内容、只报告发现的问题，不直接改这些文件
 - **不盘问用户**：需要向用户确认的信息（目标、偏好、范围）交给总控去问，你只接收结果；盘问是总控的职责
