@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<!-- ═══════════════════════════════════════════════════════════════
+     课件：0001 HTTP 基础（TypeScript Web API）
+     ═══════════════════════════════════════════════════════════════
+     从 <root>/templates/lesson.html 骨架整份拷起，按 lesson-design 规范补齐要素：
+       · 真实场景开场（第一个 h2）· 术语先来历后定义 · 权威资料
+       · 交互练习（.quiz[data-quiz]，两题，选项等长）· 分步实操指向 lab/ · 提问提示
+     不要改的地方：
+       · 顶部三条样式引用与底部三条脚本引用的路径（共享层 ../../../assets/、科目内组件 ../assets/）
+       · .lesson-bar 里的主题开关（学生要在课件里直接切亮/暗）
+       · 底部的提问提示块（告诉学生：看不懂就把那段贴回会话问）
+     ═══════════════════════════════════════════════════════════════ -->
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP 基础：一次请求与响应里有什么 · TypeScript Web API</title>
+
+<!-- 共享层在 .learning/assets/，课件在 .learning/subjects/<slug>/lessons/ 下，所以是 ../../../assets/ -->
+<link rel="stylesheet" href="../../../assets/sayo/sayo.css">
+<link rel="stylesheet" href="../../../assets/learn-theme.css">
+<link rel="stylesheet" href="../assets/style.css">
+
+<!-- 主题要在首帧前应用，避免闪白/闪黑 -->
+<script src="../../../assets/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
+</head>
+
+<body class="lesson-body">
+
+<nav class="lesson-bar">
+  <a href="../index.html">← 返回课程</a>
+  <span>HTTP 基础</span>
+  <span class="lesson-bar__no">0001</span>
+  <!-- 课件页自带主题开关：学生从文件管理器直接打开课件时也能切暗色 -->
+  <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
+    <input type="checkbox" id="lesson-theme-checkbox" checked>
+    <span class="syo-toggle-track"></span>
+    <span class="syo-toggle-knob">
+      <svg class="syo-toggle-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.5" stroke="#f57c00" stroke-width="1.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.34 4.34l1.77 1.77M13.89 13.89l1.77 1.77M4.34 15.66l1.77-1.77M13.89 6.11l1.77-1.77" stroke="#f57c00" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <svg class="syo-toggle-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 12.5A6 6 0 019 4.5a6 6 0 007.5 8z" stroke="#5c6bc0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </span>
+  </label>
+</nav>
+
+<article class="lesson">
+
+  <header class="lesson-header">
+    <span class="lesson-header__eyebrow">0001 · 所属节点：http.basics（HTTP 基础）</span>
+    <h1>HTTP 基础：一次请求与响应里有什么</h1>
+    <p class="lesson-goal"><b>本节目标：</b>能说清一次 HTTP 请求与响应里有什么——请求行、请求头、状态码分别在说什么，并能用 <code>curl -i</code> 亲手验证。</p>
+  </header>
+
+  <!-- ── 讲解：真实场景开场 ── -->
+
+  <h2>先看一个真实问题：按下回车之后发生了什么</h2>
+  <p>你在浏览器地址栏输入一个网址，按下回车，网页就出现了。这一来一回，浏览器和服务器之间到底说了什么？</p>
+  <p>现在你只会写页面，这个问题可以先不管。但等你开始写后端——要自己接住别人的请求——它就是绕不过去的第一道坎：接口返回 404 时，你分不清是路径写错了、还是服务器根本没起来；前端说"参数传了"，你却看不出参数落在哪一段。原因都一样：<strong>不知道这两样东西长什么样</strong>。</p>
+  <div class="lesson-tip">
+    <b>先记住一句话</b>
+    <p>浏览器和服务器之间来回传的，本质是<strong>纯文本</strong>。这段文本谁都能看懂——包括你，不需要任何框架帮忙。今天这一课就是把它拆开看一遍。</p>
+  </div>
+
+  <!-- ── 具体先行：先看真实的原始文本 ── -->
+
+  <h2>把一次来回摊开看</h2>
+  <p>用 <code>curl -i</code> 请求一个真实网址，屏幕上就是下面这个样子。<code>&gt;</code> 开头的三行是浏览器<strong>发出去</strong>的，<code>&lt;</code> 开头的三行是服务器<strong>返回来</strong>的：</p>
+
+  <div class="syo-editor">
+    <div class="syo-editor-titlebar">
+      <span class="syo-editor-dots">
+        <span class="syo-editor-dot syo-editor-dot--red"></span>
+        <span class="syo-editor-dot syo-editor-dot--yellow"></span>
+        <span class="syo-editor-dot syo-editor-dot--green"></span>
+      </span>
+      <span class="syo-editor-filename">一次来回（curl -i 输出摘要）</span>
+    </div>
+    <div class="syo-editor-body">
+      <div class="syo-editor-gutter"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
+      <div class="syo-editor-code">
+        <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-keyword">GET</span> /menu <span class="syn-operator">HTTP/1.1</span></span>
+        <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Host</span>: example.com</span>
+        <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Accept</span>: text/html</span>
+        <span class="line">（空行——请求到此结束，GET 没有请求体）</span>
+        <span class="line"><span class="syn-operator">&lt;</span> <span class="syn-operator">HTTP/1.1</span> <span class="syn-number">200</span> OK</span>
+        <span class="line"><span class="syn-operator">&lt;</span> <span class="syn-type">Content-Type</span>: text/html; charset=utf-8</span>
+        <span class="line"><span class="syn-operator">&lt;</span> <span class="syn-type">Content-Length</span>: 1256</span>
+      </div>
+    </div>
+  </div>
+
+  <p>就三层：第一行说明<strong>要什么</strong>（或<strong>结果如何</strong>），中间几行是<strong>附加说明</strong>，空行之后才是<strong>正文</strong>。剩下的内容，只是把这三层逐个讲清楚。</p>
+
+  <!-- ── 术语先来历、后定义 ── -->
+
+  <h2>这些词的来历：先有麻烦，才有名字</h2>
+  <p>请求行、状态码、请求头——这三个词听着像要背的术语。其实每一个都是为了解决一个具体的麻烦才被造出来的。<strong>先看它解决什么问题，再看它叫什么名字。</strong></p>
+
+  <h3>请求行：让服务器知道"你要什么"</h3>
+  <p><b>先有麻烦：</b>上世纪 90 年代初，一台服务器上要放很多份文档。浏览器连上来只说一句"给我东西"，服务器不知道给哪一份，只能把整个目录列出来让人点。更要命的是，下一个人的文档站也在同一台机器上，服务器还得先判断"你到底在跟哪个网站说话"。</p>
+  <p><b>于是有了：</b>把"要什么"压进第一行——方法、路径、协议版本，用空格隔开。这就是 <strong>请求行（Request Line）</strong>：</p>
+  <div class="syo-editor">
+    <div class="syo-editor-titlebar">
+      <span class="syo-editor-dots">
+        <span class="syo-editor-dot syo-editor-dot--red"></span>
+        <span class="syo-editor-dot syo-editor-dot--yellow"></span>
+        <span class="syo-editor-dot syo-editor-dot--green"></span>
+      </span>
+      <span class="syo-editor-filename">请求行</span>
+    </div>
+    <div class="syo-editor-body">
+      <div class="syo-editor-gutter"><span>1</span></div>
+      <div class="syo-editor-code">
+        <span class="line"><span class="syn-keyword">GET</span> /menu <span class="syn-operator">HTTP/1.1</span></span>
+      </div>
+    </div>
+  </div>
+  <ul>
+    <li><code>GET</code> 是<strong>方法</strong>：不只是"给我看看"，还隐含"这个动作不该改动服务器上的东西"</li>
+    <li><code>/menu</code> 是<strong>路径</strong>：要哪一份东西</li>
+    <li><code>HTTP/1.1</code> 是<strong>协议版本</strong>：双方按哪一版规矩说话</li>
+  </ul>
+  <p><b>定义：</b>请求行是 HTTP 请求的第一行，由「方法 + 路径 + 协议版本」三部分组成，用空格分隔。</p>
+
+  <h3>状态码：让双方对"结果"有一致的说法</h3>
+  <p><b>先有麻烦：</b>服务器处理完了，总得告诉浏览器结果。最早的思路是把说明跟正文混在一起写——"找不到页面，请点这里返回"。可机器读不懂人话：浏览器没法凭一句话判断该不该重试、该不该弹登录框、该不该把这个结果存进缓存。</p>
+  <p><b>于是有了：</b>把结果压缩成<strong>三个数字</strong>，放在响应的第一行。这就是 <strong>状态码（Status Code）</strong>，首位数字就是大类：<code>2xx</code> 成功、<code>3xx</code> 去别处拿、<code>4xx</code> 你的请求有问题、<code>5xx</code> 我这边出错了。</p>
+  <table>
+    <thead><tr><th>状态码</th><th>它解决什么问题</th><th>你该做什么</th></tr></thead>
+    <tbody>
+      <tr><td><code>200</code></td><td>成功，正文就是你要的东西</td><td>直接解析正文</td></tr>
+      <tr><td><code>404</code></td><td>"这个路径上没有东西"</td><td>检查路径拼写、资源 id 是否存在</td></tr>
+      <tr><td><code>500</code></td><td>"我这边炸了，跟你无关"</td><td>看服务端日志——问题不在你的请求里</td></tr>
+    </tbody>
+  </table>
+  <p><b>定义：</b>状态码是 HTTP 响应第一行里、紧随协议版本的那个三位数字，用来表明这次请求的处理结果：<code>200</code> 表示成功，<code>404</code> 表示请求的资源不存在，<code>500</code> 表示服务端内部出错。</p>
+  <div class="lesson-warn">
+    <b>常见误区</b>
+    <p>把状态码当成要背的数字表。它不是编号，是<strong>分类</strong>：先看首位判断责任方，再看后两位判断具体原因。<code>404</code> 和 <code>500</code> 的区别不是"4 和 5"，而是"你错了"和"我错了"——这条判断决定你接下来该改请求还是该翻日志。</p>
+  </div>
+
+  <h3>请求头：塞不进行里的附加说明</h3>
+  <p><b>先有麻烦：</b>请求行只有一行，能放的信息有限。可服务器还需要知道一堆零碎事：你说的是哪种语言、能接受什么格式、带宽够不够收压缩包、你的登录凭证是什么。这些信息既不属于"要什么"，也不能全塞进路径。</p>
+  <p><b>于是有了：</b>在请求行后面追加若干行 <code>名字: 值</code>。这就是<strong>请求头（Request Header）</strong>，与响应里的<strong>响应头</strong>成对出现，统称 <strong>HTTP 头（HTTP Headers）</strong>：</p>
+  <div class="syo-editor">
+    <div class="syo-editor-titlebar">
+      <span class="syo-editor-dots">
+        <span class="syo-editor-dot syo-editor-dot--red"></span>
+        <span class="syo-editor-dot syo-editor-dot--yellow"></span>
+        <span class="syo-editor-dot syo-editor-dot--green"></span>
+      </span>
+      <span class="syo-editor-filename">请求头</span>
+    </div>
+    <div class="syo-editor-body">
+      <div class="syo-editor-gutter"><span>1</span><span>2</span><span>3</span></div>
+      <div class="syo-editor-code">
+        <span class="line"><span class="syn-type">Host</span>: example.com</span>
+        <span class="line"><span class="syn-type">Accept</span>: text/html</span>
+        <span class="line"><span class="syn-type">Accept-Encoding</span>: gzip</span>
+      </div>
+    </div>
+  </div>
+  <p><b>定义：</b>请求头是请求行之后、空行之前的若干行「字段名: 值」，用来承载不属于请求行的附加信息，例如目标主机（<code>Host</code>）、可接受的响应格式（<code>Accept</code>）、是否接受压缩（<code>Accept-Encoding</code>）、身份凭证（<code>Authorization</code>）。</p>
+  <p>所以<strong>请求头与响应头是两回事</strong>：请求头是浏览器告诉服务器的，响应头是服务器告诉浏览器的，名字相似、方向相反——比如 <code>Accept</code>（我能收什么）只在请求里，<code>Content-Type</code>（我发的是什么）两边都会出现。</p>
+
+  <!-- ── 回扣最终目标 + 分步实操 ── -->
+
+  <h2>动手：亲手打一次请求</h2>
+  <p>这节课的知识，最终要接上你的目标——独立做出一个能部署上线的订单 API。上线之后你排查问题的第一现场，就是这段原始文本。所以别光看，亲手打一次：</p>
+  <div class="lesson-practice">
+    <div class="lesson-practice__head">
+      <span class="lesson-practice__level">L1 理解</span>
+      <h3 class="lesson-practice__title">用 curl 看第一行</h3>
+    </div>
+    <p><b>第 1 步</b>　打开终端，敲：</p>
+    <pre><code>curl -i https://example.com</code></pre>
+    <p><b>第 2 步</b>　找到输出的第一行，它长这样：</p>
+    <pre><code>HTTP/1.1 200 OK</code></pre>
+    <p>中间那个 <code>200</code> 就是状态码。<b>先别看别的，先把这个数字指出来。</b></p>
+    <p><b>第 3 步</b>　把网址改成一份不存在的路径，再打一次：</p>
+    <pre><code>curl -i https://example.com/no-such-page</code></pre>
+    <p><b>第 4 步</b>　对照两次的第一行：第一次是 <code>200</code>，第二次大概率是 <code>404</code>。同一台服务器、同一个方法、同一个 <code>Host</code>，只有一个数字变了——这就是状态码在做的事：<strong>报告结果，而不是报告内容</strong>。</p>
+    <p><b>第 5 步</b>　回到上面的输出，把这几个词和屏幕上的行对上号：哪一行是请求行、哪一行是请求头、哪一行是状态行。</p>
+  </div>
+  <p>光看输出还不够——真正要练的是<strong>自己写一段代码，把这段文本解析出来</strong>。这就是本课的配套实操：</p>
+  <div class="lesson-related">
+    <a href="../lab/01-http-basics/">▸ 去做实操：lab/01-http-basics（源码 + 测试，用 <code>npm test</code> 自检）</a>
+  </div>
+  <p>实操里教程部分我已经写好了，你跑一遍就能看到结果；剩下三个函数留给你实现。<strong>做完再回来答下面的题。</strong></p>
+
+  <!-- ── 交互练习：选择题即时反馈，数据契约见 assets/quiz.js 顶部注释 ── -->
+
+  <h2>练一下</h2>
+  <p>先凭印象答，答完看解释，再往下走。</p>
+  <div class="quiz" data-quiz='[
+    {"q":"状态码 404 表示什么？","opts":["东西不存在","服务器坏了","网络太慢了"],"ans":0,"why":"404 属于 4xx：请求本身有问题（这个路径上没有资源），责任在请求侧；服务器坏了是 5xx。"},
+    {"q":"POST 方法通常用来做什么？","opts":["读取资源","提交数据","删除资源"],"ans":1,"why":"POST 的语义是「提交一份数据交给服务端处理」，常用来新建资源；读取用 GET，删除用 DELETE。"}
+  ]'></div>
+
+  <!-- ── 资源引用：只放权威来源 ── -->
+
+  <h2>参考资料</h2>
+  <ul class="lesson-resources">
+    <li>
+      <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Overview" target="_blank" rel="noreferrer">MDN · HTTP 概览</a>
+      <span class="lesson-resources__meta">官方文档 · 本课对应节点 http.basics 的首选权威来源</span>
+    </li>
+  </ul>
+
+  <!-- ── 提问提示：固定写法，别删 ── -->
+
+  <div class="lesson-ask">
+    <b>没看懂？随时问</b>
+    把看不懂的段落（或报错）原样复制回会话，说一句哪里不懂就行，我只解释这一段，不打断你的进度。
+  </div>
+
+  <footer class="lesson-footer">
+    StudyMate · 0001 HTTP 基础 · 本地学习工作区
+  </footer>
+
+</article>
+
+<script src="../../../assets/sayo/sayo.js"></script>
+<script src="../assets/quiz.js" defer></script>
+<script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
+</body>
+</html>

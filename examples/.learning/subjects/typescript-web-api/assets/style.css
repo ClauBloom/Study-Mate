@@ -1,0 +1,385 @@
+/* ═══════════════════════════════════════════════════════════════
+   StudyMate · 课件层（叠在 Sayo + learn-theme.css 之上）
+   ═══════════════════════════════════════════════════════════════
+   加载顺序（课件页）：
+     ../../../assets/sayo/sayo.css
+     ../../../assets/learn-theme.css
+     ../assets/style.css          ← 本文件
+     ../assets/quiz.js            ← 交互练习
+
+   定位：课件是"读+练"的长文页面。
+   - 讲解部分按可读性排版（46rem 行宽、1.8 行高、克制的层级）
+   - 练习部分沿用计划约定的类名：.quiz / .feedback / .correct / .wrong
+   - 颜色一律走 Sayo 令牌（--syo-*），亮色是暖纸白+深绿、暗色是 Sayo 暗色
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --lesson-width: 46rem;
+  --lesson-gap: var(--syo-space-6);
+}
+
+/* ── 页面骨架 ───────────────────────────────────────────────── */
+
+.lesson-body {
+  margin: 0;
+  background: var(--syo-bg-base);
+  color: var(--syo-fg-body);
+}
+
+/* 顶部条：返回科目 + 课件编号 */
+.lesson-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--syo-space-3);
+  padding: 10px clamp(16px, 4vw, 32px);
+  background: var(--syo-bg-surface);
+  border-bottom: 1px solid var(--syo-border);
+  font-size: .8125rem;
+}
+.lesson-bar a { color: var(--syo-fg-muted); text-decoration: none; }
+.lesson-bar a:hover { color: var(--syo-accent); }
+.lesson-bar__no { margin-left: auto; font-family: var(--syo-font-mono); color: var(--syo-fg-muted); }
+
+/* 顶栏右侧的主题开关：课件是学生“从文件管理器直接打开”的页面，
+   没有主页那套导航，所以开关必须长在课件自己身上（见 lesson.html） */
+.lesson-bar__toggle { margin-left: var(--syo-space-3); }
+
+.lesson {
+  max-width: var(--lesson-width);
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 52px) clamp(18px, 4vw, 28px) 80px;
+  line-height: 1.8;
+}
+
+/* ── 课件头 ─────────────────────────────────────────────────── */
+
+.lesson-header { margin-bottom: var(--syo-space-8); }
+
+.lesson-header__eyebrow {
+  display: block;
+  margin-bottom: var(--syo-space-2);
+  font-family: var(--syo-font-mono);
+  font-size: .75rem;
+  color: var(--syo-fg-muted);
+}
+
+.lesson-header h1 {
+  margin: 0;
+  font-size: clamp(24px, 3.6vw, 32px);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -.02em;
+  color: var(--syo-fg-default);
+}
+
+/* 本节目标：一句话说清"学完能做什么" */
+.lesson-goal {
+  margin-top: var(--syo-space-4);
+  padding: var(--syo-space-3) var(--syo-space-4);
+  background: var(--learn-soft-accent);
+  border-radius: var(--syo-radius-md);
+  font-size: .875rem;
+}
+.lesson-goal b { color: var(--syo-fg-default); }
+
+/* ── 正文排版 ───────────────────────────────────────────────── */
+
+.lesson h2 {
+  margin: var(--syo-space-10) 0 var(--syo-space-3);
+  padding-bottom: var(--syo-space-2);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--syo-fg-default);
+  border-bottom: 1px solid var(--syo-border);
+}
+
+.lesson h3 {
+  margin: var(--syo-space-6) 0 var(--syo-space-2);
+  font-size: 1.0313rem;
+  font-weight: 600;
+  color: var(--syo-fg-default);
+}
+
+.lesson p { margin: 0 0 var(--syo-space-4); }
+
+.lesson ul, .lesson ol { margin: 0 0 var(--syo-space-4); padding-left: 1.35em; }
+.lesson li { margin-bottom: 6px; }
+.lesson li::marker { color: var(--syo-fg-muted); }
+
+.lesson a { color: var(--syo-accent); text-underline-offset: 3px; }
+.lesson a:hover { text-decoration-thickness: 2px; }
+
+.lesson strong { color: var(--syo-fg-default); }
+
+.lesson hr {
+  margin: var(--syo-space-8) 0;
+  border: 0;
+  border-top: 1px solid var(--syo-border);
+}
+
+.lesson blockquote {
+  margin: var(--syo-space-5) 0;
+  padding: var(--syo-space-3) var(--syo-space-4);
+  background: var(--syo-bg-surface);
+  border-radius: var(--syo-radius-md);
+  color: var(--syo-fg-muted);
+  font-size: .9375rem;
+}
+.lesson blockquote p:last-child { margin-bottom: 0; }
+
+/* 行内代码 */
+.lesson code {
+  padding: 1px 5px;
+  font-family: var(--syo-font-mono);
+  font-size: .875em;
+  background: var(--syo-bg-surface);
+  border: 1px solid var(--syo-border-muted);
+  border-radius: var(--syo-radius-sm);
+  color: var(--syo-fg-default);
+}
+
+/* 代码块：默认朴素样式；需要标题栏/行号时用 Sayo 的 .syo-editor 结构 */
+.lesson pre {
+  margin: var(--syo-space-4) 0;
+  padding: var(--syo-space-4);
+  background: var(--syo-bg-surface);
+  border: 1px solid var(--syo-border);
+  border-radius: var(--syo-radius-md);
+  overflow-x: auto;
+  line-height: 1.7;
+}
+.lesson pre code {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: .8125rem;
+}
+/* .syo-editor 里的代码不要再套一层边框 */
+.lesson .syo-editor pre { margin: 0; border: 0; background: none; padding: 0; }
+
+.lesson table {
+  width: 100%;
+  margin: var(--syo-space-4) 0;
+  border-collapse: collapse;
+  font-size: .875rem;
+}
+.lesson th, .lesson td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--syo-border);
+}
+.lesson th { color: var(--syo-fg-default); font-weight: 600; }
+
+.lesson kbd {
+  padding: 1px 6px;
+  font-family: var(--syo-font-mono);
+  font-size: .8125em;
+  background: var(--syo-bg-surface);
+  border: 1px solid var(--syo-border);
+  border-bottom-width: 2px;
+  border-radius: var(--syo-radius-sm);
+}
+
+.lesson img, .lesson svg { max-width: 100%; }
+
+/* ── 提示块：三个语气 ───────────────────────────────────────── */
+
+.lesson-note,
+.lesson-tip,
+.lesson-warn {
+  margin: var(--syo-space-4) 0;
+  padding: var(--syo-space-3) var(--syo-space-4);
+  border-radius: var(--syo-radius-md);
+  font-size: .875rem;
+  line-height: 1.75;
+}
+.lesson-note > b:first-child,
+.lesson-tip > b:first-child,
+.lesson-warn > b:first-child {
+  display: block;
+  margin-bottom: 4px;
+  font-size: .75rem;
+  letter-spacing: .04em;
+}
+.lesson-note { background: var(--syo-bg-surface); }
+.lesson-tip  { background: var(--learn-soft-green); }
+.lesson-warn { background: var(--learn-soft-yellow); }
+.lesson-note > b:first-child { color: var(--syo-fg-muted); }
+.lesson-tip  > b:first-child { color: var(--syo-green); }
+.lesson-warn > b:first-child { color: var(--syo-yellow); }
+.lesson-note p:last-child, .lesson-tip p:last-child, .lesson-warn p:last-child { margin-bottom: 0; }
+
+/* ── 练习：选择题（类名沿用计划约定） ─────────────────────────── */
+
+.quiz {
+  margin: var(--syo-space-5) 0;
+  padding: var(--syo-space-4) var(--syo-space-5) var(--syo-space-5);
+  background: var(--syo-bg-surface);
+  border: 1px solid var(--syo-border);
+  border-radius: var(--syo-radius-md);
+}
+
+.quiz__q {
+  margin: 0 0 var(--syo-space-3);
+  font-size: .9375rem;
+  font-weight: 600;
+  color: var(--syo-fg-default);
+  line-height: 1.7;
+}
+
+.quiz__opts { display: flex; flex-direction: column; gap: 8px; }
+
+/* 选项做成整行按钮：好点、好读，且能容纳较长选项 */
+.quiz button,
+.quiz__opt {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  font-family: inherit;
+  font-size: .875rem;
+  line-height: 1.6;
+  text-align: left;
+  color: var(--syo-fg-body);
+  background: var(--syo-bg-base);
+  border: 1px solid var(--syo-border);
+  border-radius: var(--syo-radius-sm);
+  cursor: pointer;
+  transition: border-color 140ms var(--syo-ease-out), background-color 140ms var(--syo-ease-out), color 140ms var(--syo-ease-out);
+}
+.quiz button:hover,
+.quiz__opt:hover { border-color: var(--syo-accent); color: var(--syo-fg-default); }
+.quiz button:focus-visible,
+.quiz__opt:focus-visible { outline: 2px solid var(--syo-accent); outline-offset: 2px; }
+
+.quiz__opt.is-picked { border-color: var(--syo-accent); }
+.quiz__opt.is-correct {
+  border-color: var(--syo-green);
+  background: var(--learn-soft-green);
+  color: var(--syo-fg-default);
+}
+.quiz__opt.is-wrong {
+  border-color: var(--syo-red);
+  background: var(--learn-soft-red);
+  color: var(--syo-fg-default);
+}
+
+/* 反馈：计划约定的 .feedback/.correct/.wrong 保留 */
+.feedback {
+  margin: var(--syo-space-3) 0 0;
+  font-size: .875rem;
+  font-weight: 600;
+  line-height: 1.7;
+}
+.feedback.correct { color: var(--syo-green); }
+.feedback.wrong   { color: var(--syo-red); }
+.feedback code { font-weight: 400; }
+
+.quiz__score {
+  margin: var(--syo-space-3) 0 0;
+  padding-top: var(--syo-space-3);
+  border-top: 1px dashed var(--syo-border);
+  font-family: var(--syo-font-mono);
+  font-size: .75rem;
+  color: var(--syo-fg-muted);
+}
+
+/* ── 练习任务块（四层练习：L1 理解 / L2 改造 / L3 排错 / L4 应用） ── */
+
+.lesson-practice {
+  margin: var(--syo-space-5) 0;
+  padding: var(--syo-space-4) var(--syo-space-5);
+  background: var(--syo-bg-surface);
+  border: 1px solid var(--syo-border);
+  border-radius: var(--syo-radius-md);
+}
+
+.lesson-practice__head {
+  display: flex;
+  align-items: center;
+  gap: var(--syo-space-2);
+  margin-bottom: var(--syo-space-2);
+}
+
+.lesson-practice__level {
+  padding: 1px 8px;
+  font-family: var(--syo-font-mono);
+  font-size: .6875rem;
+  color: var(--syo-accent);
+  border: 1px solid var(--learn-line-accent);
+  border-radius: 999px;
+}
+
+.lesson-practice__title {
+  margin: 0;
+  font-size: .9375rem;
+  font-weight: 600;
+  color: var(--syo-fg-default);
+}
+
+.lesson-practice p:last-child { margin-bottom: 0; }
+
+/* ── 资源引用与相关课件 ─────────────────────────────────────── */
+
+.lesson-resources { margin: var(--syo-space-4) 0 0; padding: 0; list-style: none; }
+.lesson-resources li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--syo-border-muted);
+  font-size: .875rem;
+}
+.lesson-resources li:last-child { border-bottom: 0; }
+.lesson-resources__meta {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--syo-font-mono);
+  font-size: .6875rem;
+  color: var(--syo-fg-muted);
+}
+
+.lesson-related { display: flex; flex-wrap: wrap; gap: 8px; margin: var(--syo-space-3) 0 0; }
+.lesson-related a {
+  padding: 4px 10px;
+  font-size: .8125rem;
+  text-decoration: none;
+  border: 1px solid var(--syo-border);
+  border-radius: 999px;
+}
+.lesson-related a:hover { border-color: var(--syo-accent); }
+
+/* ── 底部"不懂就问"提示 ─────────────────────────────────────── */
+
+.lesson-ask {
+  margin-top: var(--syo-space-10);
+  padding: var(--syo-space-4) var(--syo-space-5);
+  background: var(--learn-soft-accent);
+  border-radius: var(--syo-radius-md);
+  font-size: .875rem;
+  line-height: 1.8;
+}
+.lesson-ask b { display: block; margin-bottom: 4px; color: var(--syo-fg-default); }
+.lesson-ask code {
+  font-family: var(--syo-font-mono);
+  background: var(--syo-bg-base);
+  border: 1px solid var(--syo-border);
+}
+
+.lesson-footer {
+  margin-top: var(--syo-space-8);
+  padding-top: var(--syo-space-4);
+  border-top: 1px solid var(--syo-border);
+  font-family: var(--syo-font-mono);
+  font-size: .75rem;
+  color: var(--syo-fg-muted);
+}
+
+/* ── 窄屏 ───────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .lesson { padding-top: var(--syo-space-6); }
+  .lesson h2 { margin-top: var(--syo-space-8); }
+  .lesson pre { padding: var(--syo-space-3); }
+  .quiz { padding: var(--syo-space-3) var(--syo-space-4) var(--syo-space-4); }
+}

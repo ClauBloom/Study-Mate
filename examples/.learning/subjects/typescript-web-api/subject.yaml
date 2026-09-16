@@ -1,0 +1,5 @@
+name: TypeScript Web API
+slug: typescript-web-api
+goal: "独立完成一个可部署的全栈 Web API（TypeScript + Node.js + PostgreSQL）"
+created_at: "2026-09-15"
+status: 进行中

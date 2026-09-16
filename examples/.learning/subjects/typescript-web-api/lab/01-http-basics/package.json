@@ -1,0 +1,10 @@
+{
+  "name": "studymate-lab-01-http-basics",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "StudyMate 实操 01-http-basics：把一次 HTTP 请求/响应拆开看（零依赖，Node 原生跑 TypeScript）",
+  "scripts": {
+    "test": "node --test"
+  }
+}
