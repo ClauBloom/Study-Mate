@@ -6,9 +6,8 @@
 
 ```bash
 ./install.sh
-# 做三件事：① 装"学习模式"预设到 ~/.dsh/.agent-presets/learning/
+# 做两件事：① 装"学习模式"预设到 ~/.dsh/.agent-presets/learning/（预设里写入引擎的 skill 目录）
 #          ② 建学习工作区（默认 ./workspace/）并写入 ~/.dsh/studymate-config.yaml
-#          ③ 建学习工作区（默认 ./workspace/）并写入 ~/.dsh/learning-config.yaml
 ```
 
 ## 使用
@@ -22,7 +21,7 @@
 - `workspace/.learning/MEMORY.md`：跨科目共享记忆（现有技能、水平、讲法偏好、学习习惯）
 - `workspace/.learning/subjects/<科目>/`：每门科目的大纲、进度、误解、会话摘要、课件
 - `workspace/index.html`：课程总览主页（自动生成）
-- 工作区位置记录在 `~/.dsh/learning-config.yaml`，想换位置改这一个文件
+- 工作区位置记录在 `~/.dsh/studymate-config.yaml`，想换位置改这一个文件
 - 换机器时整个项目（含 `workspace/`）拷走 + 跑安装脚本，进度不丢
 
 ## 目录结构（三个区域）
