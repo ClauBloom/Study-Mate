@@ -15,7 +15,7 @@
     .preview/.learning/assets/…                          共享层（sayo + learn-theme.css）
     .preview/.learning/subjects/typescript-web-api/index.html        科目主页（12 节点 / 7 篇课件）
     .preview/.learning/subjects/typescript-web-api/empty.html        科目主页空状态
-    .preview/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html   示例课件（来自 templates/lesson.html）
+    .preview/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html   骨架空壳页（原样渲染 templates/lesson.html，只为验证模板可渲染）
 
 注意：这里渲染用的是**假数据**，只为了看样式与交互；真实生成器是 Task 13 的 scripts/gen_home.py。
 """
@@ -280,7 +280,8 @@ def render_subject(template, slug='typescript-web-api', empty=False):
 
 
 # ══════════════════════════════════════════════════════════════════
-# 示例课件（验证课件层：Sayo 编辑区 + 练习 + 提示块 + 资源 + 提问提示）
+# 课件页：预览渲染的是骨架空壳页（templates/lesson.html 原样拷贝），只验证模板可渲染。
+# 课件层的组件示例（Sayo 编辑区 + 练习 + 提示块 + 资源 + 提问提示）在骨架注释里，不在预览页上。
 # ══════════════════════════════════════════════════════════════════
 
 # ══════════════════════════════════════════════════════════════════
@@ -314,7 +315,7 @@ def main():
 
     home = open(os.path.join(ROOT, 'templates', 'home-index.html'), encoding='utf-8').read()
     subj = open(os.path.join(ROOT, 'templates', 'subject-index.html'), encoding='utf-8').read()
-    # 课件直接从骨架拷过来：templates/lesson.html 既是起点也是示例，避免两处各写一份
+    # 课件页直接从骨架拷过来（原样渲染）：预览里看到的是空壳，组件示例在骨架的注释里
     lesson = open(os.path.join(ROOT, 'templates', 'lesson.html'), encoding='utf-8').read()
 
     outputs = {

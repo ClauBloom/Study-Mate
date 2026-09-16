@@ -17,7 +17,7 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
 ```
 
 产出：`.preview/index.html`（根主页）、`.preview/.learning/subjects/typescript-web-api/index.html`（科目页）、
-`.preview/.../lessons/0001-http-basics.html`（示例课件）、以及两份空状态页。
+`.preview/.../lessons/0001-http-basics.html`（骨架渲染出的空壳页）、以及两份空状态页。
 地址栏加 `?theme=dark` 看暗色。`.preview/` 已在 `.gitignore` 里。
 
 真实生成器是 **Task 13 的 `scripts/gen_home.py`**（读真数据、输出到学习工作区），预览脚本只负责看样式与交互。
@@ -38,8 +38,9 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
 ## 其他文件
 
 - `lesson.html`：**课件骨架**。不是生成器输入，而是**拷着用**的起点——learning-coach 写课件时整份拷到
-  `<subject>/lessons/NNNN-x.html` 再改内容。顶栏（含亮/暗主题开关）、三个样式/脚本引用、提问提示块都已就位，
-  里面的 HTTP 正文是示范。学生常被总控用 `xdg-open` 直接打开课件，所以**主题开关必须长在课件自己身上**，
-  别删。
+  `<subject>/lessons/NNNN-x.html` 再写正文。顶栏（含亮/暗主题开关）、三个样式/脚本引用、提问提示块都已就位；
+  **正文不由骨架规定**：骨架只给工程外壳与注释形式的组件示例，分几节、怎么讲由讲解角色按内容自定，
+  交出前跑一次 `python3 scripts/check_lesson.py <课件路径>`。学生常被总控用 `xdg-open` 直接打开课件，
+  所以**主题开关必须长在课件自己身上**，别删。
 - `MEMORY.md` / `subject.yaml` / `MISSION.md` / `RESOURCES.md` / `GLOSSARY.md`：科目与记忆模板（Task 3 的非前端部分，由对应会话产出）
 - `assets/`：前端资源（Sayo UI、共享主题层与主题逻辑、课件层组件）——**摆放位置与各页面引用路径见 `assets/README.md`**
