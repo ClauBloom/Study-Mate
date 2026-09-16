@@ -24,7 +24,8 @@
 ## 怎么跑
 
 ```bash
-cd examples/.learning/subjects/typescript-web-api/lab/01-http-basics
+# 先进入本文件所在的科目目录（.learning/subjects/typescript-web-api/），然后：
+cd lab/01-http-basics
 npm test
 ```
 
