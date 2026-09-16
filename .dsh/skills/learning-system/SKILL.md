@@ -47,7 +47,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 
 1. 学生同意学当前节点后，**你把该节点状态置为"学习中"**（按 record-keeping 增量改 `progress.yaml`）
 2. 派 `learning-coach` 产出**两件套**：prompt 带 `subject_path`（工作区下的绝对路径）、节点全文、前置摘要、**实操载体**（从 `<subject_path>/lab/README.md` 读；还没有就先用盘问结果写一份）、`MEMORY.md` 讲法偏好、项目上下文
-3. coach 返回（课件路径、讲解要点摘要、建议练习层级）后，**先过闸门**：跑 `python3 <root>/scripts/check_lesson.py <课件路径>`；不通过就把缺项打回 `learning-coach` 修，不打开课件。通过后再**你用 CLI 打开课件**（`xdg-open` / `open`），告诉学生"课件已打开，读完做里面的练习；哪段没看懂，直接贴回来问我"
+3. coach 返回（课件路径、讲解要点摘要、建议练习层级）后，**先过闸门**：跑 `python3 <root>/scripts/check_lesson.py <课件路径>`；`FAIL` 的工程/结构缺项打回 `learning-coach` 修，`WARN` 只自己心里有数（风格类不阻断、不因此打回）。通过后再**你用 CLI 打开课件**（`xdg-open` / `open`），告诉学生"课件已打开，读完做里面的练习；哪段没看懂，直接贴回来问我"
 4. 学生读课件、做内嵌练习（quiz 自动反馈），做完回来说"学完了" → 派 `practice-evaluator`（输入：节点、学生反馈、目标层级默认 L2）
 5. 按评估分支：
    - 通过 → 继续第 6 步（证据核验）
@@ -104,6 +104,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 ## 子 agent 派发规范（硬约束）
 
 - 每个角色子 agent 的 prompt 必须包含：角色名、该角色 SKILL.md 的核心做法（**内联**——角色 skill 设了 `disable-model-invocation`，子 agent 加载不了自己）、**要它加载的协议名**（协议可被 `skill` 工具加载，例如派 learning-coach 时写"先加载 `lesson-design`"）、输入数据、`subject_path`（工作区下的绝对路径）、**`<root>`（引擎项目根目录：模板与骨架在它下面）**、返回格式要求
+- **派 `learning-coach` 时不要规定页面形式**：prompt 里只给结果式要素（学生该拿到什么）、节点内容、学生偏好与实操载体；小节标题、章节顺序、版式由它按内容自己定。派其他角色同理——给要求与边界，不给模板
 - 子 agent 返回后校验格式，缺字段就要求补齐
 - **只派三类活**：拟大纲（`curriculum-designer`）、做课件（`learning-coach`）、出题与证据核验（`practice-evaluator`）。**其他一切你自己做**——答疑、盘问、元数据、全部档案记录（进度/误解/摘要/学习记录/主页刷新）
 - 判断标准：这件事需要**外部检索、大量生成或独立验证**吗？不需要就别派（信息源在你上下文里的活儿，派出去要先转述一遍，反而更慢更费）

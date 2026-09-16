@@ -1,34 +1,40 @@
 #!/usr/bin/env python3
-"""课件质量闸门：校验课件是否满足 lesson-design 规范里可客观判定的六项要素。
+"""课件质量闸门：只阻断工程/结构缺项；内容风格类问题只提示，不影响放行。
 
 用法：
   python3 scripts/check_lesson.py <课件路径> [<课件路径> ...]
 
-输出：每个文件一行 —— 通过 `OK   <path>`，不通过 `FAIL <path>: 问题1；问题2`。
-退出码：全部通过 0；任一文件不通过 1；无参数时把本用法打到 stderr 并退出 1。
-只用标准库。总控在 xdg-open 打开课件之前跑一次；失败即打回 learning-coach 修。
+输出：每个文件——无阻断项时一行 `OK   <path>`；有阻断项时 `FAIL <path>: 问题1；问题2`；
+另有提示项时再补一行 `WARN <path>: 提示1；提示2`（两类可以同时出现）。
+退出码：**只看阻断项**——全部文件无阻断项 0；任一文件有阻断项 1；无参数时把本用法打到 stderr 并退出 1。
+只用标准库。总控在 xdg-open 打开课件之前跑一次：`FAIL` 的工程/结构缺项打回 learning-coach 修，
+`WARN` 只自己心里有数（风格类不阻断、不因此打回）。
 
-判定规则（对应 task-5-brief §5.3 六项，口径按 task-5-scope.md R3–R8）：
-  1 文件名：匹配 NNNN-dash-case.html（四位数字-小写字母数字短横线）。编号规则：
-    被检文件在同目录内是最大编号 → 必须等于其它文件最大编号 + 1（目录内只有它时必须是 0001）；
-    否则（复检旧课件）→ 只要求该编号在目录内唯一。
-  2 共享层引用：href/src 属性值里齐全 sayo.css、learn-theme.css、learn-theme.js、sayo.js。
-  3 科目组件引用：href/src 属性值里齐全 ../assets/style.css、../assets/quiz.js。
-  4 交互练习：存在 .quiz[data-quiz]；data-quiz 是合法 JSON 非空数组；每题 opts 是 ≥2 项的数组，
-    且 max(len(opt)) - min(len(opt)) <= 4（Python 字符数）；缺 opts 或选项数 < 2 按结构错误报出。
-    （这一项用标准库 html.parser 读标签，免得好比 "a > b 成立" 这样的选项文本把标签正则截断。）
-  5 要素中可客观判定的三项（词表见文件顶部常量）：
-    真实场景开场 = <article class="lesson"> 之后第一个 <h2> 的标题命中场景/问题词表；
-    术语来历段   = 存在 <h2>/<h3> 标题命中来历词表（"先问题后定义"的可判定代理，不要求另有"定义"标题）；
-    实操引用     = 存在 href 属性值含 lab/ 的链接。
-  6 主题开关：存在 id="lesson-theme-checkbox" 的 <input type="checkbox">，
-    且有 LearnTheme.wire(...) 引用该 id（骨架里的主题开关不能被改丢）。
+判定规则：
+  阻断项（失败即打回）——只判工程/结构：
+    1 文件名：匹配 NNNN-dash-case.html（四位数字-小写字母数字短横线）。编号规则：
+      被检文件在同目录内是最大编号 → 必须等于其它文件最大编号 + 1（目录内只有它时必须是 0001）；
+      否则（复检旧课件）→ 只要求该编号在目录内唯一。
+    2 共享层引用：href/src 属性值里齐全 sayo.css、learn-theme.css、learn-theme.js、sayo.js。
+    3 科目组件引用：href/src 属性值里齐全 ../assets/style.css、../assets/quiz.js。
+    4 交互练习：存在 .quiz[data-quiz]；data-quiz 是合法 JSON 非空数组；每题 opts 是 ≥2 项的数组。
+      （这一项用标准库 html.parser 读标签，免得好比 "a > b 成立" 这样的选项文本把标签正则截断。）
+    5 实操引用：存在 href 属性值含 lab/ 的链接（要素里唯一可客观判定的工程性引用）。
+    6 主题开关：存在 id="lesson-theme-checkbox" 的 <input type="checkbox">，
+      且有 LearnTheme.wire(...) 引用该 id（骨架里的主题开关不能被改丢）。
+  提示项（只回显、退出码不受影响）——质量线，值得看一眼：
+    · 选项长度差：每题 max(len(opt)) - min(len(opt)) > MAX_OPT_LEN_GAP 时提示。
 
-已知且预期：templates/lesson.html 骨架本身过不了本闸门（示例 quiz 选项长度差 8/6、无术语来历段、
-无指向 lab/ 的链接）——骨架只给结构，要素由 learning-coach 按规范补齐，这不是闸门缺陷。
-本脚本只做上面六项，不做计划外的额外检查（不查 lab/ 目录是否存在、不查 quiz 的 ans 越界、
-不查 HTML 合法性）。校验前先剥掉 HTML 注释：注释里的示例标记（骨架用法注释里就有一个示例
-`data-quiz='[…]'`）不算真标记。
+本闸门**不判内容风格**：真实场景开场、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
+要素与倾向，由讲解角色按内容与学生偏好现场定；闸门不用关键词词表去替它做判断——那种代理会把
+课件逼成套模板。
+
+已知且预期：templates/lesson.html 骨架本身过不了阻断项（组件示例改成注释形式后没有真的
+`.quiz[data-quiz]`，也没有指向 lab/ 的链接；校验前会先剥掉注释）——骨架只给工程外壳与组件示例，
+正文与实操由 learning-coach 按规范补齐，这不是闸门缺陷。
+
+本脚本只做上面这些，不做计划外的额外检查（不查 lab/ 目录是否存在、不查 quiz 的 ans 越界、
+不查 HTML 合法性）。校验前先剥掉 HTML 注释：注释里的示例标记不算真标记。
 """
 import json
 import os
@@ -38,10 +44,6 @@ from html.parser import HTMLParser
 
 # ── 判定口径（要调整只改这里）─────────────────────────────────────────────
 
-# 检查项 5：场景/问题词表与术语来历词表（R3）
-SCENE_WORDS = ('场景', '麻烦', '问题', '为什么', '先看', '真实', '需求', '遇到过', '从一个')
-ORIGIN_WORDS = ('来历', '由来', '历史', '为什么需要', '解决什么问题', '问题的')
-
 # 检查项 1：课件文件名与同目录编号（R4）
 LESSON_NAME_RE = re.compile(r'^(\d{4})-[a-z0-9]+(-[a-z0-9]+)*\.html$')
 NUMBERED_NAME_RE = re.compile(r'^(\d{4})-.*\.html$')
@@ -50,7 +52,7 @@ NUMBERED_NAME_RE = re.compile(r'^(\d{4})-.*\.html$')
 SHARED_REFS = ('sayo.css', 'learn-theme.css', 'learn-theme.js', 'sayo.js')
 SUBJECT_REFS = ('../assets/style.css', '../assets/quiz.js')
 
-# 检查项 4：每题选项最长与最短的长度差上限（R5）
+# 检查项 4：每题选项最长与最短的长度差**提示**阈值（R5）——超过只提示，不阻断
 MAX_OPT_LEN_GAP = 4
 
 # 检查项 6：主题开关元素 id
@@ -60,16 +62,8 @@ THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
 
 REF_ATTR_RE = re.compile(r'(?:href|src)\s*=\s*["\']([^"\']*)["\']', re.I)
 COMMENT_RE = re.compile(r'<!--.*?-->', re.S)
-ARTICLE_RE = re.compile(r'<article\b[^>]*\bclass\s*=\s*["\'][^"\']*\blesson\b[^"\']*["\'][^>]*>', re.I)
-H2_RE = re.compile(r'<h2\b[^>]*>(.*?)</h2>', re.S | re.I)
-H23_RE = re.compile(r'<h[23]\b[^>]*>(.*?)</h[23]>', re.S | re.I)
 LAB_LINK_RE = re.compile(r'href\s*=\s*["\'][^"\']*lab/', re.I)
 INPUT_RE = re.compile(r'<input\b[^>]*>', re.I)
-
-
-def strip_tags(markup):
-    """去掉标签、压平空白，用于标题文本比对。"""
-    return re.sub(r'\s+', ' ', re.sub(r'<[^>]*>', '', markup)).strip()
 
 
 def strip_comments(text):
@@ -82,7 +76,7 @@ def ref_values(text):
     return REF_ATTR_RE.findall(text)
 
 
-# ── 六个检查项，各返回问题字符串列表 ─────────────────────────────────────
+# ── 各检查项：阻断项返回问题列表，提示项单独返回 ──────────────────────────
 
 
 def check_name(path):
@@ -156,8 +150,12 @@ class QuizScanner(HTMLParser):
 
 
 def check_quiz(text):
-    """检查项 4：.quiz[data-quiz] 存在、JSON 合法、每题选项长度差 ≤4（R5）。"""
+    """检查项 4：.quiz[data-quiz] 存在、JSON 合法、opts 结构正确（阻断）；选项长度差只提示。
+
+    返回 (problems, notes)：problems 是阻断项，notes 是提示项（选项长度差超阈值）。
+    """
     problems = []
+    notes = []
     scanner = QuizScanner()
     scanner.feed(text)
     if scanner.missing:
@@ -167,7 +165,7 @@ def check_quiz(text):
     if not blocks:
         if not problems:
             problems.append('缺少 .quiz[data-quiz] 交互练习块')
-        return problems
+        return problems, notes
 
     for block_index, raw in enumerate(blocks, 1):
         prefix = f'第 {block_index} 个 .quiz 块' if len(blocks) > 1 else '.quiz'
@@ -192,33 +190,16 @@ def check_quiz(text):
             lengths = [len(str(opt)) for opt in opts]
             gap = max(lengths) - min(lengths)
             if gap > MAX_OPT_LEN_GAP:
-                problems.append(f'{label}选项长度差 {gap} > {MAX_OPT_LEN_GAP}'
-                                f'（最长 {max(lengths)} / 最短 {min(lengths)} 字符）')
-    return problems
+                notes.append(f'{label}选项长度差 {gap} > {MAX_OPT_LEN_GAP}'
+                             f'（最长 {max(lengths)} / 最短 {min(lengths)} 字符）')
+    return problems, notes
 
 
-def check_elements(text):
-    """检查项 5：真实场景开场、术语来历段、实操引用（R3）。"""
-    problems = []
-
-    article = ARTICLE_RE.search(text)
-    opening = None
-    if article:
-        heading = H2_RE.search(text, article.end())
-        if heading:
-            opening = strip_tags(heading.group(1))
-    if opening is None:
-        problems.append('找不到 <article class="lesson"> 之后第一个 <h2>，无法判定真实场景开场')
-    elif not any(word in opening for word in SCENE_WORDS):
-        problems.append(f'真实场景开场缺失：第一个 <h2> 标题 {opening!r} 未命中场景/问题词表')
-
-    titles = [strip_tags(match.group(1)) for match in H23_RE.finditer(text)]
-    if not any(any(word in title for word in ORIGIN_WORDS) for title in titles):
-        problems.append('术语来历段缺失：没有命中来历词表的 <h2>/<h3> 标题')
-
-    if not LAB_LINK_RE.search(text):
-        problems.append('实操引用缺失：没有 href 指向 lab/ 的链接')
-    return problems
+def check_practice_link(text):
+    """检查项 5：只查实操引用（href 含 lab/）；开场与术语来历属内容风格，不由闸门判定。"""
+    if LAB_LINK_RE.search(text):
+        return []
+    return ['实操引用缺失：没有 href 指向 lab/ 的链接']
 
 
 def check_theme_toggle(text):
@@ -239,23 +220,24 @@ def check_theme_toggle(text):
 
 
 def check_file(path):
-    """对一个课件跑完六项，返回问题列表（空列表 = 通过）。"""
+    """对一个课件跑完所有检查，返回 (problems, notes)：problems 为空 = 无阻断项。"""
     try:
         with open(path, encoding='utf-8') as handle:
             text = strip_comments(handle.read())
     except UnicodeDecodeError as exc:
-        return [f'无法解码文件（需 UTF-8）：{exc.reason}']
+        return [f'无法解码文件（需 UTF-8）：{exc.reason}'], []
     except OSError as exc:
-        return [f'无法读取文件：{exc.strerror or exc}']
+        return [f'无法读取文件：{exc.strerror or exc}'], []
 
+    quiz_problems, notes = check_quiz(text)
     problems = []
     problems += check_name(path)
     problems += check_shared_refs(text)
     problems += check_subject_refs(text)
-    problems += check_quiz(text)
-    problems += check_elements(text)
+    problems += quiz_problems
+    problems += check_practice_link(text)
     problems += check_theme_toggle(text)
-    return problems
+    return problems, notes
 
 
 def main(argv):
@@ -263,12 +245,14 @@ def main(argv):
         raise SystemExit(__doc__)
     failed = False
     for path in argv:
-        problems = check_file(path)
+        problems, notes = check_file(path)
         if problems:
             failed = True
             print(f'FAIL {path}: ' + '；'.join(problems))
         else:
             print(f'OK   {path}')
+        if notes:
+            print(f'WARN {path}: ' + '；'.join(notes))
     return 1 if failed else 0
 
 
