@@ -243,6 +243,8 @@ def check_file(path):
     try:
         with open(path, encoding='utf-8') as handle:
             text = strip_comments(handle.read())
+    except UnicodeDecodeError as exc:
+        return [f'无法解码文件（需 UTF-8）：{exc.reason}']
     except OSError as exc:
         return [f'无法读取文件：{exc.strerror or exc}']
 
