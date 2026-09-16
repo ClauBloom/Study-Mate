@@ -81,7 +81,7 @@
         <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-keyword">GET</span> /menu <span class="syn-operator">HTTP/1.1</span></span>
         <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Host</span>: example.com</span>
         <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">User-Agent</span>: curl/8.7.1</span>
-        <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Accept</span>: text/html</span>
+        <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Accept</span>: */*</span>
         <span class="line">（空行——请求到此结束，GET 没有请求体）</span>
         <span class="line"><span class="syn-operator">&lt;</span> <span class="syn-operator">HTTP/1.1</span> <span class="syn-number">200</span> OK</span>
         <span class="line"><span class="syn-operator">&lt;</span> <span class="syn-type">Content-Type</span>: text/html; charset=utf-8</span>
@@ -90,7 +90,7 @@
     </div>
   </div>
 
-  <p>就三层：第一行说明<strong>要什么</strong>（或<strong>结果如何</strong>），中间几行是<strong>附加说明</strong>，空行之后才是<strong>正文</strong>。剩下的内容，只是把这三层逐个讲清楚。</p>
+  <p>就三层：第一行说明<strong>要什么</strong>（或<strong>结果如何</strong>），中间几行是<strong>附加说明</strong>，空行之后才是<strong>正文</strong>。剩下的内容，只是把这三层逐个讲清楚。（<code>Accept: */*</code> 表示"什么格式都行"，浏览器在这里通常会写 <code>text/html</code>。）</p>
 
   <!-- ── 术语先来历、后定义 ── -->
 
@@ -171,13 +171,13 @@
   <div class="lesson-practice">
     <div class="lesson-practice__head">
       <span class="lesson-practice__level">L1 理解</span>
-      <h3 class="lesson-practice__title">用 curl 看第一行</h3>
+      <h3 class="lesson-practice__title">用 curl 找状态行</h3>
     </div>
     <p><b>第 1 步</b>　打开终端，敲：</p>
     <pre><code>curl -v https://example.com</code></pre>
-    <p><b>第 2 步</b>　在输出里找到 <code>&lt;</code> 开头的那一行，它长这样：</p>
-    <pre><code>&lt; HTTP/1.1 200 OK</code></pre>
-    <p>中间那个 <code>200</code> 就是状态码。<b>先别看别的，先把这个数字指出来。</b></p>
+    <p><b>第 2 步</b>　在输出里找到 <code>&lt;</code> 开头的那一行（状态行），它长这样：</p>
+    <pre><code>&lt; HTTP/2 200</code></pre>
+    <p>如果这条连接走的是 HTTP/1.1，它会多一个原因短语，写成 <code>&lt; HTTP/1.1 200 OK</code>。两种写法里中间那个 <code>200</code> 都是状态码。<b>先别看别的，先把这个数字指出来。</b></p>
     <p><b>第 3 步</b>　把网址改成一份不存在的路径，再打一次：</p>
     <pre><code>curl -v https://example.com/no-such-page</code></pre>
     <p><b>第 4 步</b>　对照两次的这一行：第一次是 <code>200</code>，第二次大概率是 <code>404</code>。同一台服务器、同一个方法、同一个 <code>Host</code>，只有一个数字变了——这就是状态码在做的事：<strong>报告结果，而不是报告内容</strong>。</p>

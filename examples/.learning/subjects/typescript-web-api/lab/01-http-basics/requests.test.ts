@@ -34,7 +34,7 @@ const sampleRequest: HttpRequest = {
   version: 'HTTP/1.1',
   headers: {
     host: 'example.com',
-    accept: 'text/html',
+    accept: '*/*',
     'accept-encoding': 'gzip',
     'user-agent': 'curl/8.7.1',
   },
@@ -44,7 +44,7 @@ const sampleRequest: HttpRequest = {
 
 test('教程：一次请求念成人话', () => {
   const sentence = narrative(sampleRequest);
-  assert.equal(sentence, 'curl/8.7.1 向 example.com 发起 GET /menu，期望拿到 text/html，用的是 HTTP/1.1');
+  assert.equal(sentence, 'curl/8.7.1 向 example.com 发起 GET /menu，期望拿到 */*，用的是 HTTP/1.1');
 });
 
 test('教程：状态码讲清责任方', () => {
