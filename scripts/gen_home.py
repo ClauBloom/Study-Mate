@@ -12,6 +12,11 @@
 读：~/.dsh/studymate-config.yaml、<WS>/.learning/subjects/*/、templates/{home-index,subject-index}.html
 写：<WS>/index.html、<WS>/.learning/subjects/<slug>/index.html、<WS>/.learning/assets/（幂等覆盖）
 
+写完所有页面后有一道链接自检（find_broken_links）：只扫**本次写出的页面**（根主页 + 各科目主页），
+逐个取 href/src，剥掉 HTML 注释、跳过外部协议 / 页内锚点 / 空值，把相对链接按页面所在目录解析；
+解析到不存在路径的逐条报到 stderr，并以退出码 1 结束（“少一级目录”这类断链不再静默通过）。
+lessons/*.html 是讲解角色写出来的课件、不属于本脚本产物（可能合法地引用尚未生成的文件），不在自检范围内。
+
 只依赖标准库 + pyyaml。缺 curriculum.yaml / progress.yaml 的科目按“没有大纲 / 没有进度”渲染
 （不抛异常、不中断整次生成）；模板占位符缺失则报错退出（防止模板被改坏后静默生成残缺页面）。
 """
@@ -21,6 +26,7 @@ import os
 import re
 import shutil
 import sys
+import urllib.parse
 
 import yaml
 
@@ -175,6 +181,11 @@ LESSON_FILE_RE = re.compile(r'^(\d{4})-.*\.html$')
 LESSON_NODE_RE = re.compile(r'所属节点[：:]\s*([^<>\n（(]+)')
 RECORD_FILE_RE = re.compile(r'^(\d{4})-')
 SESSION_FILE_RE = re.compile(r'^(\d{4}-\d{2}-\d{2})')
+# 链接自检用：页内 href/src（双引号 / 单引号 / 不带引号三种写法都收）
+LINK_ATTR_RE = re.compile(r'''(?<![\w:-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))''', re.I)
+
+# 链接自检跳过的值：外部协议、协议相对地址、页内锚点（#…）、空值
+SKIP_LINK_PREFIXES = ('http:', 'https:', 'mailto:', 'data:', 'javascript:', 'tel:', '//')
 
 
 _WARNED = set()
@@ -815,6 +826,57 @@ def render_subject_index(slug, cur, prog, ws):
 
 
 # ══════════════════════════════════════════════════════════════════
+# 生成后自检：页内 href/src 相对链接是否解析到真实存在的路径
+# ══════════════════════════════════════════════════════════════════
+
+def page_links(page_path):
+    """单页里的 (属性原值, 去锚点/查询串后的链接路径) 列表。
+
+    先剥 HTML 注释：模板里“生成器渲染规范”注释块原样留在产物里，含示例链接
+    （lessons/NNNN-xxx.html、reference/http-status.html、.learning/subjects/<slug>/index.html），
+    注释不是页面内容，扫进去必然误报。
+    """
+    text = strip_comments(read_text_quiet(page_path, '生成页面'))
+    links = []
+    for match in LINK_ATTR_RE.finditer(text):
+        value = html.unescape(next(group for group in match.groups() if group is not None)).strip()
+        if not value or value.startswith('#'):
+            continue
+        if value.lower().startswith(SKIP_LINK_PREFIXES):
+            continue
+        path = value.split('#', 1)[0].split('?', 1)[0]
+        if path:
+            links.append((value, path))
+    return links
+
+
+def resolve_link_target(page_path, link_path, ws):
+    """链接路径 → 绝对路径：相对链接按页面所在目录解析；以 / 开头的按站点根（工作区）解析。
+
+    百分号转义先解码（文件名可能带中文 / 空格）；只做存在性判断，不要求目标是文件（目录也算命中）。
+    """
+    link_path = urllib.parse.unquote(link_path)
+    if link_path.startswith('/'):
+        return os.path.normpath(os.path.join(ws, link_path.lstrip('/')))
+    return os.path.normpath(os.path.join(os.path.dirname(page_path), link_path))
+
+
+def find_broken_links(pages, ws):
+    """自检：返回 [(页面, 属性原值, 解析后的目标路径)]，只收解析到不存在路径的那些。
+
+    pages 传生成器自己写出的页面（根主页 + 各科目主页）——课件由讲解角色写、不属于本脚本
+    产物，可能合法地引用尚未生成的文件，不在这里扫。
+    """
+    broken = []
+    for page in pages:
+        for value, link_path in page_links(page):
+            target = resolve_link_target(page, link_path, ws)
+            if not os.path.exists(target):
+                broken.append((page, value, target))
+    return broken
+
+
+# ══════════════════════════════════════════════════════════════════
 # 主流程
 # ══════════════════════════════════════════════════════════════════
 
@@ -851,6 +913,7 @@ def main(argv):
     render_home_index(summaries, ws)
 
     pages = 0
+    written = [os.path.join(ws, 'index.html')]        # 自检对象：本次真正写出的页面
     for item in summaries:
         slug = item['slug']
         try:
@@ -858,11 +921,19 @@ def main(argv):
             prog = load_yaml_quiet(os.path.join(subjects_dir, slug, 'progress.yaml'), f'{slug}/progress.yaml')
             render_subject_index(slug, cur, prog, ws)
             pages += 1
+            written.append(os.path.join(subjects_dir, slug, 'index.html'))
         except Exception as exc:                      # 同上：坏一个科目就跳过它，其余照常
             failed += 1
             warn(f'{slug}: 科目主页生成失败，已跳过：{exc}')
 
-    print(f'主页已生成到: {ws}')
+    # 生成后自检：页面全部写完之后再验链接，断链逐条报 stderr 并以退出码 1 结束
+    broken = find_broken_links(written, ws)
+    for page, value, target in broken:
+        warn(f'坏链接：{page} 里的 {value!r} 解析到不存在的路径 {target}')
+    if broken:
+        raise SystemExit(f'链接自检未通过：{len(broken)} 条坏链接（页面已写出，清单见上）')
+
+    print(f'主页已生成到: {ws}（链接自检通过：{len(written)} 个页面）')
     print(f'  根主页 1 个（{len(summaries)} 门科目）· 科目主页 {pages} 个 · 共享资源 {ws}/.learning/assets/')
     return 1 if failed else 0
 
