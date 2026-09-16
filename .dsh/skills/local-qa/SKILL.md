@@ -22,11 +22,13 @@ description: 局部提问与答疑规范：学生贴回一段看不懂的内容�
 ```yaml
 - topic: <片段涉及的知识点>
   question: <学生原问题>
-  misunderstanding: <暴露出的误解；没有则写 null>
+  misunderstanding: <暴露出的误解；没有就写「无」>
   answer_summary: <一句话答案>
-  follow_up: <建议的跟进练习；没有则写 null>
+  follow_up: <建议的跟进练习；没有就省略这一行（可选字段，不要写 null）>
   importance: <low|medium|high>
 ```
+
+这份记录同时进 `progress.yaml` 的 `misconceptions` 数组，那个 schema 要求字符串——**不要写 `null`**。
 
 - `importance` 判断：影响后续学习的（前置知识错）记 `high`；一次性的小疑问记 `low`
 - 落盘后，你的上下文里只留一行："已处理局部提问（topic，importance）"

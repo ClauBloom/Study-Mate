@@ -20,11 +20,12 @@ user-invocable: false
 ## 流程
 
 1. 加载 `lesson-design`，按它执行
-2. 读 `<subject_path>/assets/` 与已有课件（复用优先）
+2. 读 `<subject_path>/assets/` 组件库与已有课件——**只为复用组件、统一用词、避开重复讲法**；分节方式、章节顺序与标题措辞按本课内容自己重新决定，不要沿用上一份课件的骨架
 3. 产出**两件套**：
-   - 课件 `<subject_path>/lessons/NNNN-主题.html`（从 `templates/lesson.html` 拷起）
+   - 课件 `<subject_path>/lessons/NNNN-主题.html`（从 `<root>/templates/lesson.html` 拷起）
    - 实操 `<subject_path>/lab/NN-主题…`（编号与课件对齐）——**载体由总控与学生确定**（总控写入 `lab/README.md`；你补上环境与依赖、验证方式）：notebook / 源码+测试目录 / 页面 / 练习页 / SQL / 命令行 / 清单等，按确认的载体现场组织，不套固定模板。你按 `lesson-design` 第三节实现
-4. 返回给总控：两件套路径、讲解要点摘要（3-5 条）、建议的练习层级（L1-L4）
+4. **值得长期速查的知识点**，在 `<subject_path>/reference/` 写一份 HTML 速查页（自包含、引用同一套共享层与组件），并在课件里链接它；不必每课都写
+5. 返回给总控：两件套路径、讲解要点摘要（3-5 条）、建议的练习层级（L1-L4）
 
 ## 改课件
 

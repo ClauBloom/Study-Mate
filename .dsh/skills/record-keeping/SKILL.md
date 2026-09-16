@@ -38,7 +38,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 科目文件夹操作
 
-1. **新建科目**：建 `<LEARN_WORKSPACE>/.learning/subjects/<slug>/` 与空目录（`lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`）；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 从 `<root>/templates/assets/` 拷入起步组件
+1. **新建科目**：建 `<LEARN_WORKSPACE>/.learning/subjects/<slug>/` 与空目录（`lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`）；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 从 `<root>/templates/assets/` 只拷 `style.css`、`quiz.js` 两个起步组件（共享层由 `gen_home.py` 负责）
 2. **列出科目**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换科目**：切换即换路径，不复制、不搬运内容
 
@@ -48,7 +48,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 主页刷新（生成产物）
 
-主页不是手维护的文件，是跑脚本重新生成的产物（模板在 `<root>/templates/`，生成器 `<root>/scripts/gen_home.py`，Task 13）：
+主页不是手维护的文件，是跑脚本重新生成的产物（模板在 `<root>/templates/`，生成器 `<root>/scripts/gen_home.py`）：
 
 1. **科目主页** `subjects/<slug>/index.html`：数据源 `curriculum.yaml` + `progress.yaml` + `lessons/` + `reference/` 等
 2. **根主页** `<LEARN_WORKSPACE>/index.html`：数据源 `subjects/*/subject.yaml` + `progress.yaml`
@@ -60,7 +60,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 1. 写之前先读现有内容，**做增量修改**（不整文件覆盖，`MEMORY.md`/`subject.yaml` 的新建除外）
 2. 写后校验：`curriculum.yaml`、`progress.yaml`、`subject.yaml` 对照 `<root>/schemas/*.json`；会话摘要对照 `session-summary.schema.json`
 3. **写入类型化的状态**：结构化事实进 YAML，偏好与观察进 `MEMORY.md`
-4. **会话摘要**（会话结束时写）：按 session-summary schema 生成，存 `subjects/<slug>/sessions/<YYYY-MM-DD>.md`，同日多段追加；写的同时在对话里给出一条 `memory_updates` 建议（哪些观察值得进共享记忆），学生确认后写进 `MEMORY.md`
+4. **会话摘要**（会话结束时写）：按 session-summary schema 生成，存 `subjects/<slug>/sessions/<YYYY-MM-DD>.md`，同日多段追加；格式：`.md` 文件，**YAML frontmatter 承载 `session-summary.schema.json` 的字段**（日期加引号），正文写本次要点；写的同时在对话里给出一条 `memory_updates` 建议（哪些观察值得进共享记忆），学生确认后写进 `MEMORY.md`
 5. **恢复视图**（开场时自读）：`MEMORY.md` 相关分节 + 该科目当前节点 + 前置节点摘要 + 最近 5 条 misconceptions + 最近 3 条学习记录 + 项目里程碑；只读需要的部分（用 offset/limit/grep 取最近条目），不把整份长文件读进上下文
 
 ## 边界

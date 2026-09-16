@@ -23,13 +23,31 @@ PY
 echo "① 预设 → $DEST_PRESET（skill 目录：$ROOT/.dsh/skills）"
 
 # 2) 学习工作区：默认 <root>/workspace/，路径写入配置
-WORKSPACE="${LEARN_WORKSPACE:-$ROOT/workspace}"
+#    已有配置里的 workspace 默认沿用（学生可能已把工作区放到别处）；
+#    想换位置：改配置里那一行，或跑一次 LEARN_WORKSPACE=<新路径> ./install.sh。
+#    root 每次都按当前引擎路径重写（项目可能被移动过）。
+CONFIG="$DSH/studymate-config.yaml"
+WORKSPACE="${LEARN_WORKSPACE:-}"
+KEPT_EXISTING=""
+if [ -z "$WORKSPACE" ] && [ -f "$CONFIG" ]; then
+  WORKSPACE="$(sed -n '/^workspace:/{s/^workspace:[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "$CONFIG")"
+  if [ -n "$WORKSPACE" ]; then
+    KEPT_EXISTING=1
+  fi
+fi
+if [ -z "$WORKSPACE" ]; then
+  WORKSPACE="$ROOT/workspace"
+fi
 mkdir -p "$WORKSPACE/.learning/subjects"
-cat > "$DSH/studymate-config.yaml" <<EOF
+cat > "$CONFIG" <<EOF
 # StudyMate 学习工作区与引擎项目定位
 workspace: $WORKSPACE
 root: $ROOT
 EOF
-echo "② 学习工作区 → $WORKSPACE（配置在 $DSH/studymate-config.yaml）"
+if [ -n "$KEPT_EXISTING" ]; then
+  echo "② 学习工作区 → $WORKSPACE（沿用已有工作区；配置在 $CONFIG）"
+else
+  echo "② 学习工作区 → $WORKSPACE（配置在 $CONFIG）"
+fi
 
 echo "完成。现在可在任意目录开会话，选'学习模式'预设开始学习。"
