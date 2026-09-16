@@ -2,6 +2,7 @@
 name: practice-evaluator
 description: 练习评估角色：按 layered-practice 出题、按 evidence-check 核验，输出评估结论与掌握度建议。只能由 learning-system 总控加载。
 disable-model-invocation: true
+user-invocable: false
 ---
 
 # 练习评估角色

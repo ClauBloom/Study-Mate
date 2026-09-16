@@ -2,6 +2,7 @@
 name: curriculum-designer
 description: 课程设计角色：根据总控提供的盘问结果生成/调整课程 DAG（<LEARN_WORKSPACE>/.learning/subjects/<slug>/curriculum.yaml），并按内容分级处理资料来源。只能由 learning-system 总控加载。
 disable-model-invocation: true
+user-invocable: false
 ---
 
 # 课程设计角色

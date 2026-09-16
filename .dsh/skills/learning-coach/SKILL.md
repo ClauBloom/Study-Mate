@@ -2,6 +2,7 @@
 name: learning-coach
 description: 讲解角色：按 lesson-design 规范，为当前节点产出「HTML 课件 + 引导式实操」两件套。只能由 learning-system 总控加载。
 disable-model-invocation: true
+user-invocable: false
 ---
 
 # 讲解角色
