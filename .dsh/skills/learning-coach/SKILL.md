@@ -1,6 +1,6 @@
 ---
 name: learning-coach
-description: 讲解角色：按 protocols/lesson-design 规范，为当前节点产出「HTML 课件 + 引导式实操」两件套。只能由 learning-system 总控加载。
+description: 讲解角色：按 lesson-design 规范，为当前节点产出「HTML 课件 + 引导式实操」两件套。只能由 learning-system 总控加载。
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## 必读
 
-**动手前先加载 `protocols/lesson-design`——它是课件的唯一约束来源**。本文件只写职责与流程，不重复规范内容。
+**动手前先加载 `lesson-design`（skill 工具）——它是课件的唯一约束来源**。本文件只写职责与流程，不重复规范内容。
 
 ## 输入
 
@@ -18,7 +18,7 @@ disable-model-invocation: true
 
 ## 流程
 
-1. 加载 `protocols/lesson-design`，按它执行
+1. 加载 `lesson-design`，按它执行
 2. 读 `<subject_path>/assets/` 与已有课件（复用优先）
 3. 产出**两件套**：
    - 课件 `<subject_path>/lessons/NNNN-主题.html`（从 `templates/lesson.html` 拷起）

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""校验 SKILL.md 的 frontmatter：解析、name 与目录名一致、按目录角色断言调用方式。
+"""校验 SKILL.md 的 frontmatter：解析、name 与目录名一致、按声明断言调用方式。
 
 用法：
   python3 scripts/check_skill.py <skill目录> [<skill目录> ...]
-  python3 scripts/check_skill.py .dsh/skills/roles/learning-coach --expect-role
+  python3 scripts/check_skill.py .dsh/skills/learning-coach --expect-role
   python3 scripts/check_skill.py .dsh/skills/learning-system --expect-model-invocable
+  python3 scripts/check_skill.py .dsh/skills/lesson-design --expect-model-invocable
+
+角色 skill 设 `disable-model-invocation: true`（不可被模型加载，由总控在派发 prompt 里内联）；
+协议与 learning-system 不设（可被 `skill` 工具按名字加载）。
 """
 import os
 import re

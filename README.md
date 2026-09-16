@@ -7,7 +7,7 @@
 ```bash
 ./install.sh
 # 做三件事：① 装"学习模式"预设到 ~/.dsh/.agent-presets/learning/
-#          ② 符号链接系统能力到 ~/.dsh/skills/（任何目录开会话都能用）
+#          ② 建学习工作区（默认 ./workspace/）并写入 ~/.dsh/studymate-config.yaml
 #          ③ 建学习工作区（默认 ./workspace/）并写入 ~/.dsh/learning-config.yaml
 ```
 
@@ -30,7 +30,7 @@
 | 区域 | 位置 | 职责 |
 |------|------|------|
 | 引擎项目 | 本目录 | 系统源码：预设源、skill 源、schemas、templates、scripts、examples、docs |
-| 用户级安装 | `~/.dsh/` | 预设、skill 符号链接、学习工作区配置（install.sh 写入，DSH 自动发现） |
+| 用户级安装 | `~/.dsh/` | 学习模式预设（里面记录引擎项目的 skill 目录）、学习工作区配置（install.sh 写入） |
 | 学习工作区 | `workspace/`（可配置） | 你的学习数据：共享记忆、科目、课件、主页 |
 
 ## 文档

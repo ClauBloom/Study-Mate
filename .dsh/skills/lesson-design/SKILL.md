@@ -1,7 +1,6 @@
 ---
 name: lesson-design
 description: 课件设计规范（课件的唯一约束来源）：必须做到的要素、引导式实操（载体由总控与学生确定）、讲法倾向、记忆与难度、贯穿线索、复用与骨架。讲解角色与总控加载。
-disable-model-invocation: true
 ---
 
 # 课件设计规范
