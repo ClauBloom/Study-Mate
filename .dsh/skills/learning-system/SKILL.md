@@ -38,7 +38,7 @@ argument-hint: "你想学什么？或继续上次的科目"
    - **你写 `MISSION.md`**（盘问结果你最清楚）与 `subject.yaml` 的 `goal`
    - 派 `curriculum-designer` 生成课程大纲 + 初始资源清单内容 → **你写入 `RESOURCES.md`**
    - **你建 `progress.yaml`**：按新大纲的节点全量填 `status: 未开始`、`mastery: 0`，`misconceptions: []`，`project` 用盘问定下的项目；按 `schemas/progress.schema.json` 校验后再交付
-   - **你刷新科目主页**（跑 `gen_home.py`）
+   - **你刷新主页**（`python3 <root>/scripts/gen_home.py`；一次刷新根主页与所有科目主页）
 5. 报告：这门科目上次学到哪、这次建议学什么（依据薄弱点与项目里程碑），然后问"开始吗"；开场顺带打开根主页（`<LEARN_WORKSPACE>/index.html`）给学生看课程总览
 
 ## 学习循环（一个节点）
@@ -57,7 +57,7 @@ argument-hint: "你想学什么？或继续上次的科目"
    - 通过 → **你更新** `progress.yaml`（掌握度、状态"能独立应用"、misconceptions），并**你写一条学习记录**
    - 不通过 → 你反馈具体缺口，**你记录误解**（追加 `misconceptions.yaml`），安排复习或补练，回到第 5 步
 8. 节点达成且项目里程碑推进后，按需派 `curriculum-designer` 调整后续路线
-9. 节点状态或课件变化后，**你刷新科目主页**（跑 `gen_home.py`）
+9. 节点状态或课件变化后，**你刷新主页**（`python3 <root>/scripts/gen_home.py`；一次刷新根主页与所有科目主页，命令非零退出说明链接自检发现了问题——按 stderr 列出的页面与断链先修数据或模板，再重跑）
 10. 问学生继续下一个节点还是结束；结束走"会话结束"
 
 ## 局部提问（学生把看不懂的一段贴回来）
@@ -92,13 +92,13 @@ argument-hint: "你想学什么？或继续上次的科目"
 2. 需要时派 `curriculum-designer` 给建议（使命哪句要改、大纲深度/节点是否要跟着调）——**它只提建议，不改文件**
 3. 由你**写进 `MISSION.md`**（更新对应分节；旧使命留痕：保留原句加一行说明或移进"变更记录"小节）
 4. 由你更新 `subject.yaml` 的 `goal`（若目标表述变了），并**你记一条学习记录**（"使命变更：A→B"，编号递增）
-5. 若影响课程深度/范围 → 派 `curriculum-designer` 调整大纲；完成后刷新主页
+5. 若影响课程深度/范围 → 派 `curriculum-designer` 调整大纲；完成后刷新主页（同学习循环第 9 步的命令）
 
 ## 会话结束
 
 1. **你写该科目的会话摘要**（按 record-keeping 的 session-summary 规则），并在对话里给出一条 `memory_updates` 建议（哪些观察值得进共享记忆）
 2. 学生确认后，**你写进 `MEMORY.md`**
-3. **你刷新根主页与科目主页**（跑 `gen_home.py`，反映最新状态）
+3. **你刷新根主页与科目主页**（`python3 <root>/scripts/gen_home.py`，一次两页都刷新，反映最新状态）
 4. 向学生总结本次进度与下次建议
 
 ## 子 agent 派发规范（硬约束）
