@@ -22,7 +22,7 @@ disable-model-invocation: true
 2. 读 `<subject_path>/assets/` 与已有课件（复用优先）
 3. 产出**两件套**：
    - 课件 `<subject_path>/lessons/NNNN-主题.html`（从 `templates/lesson.html` 拷起）
-   - 实操 `<subject_path>/lab/NN-主题…`（编号与课件对齐）——载体随科目技术栈选：notebook（`templates/lab-notebook.ipynb` 骨架）/ 源码+测试目录 / 页面 / 练习页 等，环境与验证方式写进 `lab/README.md`。你按 `lesson-design` 第三节实现
+   - 实操 `<subject_path>/lab/NN-主题…`（编号与课件对齐）——**载体由总控与学生确定**（写进 `lab/README.md`）：notebook（`templates/lab-notebook.ipynb` 骨架）/ 源码+测试目录 / 页面 / 练习页 等。你按 `lesson-design` 第三节实现
 4. 返回给总控：两件套路径、讲解要点摘要（3-5 条）、建议的练习层级（L1-L4）
 
 ## 改课件
