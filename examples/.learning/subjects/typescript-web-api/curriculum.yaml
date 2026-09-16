@@ -12,7 +12,7 @@ nodes:
     practice: "用 curl 请求一个公开 API，观察状态码与响应头"
     pitfalls: [把状态码背成数字, 混淆请求头与响应头]
     realworld: "浏览器开发者工具 Network 面板里的每一条请求"
-    evidence: ["能说清一次 404 的完整过程", "curl -i 输出解释正确"]
+    evidence: ["能说清一次 404 的完整过程", "curl -v 输出解释正确"]
     status: 未开始
     mastery: 0
   - id: http.routing

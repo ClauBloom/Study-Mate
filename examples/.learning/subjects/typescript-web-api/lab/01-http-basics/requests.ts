@@ -135,7 +135,7 @@ export function parseStatusLine(line: string): { version: string; status: number
  * 做什么：状态码在 200-299 之间时返回 true，否则 false；
  *         返回类型写成类型守卫（把 boolean 换成 status is 200 那一类写法），
  *         让调用方在 if 里能收窄类型。
- * 怎么算过：npm test 里"任务 4"的三条断言转绿
+ * 怎么算过：npm test 里"任务 4"的四条断言转绿
  *           （有一条会传 199 和 300 这两个边界值）。
  */
 export function isSuccess(status: number): boolean {

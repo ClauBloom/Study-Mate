@@ -48,7 +48,7 @@
   <header class="lesson-header">
     <span class="lesson-header__eyebrow">0001 · 所属节点：http.basics（HTTP 基础）</span>
     <h1>HTTP 基础：一次请求与响应里有什么</h1>
-    <p class="lesson-goal"><b>本节目标：</b>能说清一次 HTTP 请求与响应里有什么——请求行、请求头、状态码分别在说什么，并能用 <code>curl -i</code> 亲手验证。</p>
+    <p class="lesson-goal"><b>本节目标：</b>能说清一次 HTTP 请求与响应里有什么——请求行、请求头、状态码分别在说什么，并能用 <code>curl -v</code> 亲手验证。</p>
   </header>
 
   <!-- ── 讲解：真实场景开场 ── -->
@@ -64,7 +64,7 @@
   <!-- ── 具体先行：先看真实的原始文本 ── -->
 
   <h2>把一次来回摊开看</h2>
-  <p>用 <code>curl -i</code> 请求一个真实网址，屏幕上就是下面这个样子。<code>&gt;</code> 开头的三行是浏览器<strong>发出去</strong>的，<code>&lt;</code> 开头的三行是服务器<strong>返回来</strong>的：</p>
+  <p>用 <code>curl -v</code> 请求一个真实网址，屏幕上就是下面这个样子（<code>*</code> 开头的连接过程行略去）。<code>&gt;</code> 开头的四行是客户端<strong>发出去</strong>的，<code>&lt;</code> 开头的三行是服务器<strong>返回来</strong>的：</p>
 
   <div class="syo-editor">
     <div class="syo-editor-titlebar">
@@ -73,13 +73,14 @@
         <span class="syo-editor-dot syo-editor-dot--yellow"></span>
         <span class="syo-editor-dot syo-editor-dot--green"></span>
       </span>
-      <span class="syo-editor-filename">一次来回（curl -i 输出摘要）</span>
+      <span class="syo-editor-filename">一次来回（curl -v 输出摘要）</span>
     </div>
     <div class="syo-editor-body">
-      <div class="syo-editor-gutter"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
+      <div class="syo-editor-gutter"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
       <div class="syo-editor-code">
         <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-keyword">GET</span> /menu <span class="syn-operator">HTTP/1.1</span></span>
         <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Host</span>: example.com</span>
+        <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">User-Agent</span>: curl/8.7.1</span>
         <span class="line"><span class="syn-operator">&gt;</span> <span class="syn-type">Accept</span>: text/html</span>
         <span class="line">（空行——请求到此结束，GET 没有请求体）</span>
         <span class="line"><span class="syn-operator">&lt;</span> <span class="syn-operator">HTTP/1.1</span> <span class="syn-number">200</span> OK</span>
@@ -173,20 +174,20 @@
       <h3 class="lesson-practice__title">用 curl 看第一行</h3>
     </div>
     <p><b>第 1 步</b>　打开终端，敲：</p>
-    <pre><code>curl -i https://example.com</code></pre>
-    <p><b>第 2 步</b>　找到输出的第一行，它长这样：</p>
-    <pre><code>HTTP/1.1 200 OK</code></pre>
+    <pre><code>curl -v https://example.com</code></pre>
+    <p><b>第 2 步</b>　在输出里找到 <code>&lt;</code> 开头的那一行，它长这样：</p>
+    <pre><code>&lt; HTTP/1.1 200 OK</code></pre>
     <p>中间那个 <code>200</code> 就是状态码。<b>先别看别的，先把这个数字指出来。</b></p>
     <p><b>第 3 步</b>　把网址改成一份不存在的路径，再打一次：</p>
-    <pre><code>curl -i https://example.com/no-such-page</code></pre>
-    <p><b>第 4 步</b>　对照两次的第一行：第一次是 <code>200</code>，第二次大概率是 <code>404</code>。同一台服务器、同一个方法、同一个 <code>Host</code>，只有一个数字变了——这就是状态码在做的事：<strong>报告结果，而不是报告内容</strong>。</p>
-    <p><b>第 5 步</b>　回到上面的输出，把这几个词和屏幕上的行对上号：哪一行是请求行、哪一行是请求头、哪一行是状态行。</p>
+    <pre><code>curl -v https://example.com/no-such-page</code></pre>
+    <p><b>第 4 步</b>　对照两次的这一行：第一次是 <code>200</code>，第二次大概率是 <code>404</code>。同一台服务器、同一个方法、同一个 <code>Host</code>，只有一个数字变了——这就是状态码在做的事：<strong>报告结果，而不是报告内容</strong>。</p>
+    <p><b>第 5 步</b>　回到上面的输出，把这几个词和屏幕上的行对上号：哪一行是请求行、哪几行是请求头、哪一行是状态行。<code>&gt;</code> 开头的请求那几行只有 <code>-v</code> 才会打出来。</p>
   </div>
   <p>光看输出还不够——真正要练的是<strong>自己写一段代码，把这段文本解析出来</strong>。这就是本课的配套实操：</p>
   <div class="lesson-related">
     <a href="../lab/01-http-basics/">▸ 去做实操：lab/01-http-basics（源码 + 测试，用 <code>npm test</code> 自检）</a>
   </div>
-  <p>实操里教程部分我已经写好了，你跑一遍就能看到结果；剩下三个函数留给你实现。<strong>做完再回来答下面的题。</strong></p>
+  <p>实操里教程部分我已经写好了，你跑一遍就能看到结果；剩下四个函数留给你实现。<strong>做完再回来答下面的题。</strong></p>
 
   <!-- ── 交互练习：选择题即时反馈，数据契约见 assets/quiz.js 顶部注释 ── -->
 

@@ -18,7 +18,7 @@
 
 ## 环境
 
-- Node.js **≥ 22.6**（本机 v24.15）。这里靠 Node 原生跑 TypeScript，**不需要装 typescript、jest、ts-node**。
+- Node.js **≥ 22.18（或 ≥ 23.6）**（本机 v24.15）：Node 原生 type stripping 从这两个版本起默认开启，22.6–22.17 需要加 `--experimental-strip-types` 才能跑。这里靠 Node 原生跑 TypeScript，**不需要装 typescript、jest、ts-node**。
 - 不需要数据库、不需要网络；`npm install` 也不用跑（没有依赖）。
 
 ## 怎么跑
@@ -40,7 +40,7 @@ npm test
 ## ▸ 你的任务
 
 一次只做一个：实现函数 → 回 `requests.test.ts` 把那一条 `test.skip(` 改成 `test(` → 再 `npm test`。
-四个都做完后也可以把文件顶部的 `TASKS_IMPLEMENTED` 改成 `true`，一次放开全部。
+四条都改完（四个任务都实现完）后 `npm test` 应全绿。
 
 | # | 函数 | 做什么 | 算过的标准（`npm test` 里对应的断言转绿） |
 | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ npm test
 ## 答案
 
 - `../solutions/requests.ts`：四个任务的完整实现。
-- 对照方式：把那份整个覆盖到 `01-http-basics/requests.ts`，再把四条 `test.skip(` 改成 `test(`（或把 `TASKS_IMPLEMENTED` 改成 `true`），`npm test` 应全绿。
+- 对照方式：把那份整个覆盖到 `01-http-basics/requests.ts`，再把四条 `test.skip(` 改成 `test(`，`npm test` 应全绿。
   可用的命令：
 
   ```bash
