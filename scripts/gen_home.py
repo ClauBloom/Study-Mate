@@ -197,9 +197,39 @@ def esc(value, attr=False):
     return html.escape(str(value), quote=attr)
 
 
-def read_text(path):
+def read_text_once(path):
+    """严格 UTF-8 读（仓库自有的模板走这条）；内容文件的异常由 read_text_quiet() 降级。"""
     with open(path, encoding='utf-8') as f:
         return f.read()
+
+
+def read_text_replace(path):
+    """容错读：非 UTF-8 字节替换成 U+FFFD，保证坏编码文件也能读出一份文本。"""
+    with open(path, encoding='utf-8', errors='replace') as f:
+        return f.read()
+
+
+def read_text_quiet(path, what):
+    """读内容文件（课件 / 附件 / MISSION）：解码失败或读不了都降级，绝不断送整页生成。
+
+    真实下载下来的 reference/*.html 很可能是 GBK 等非 UTF-8 编码（agent 写下的文件同理）：
+    严格 UTF-8 会抛 UnicodeDecodeError，一路冒泡到 main 的科目级 except，导致**整个科目页**
+    不再更新（路线图停在旧版本、新课件卡片消失）。这里改成：先按 errors='replace' 读入（坏字节
+    变问号，标题取不完全但不影响这一页的其它部分），仍失败（权限等 OSError）则返回空串——调用方
+    各自退回文件名 / 结构性标题。两种情况都往 stderr 打一条中文警告说明是哪个文件。
+    """
+    try:
+        return read_text_once(path)
+    except UnicodeDecodeError as exc:
+        warn(f'{what} 不是 UTF-8 编码，按替换字符（?）读入，标题可能不全：{path}（{exc}）')
+        try:
+            return read_text_replace(path)
+        except OSError as exc2:
+            warn(f'{what} 读不出来，按“没有内容”处理（退回文件名/结构标题）：{path}（{exc2}）')
+            return ''
+    except OSError as exc:
+        warn(f'{what} 读不出来，按“没有内容”处理（退回文件名/结构标题）：{path}（{exc}）')
+        return ''
 
 
 def write_text(path, text):
@@ -487,7 +517,7 @@ def render_cards_html(subjects):
 
 def render_home_index(subjects, ws):
     """读 templates/home-index.html → 替换占位符 → 写 <WS>/index.html。"""
-    template = read_text(os.path.join(TEMPLATES, 'home-index.html'))
+    template = read_text_once(os.path.join(TEMPLATES, 'home-index.html'))
     page = replace_block(template, PLACEHOLDER_HOME_CARDS, render_cards_html(subjects), 'home-index.html')
     write_text(os.path.join(ws, 'index.html'), page)
 
@@ -501,7 +531,7 @@ def mission_excerpt(slug, ws):
     path = os.path.join(subject_dir(ws, slug), 'MISSION.md')
     if not os.path.isfile(path):
         return ''
-    text = read_text(path)
+    text = read_text_quiet(path, 'MISSION.md')
     match = WHY_RE.search(text)
     if match:
         rest = text[match.end():]
@@ -553,7 +583,7 @@ def lesson_files(slug, ws):
 
 def lesson_title(path):
     """课件标题：<h1> → <title> → 文件名；先剥注释，免得吃到头部说明里的示例标签。"""
-    text = strip_comments(read_text(path))
+    text = strip_comments(read_text_quiet(path, '课件'))
     for pattern in (H1_RE, TITLE_RE):
         match = pattern.search(text)
         if match:
@@ -565,7 +595,7 @@ def lesson_title(path):
 
 def lesson_node_id(path, nodes):
     """课件归属的节点 id：先读页头“所属节点”（写 id 或写标题都认），再退回全文里出现的节点 id。"""
-    text = read_text(path)
+    text = read_text_quiet(path, '课件')
     eyebrow = LESSON_NODE_RE.search(strip_comments(text))
     if eyebrow:
         label = eyebrow.group(1).strip()
@@ -692,7 +722,7 @@ def reference_items(sdir):
     for path in sorted(glob.glob(os.path.join(sdir, 'reference', '*.html'))):
         name = os.path.basename(path)
         title = os.path.splitext(name)[0]
-        match = TITLE_RE.search(strip_comments(read_text(path)))
+        match = TITLE_RE.search(strip_comments(read_text_quiet(path, '参考文档')))
         if match:
             title = html.unescape(strip_tags(match.group(1))) or title
         items.append((f'reference/{name}', title, 'reference/'))
@@ -710,7 +740,7 @@ def resource_items(sdir):
 
 def md_title(path, fallback):
     """md 附件标题：正文首个一级标题 → 结构性回退标题（如“学习记录 0012”）。"""
-    text = FRONTMATTER_RE.sub('', read_text(path), count=1)
+    text = FRONTMATTER_RE.sub('', read_text_quiet(path, '附件'), count=1)
     match = MD_HEADING_RE.search(text)
     return match.group(1).strip() if match else fallback
 
@@ -773,7 +803,7 @@ def render_subject_index(slug, cur, prog, ws):
     """读 templates/subject-index.html → 替换区块+字段占位符 → 写科目目录 index.html。"""
     sdir = subject_dir(ws, slug)
     subj = load_yaml_quiet(os.path.join(sdir, 'subject.yaml'), f'{slug}/subject.yaml') or {}
-    template = read_text(os.path.join(TEMPLATES, 'subject-index.html'))
+    template = read_text_once(os.path.join(TEMPLATES, 'subject-index.html'))
     page = replace_field(template, PLACEHOLDER_TITLE, esc(subj.get('name') or slug), 'subject-index.html')
     page = replace_field(page, PLACEHOLDER_STATUS,
                          status_tag(subj.get('status'), 'syo-tag learn-status'), 'subject-index.html')
