@@ -1,6 +1,6 @@
 # templates/assets/ — 前端资源与引用契约
 
-本目录是引擎项目里的**前端资源源**。学习工作区里的资源由 install.sh / gen_home.py / learning-memory
+本目录是引擎项目里的**前端资源源**。学习工作区里的资源由 install.sh / gen_home.py / 总控（建科目时）
 按下面的规则放置，页面按**固定相对路径**引用（模板里写死，生成器不改）。
 
 ## 目录职责
@@ -77,6 +77,6 @@ cp -r <sayo-ui>/icons templates/assets/sayo/icons
 - **Task 11（install.sh）/ Task 13（gen_home.py）**：必须保证 `<WS>/.learning/assets/` 存在
   （把 `templates/assets/sayo/` 与 `templates/assets/learn-theme.css` 放进去）。生成器找不到资源时，
   页面会退化成无样式裸 HTML，所以这一步是硬要求，且要幂等。
-- **Task 8（learning-memory 建科目）**：只拷 `style.css`、`quiz.js` 到 `<subject>/assets/`，
+- **Task 8（总控建科目）**：只拷 `style.css`、`quiz.js` 到 `<subject>/assets/`，
   不要把 `sayo/` 再拷一遍。
 - **Task 5（learning-coach 写课件）**：先读 `<subject>/assets/` 与共享层已有的组件，复用而不是内联。
