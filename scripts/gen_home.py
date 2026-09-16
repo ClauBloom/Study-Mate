@@ -13,7 +13,9 @@
 写：<WS>/index.html、<WS>/.learning/subjects/<slug>/index.html、<WS>/.learning/assets/（幂等覆盖）
 
 写完所有页面后有一道链接自检（find_broken_links）：只扫**本次写出的页面**（根主页 + 各科目主页），
-逐个取 href/src，剥掉 HTML 注释、跳过外部协议 / 页内锚点 / 空值，把相对链接按页面所在目录解析；
+只取**标签里的 href/src 属性**（HTMLParser 的起始标签回调）——正文文本、其它属性的值、
+<script>/<style> 里的字符串、HTML 注释都不参与，页面里出现 href= 字样不等于链接；
+跳过外部链接（任何 scheme: 或协议相对 //）/ 页内锚点 / 空值，把相对链接按页面所在目录解析；
 解析到不存在路径的逐条报到 stderr，并以退出码 1 结束（“少一级目录”这类断链不再静默通过）。
 lessons/*.html 是讲解角色写出来的课件、不属于本脚本产物（可能合法地引用尚未生成的文件），不在自检范围内。
 
@@ -22,6 +24,7 @@ lessons/*.html 是讲解角色写出来的课件、不属于本脚本产物（�
 """
 import glob
 import html
+import html.parser
 import os
 import re
 import shutil
@@ -181,11 +184,9 @@ LESSON_FILE_RE = re.compile(r'^(\d{4})-.*\.html$')
 LESSON_NODE_RE = re.compile(r'所属节点[：:]\s*([^<>\n（(]+)')
 RECORD_FILE_RE = re.compile(r'^(\d{4})-')
 SESSION_FILE_RE = re.compile(r'^(\d{4}-\d{2}-\d{2})')
-# 链接自检用：页内 href/src（双引号 / 单引号 / 不带引号三种写法都收）
-LINK_ATTR_RE = re.compile(r'''(?<![\w:-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))''', re.I)
-
-# 链接自检跳过的值：外部协议、协议相对地址、页内锚点（#…）、空值
-SKIP_LINK_PREFIXES = ('http:', 'https:', 'mailto:', 'data:', 'javascript:', 'tel:', '//')
+# 链接自检跳过的值：外部链接（任何 scheme:，如 http:/mailto:/ftp:/file:/blob:，
+# 以及协议相对地址 //）、页内锚点（#…）、空值
+SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 
 
 _WARNED = set()
@@ -829,20 +830,40 @@ def render_subject_index(slug, cur, prog, ws):
 # 生成后自检：页内 href/src 相对链接是否解析到真实存在的路径
 # ══════════════════════════════════════════════════════════════════
 
+class LinkAttrParser(html.parser.HTMLParser):
+    """只收起始标签里的 href/src 属性值（双引号 / 单引号 / 不带引号三种写法都收）。
+
+    正文文本、其它属性的值、<script>/<style> 里的字符串都不是标签属性，不会走到
+    handle_starttag；HTML 注释同样不经过它——所以页面里出现 href= 字样不等于链接。
+    属性值里的字符实体由 HTMLParser 反转义（这里不再调 html.unescape，免得双重反转义）。
+    """
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.links = []
+
+    def handle_starttag(self, tag, attrs):
+        for name, value in attrs:
+            if value and name.lower() in ('href', 'src'):
+                self.links.append(value)
+
+
 def page_links(page_path):
     """单页里的 (属性原值, 去锚点/查询串后的链接路径) 列表。
 
-    先剥 HTML 注释：模板里“生成器渲染规范”注释块原样留在产物里，含示例链接
-    （lessons/NNNN-xxx.html、reference/http-status.html、.learning/subjects/<slug>/index.html），
-    注释不是页面内容，扫进去必然误报。
+    只扫标签里的 href/src 属性：正文文本、其它属性的值、<script>/<style> 里的字符串、
+    HTML 注释都不参与（注释本来就不会走 handle_starttag）。跳过空值、页内锚点（#…）
+    与外部链接（任何 scheme: 或协议相对 //）。
     """
-    text = strip_comments(read_text_quiet(page_path, '生成页面'))
+    parser = LinkAttrParser()
+    parser.feed(read_text_quiet(page_path, '生成页面'))
+    parser.close()
     links = []
-    for match in LINK_ATTR_RE.finditer(text):
-        value = html.unescape(next(group for group in match.groups() if group is not None)).strip()
+    for value in parser.links:
+        value = value.strip()
         if not value or value.startswith('#'):
             continue
-        if value.lower().startswith(SKIP_LINK_PREFIXES):
+        if SCHEME_RE.match(value):
             continue
         path = value.split('#', 1)[0].split('?', 1)[0]
         if path:
