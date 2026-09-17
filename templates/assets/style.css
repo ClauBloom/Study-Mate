@@ -162,6 +162,33 @@
     border-left-color: var(--syo-accent);
     font-weight: 500;
   }
+
+  /* ── 侧栏底部：上/下节课指针 ────────────────────────────────────
+     正文里由讲解角色写一份 <nav class="lesson-nav">（真实链接，js 关掉也还在），
+     lesson-toc.js 生成目录后把它搬到侧栏目录下面——页面上只有一份。
+     样式写在这里对两种位置都成立：搬进侧栏后吃 .doc-sidebar a 的内边距与 hover，
+     没搬（无 js）时就是正文末尾一块普通导航。 */
+  .lesson-nav {
+    margin-top: var(--syo-space-5);
+    padding-top: var(--syo-space-4);
+    border-top: 1px solid var(--syo-border-muted);
+  }
+  .lesson-nav__link { display: block; text-decoration: none; }
+  .lesson-nav__dir {
+    display: block;
+    font-size: .6875rem;
+    color: var(--syo-fg-muted);
+  }
+  .lesson-nav__title {
+    display: block;
+    /* 侧栏的通用 a 规则是 nowrap（目录条目那样），长标题会顶出侧栏宽度 → 这里要能换行 */
+    white-space: normal;
+    overflow-wrap: break-word;
+    color: var(--syo-accent);
+  }
+  .lesson-nav__link:hover .lesson-nav__title { color: var(--syo-fg-default); }
+  /* 折叠成 rail 时整块收掉（侧栏的 a 规则只会把链接压成 0 高，边框块还在） */
+  .doc-sidebar.collapsed .lesson-nav { display: none; }
   .doc-sidebar-title {
     display: flex;
     align-items: center;

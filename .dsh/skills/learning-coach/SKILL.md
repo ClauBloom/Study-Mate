@@ -18,7 +18,7 @@ user-invocable: false
 ## 回合 1 · 课件正文
 
 1. 读 `<subject_path>/assets/` 组件库与已有课件：**复用组件、术语保持一致**（同一概念在本科目里始终用同一个词，`GLOSSARY.md` 为准）；叙述骨架（开场怎么起、标题句式、过渡句）不要沿用
-2. 产出课件 `<subject_path>/lessons/NNNN-主题.html`（从 `<root>/templates/lesson.html` 拷起，编号递增）
+2. 产出课件 `<subject_path>/lessons/<序号>-<节点id>.html`（从 `<root>/templates/lesson.html` 拷起；序号 = 本节点在 `curriculum.yaml` 的 `nodes:` 里排第几，名字必须与上一课的「下节课」指针逐字一致）
 3. **题目位留标记，不要自己写题**：在打算放题或动手块的地方留一行 HTML 注释，如
    `<!-- 题目位：L1 概念题 ×2 -->`、`<!-- 题目位：L3 开放题 -->`、`<!-- 题目位：动手块（实操课，指向 lab/NN-…） -->`
 4. `kind: 概念` 写**轻量跟做**（敲一条命令、改一行看变化、在输出里指出某个东西），分步且每步立刻能看到结果

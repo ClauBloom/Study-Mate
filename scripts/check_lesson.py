@@ -35,10 +35,17 @@
        且有 LearnTheme.wire(...) 引用该 id（骨架里的主题开关不能被改丢）。
     7 题目位残留：`lessons/` 目录下的课件里不得留着 `<!-- 题目位：… -->` 标记
        （那是讲解角色回合一留下的占位，回合二必须替换掉）。
+    8 命名与上/下节课指针（需 --subject 与 --node，邻居取自 curriculum.yaml 的 nodes 顺序）：
+       · 文件名必须是 `<序号>-<节点id>.html`，序号 = 节点在 `nodes:` 里的位置（从 1 起）；
+         上一课的「下节课」指针就按这条规则预写，名字错了那根指针就是死链。
+       · `.lesson-nav` 里的 `--prev` / `--next` 必须正好指向大纲里的前后邻居
+         （有邻居就得写、没有邻居就不许写；href 是同目录下的文件名）。
+       · 指针指向的文件不存在只提示不阻断——下节课通常还没产出，落空是设计内的。
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
     · 选项长度差：每题 max(len(opt)) - min(len(opt)) > MAX_OPT_LEN_GAP 时提示。
     · 实操判定被跳过（没给 --subject/--node，或 progress.yaml 读不出来）。
     · 小节标题超过 14 字：它会进左侧目录（220px 宽），长了要换行。
+    · 上/下节课指针指向的课件还没产出（悬空指针，正常）。
 
 本闸门**不判内容风格**：真实场景开场、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
 要素与倾向，由讲解角色按内容与学生偏好现场定；闸门不用关键词词表去替它做判断——那种代理会把
@@ -52,6 +59,7 @@ layered-practice 的规范与 practice-evaluator 的活；闸门只判结构完�
 依赖：标准库 + pyyaml（与 gen_home.py 一致）；没装 pyyaml 时实操判定跳过并回显提示。
 """
 import json
+import html
 import os
 import re
 import sys
@@ -115,6 +123,7 @@ class SubjectData:
     def __init__(self, subject_dir):
         self.dir = subject_dir
         self.kinds = {}
+        self.order = []
         self.error = None
         if yaml is None:
             self.error = '未安装 pyyaml'
@@ -132,10 +141,29 @@ class SubjectData:
         nodes = curriculum.get('nodes') if isinstance(curriculum, dict) else None
         for node in nodes or []:
             if isinstance(node, dict) and node.get('id'):
-                self.kinds[str(node['id'])] = str(node.get('kind') or '').strip()
+                node_id = str(node['id'])
+                self.kinds[node_id] = str(node.get('kind') or '').strip()
+                if node_id not in self.order:
+                    self.order.append(node_id)
 
     def kind_of(self, node):
         return self.kinds.get(str(node)) or None
+
+    def index_of(self, node):
+        """节点在 `nodes:` 里的序号（从 1 起；课件编号就用它）；不在大纲里返回 None。"""
+        try:
+            return self.order.index(str(node)) + 1
+        except ValueError:
+            return None
+
+    def neighbors(self, node):
+        """(上一个节点 id, 下一个节点 id)——到头的那个是 None。"""
+        index = self.index_of(node)
+        if index is None:
+            return None, None
+        prev_id = self.order[index - 2] if index >= 2 else None
+        next_id = self.order[index] if index < len(self.order) else None
+        return prev_id, next_id
 
 
 def lab_number_of(path):
@@ -277,6 +305,87 @@ def check_placeholder(text, path):
     return []
 
 
+# 检查项 8：上/下节课指针
+NAV_ANCHOR_RE = re.compile(r'<a\b[^>]*>', re.I)
+CLASS_ATTR_RE = re.compile(r'class\s*=\s*["\']([^"\']*)["\']', re.I)
+HREF_ATTR_RE = re.compile(r'href\s*=\s*["\']([^"\']*)["\']', re.I)
+
+
+def nav_links(text):
+    """正文里的上/下节课指针 → {'prev': href, 'next': href}（缺哪个就没有哪个键）。
+
+    只认 class 里带 `lesson-nav__link--prev/--next` 的 <a>；属性顺序不限。
+    """
+    found = {}
+    for tag in NAV_ANCHOR_RE.findall(text):
+        classes = CLASS_ATTR_RE.search(tag)
+        if not classes or 'lesson-nav__link' not in classes.group(1):
+            continue
+        direction = None
+        if 'lesson-nav__link--prev' in classes.group(1):
+            direction = 'prev'
+        elif 'lesson-nav__link--next' in classes.group(1):
+            direction = 'next'
+        if not direction or direction in found:
+            continue
+        href = HREF_ATTR_RE.search(tag)
+        found[direction] = html.unescape(href.group(1)) if href else ''
+    return found
+
+
+def check_naming_and_nav(text, path, subject, node):
+    """检查项 8：文件名 = `<序号>-<节点id>.html`，且上/下节课指针正好指向大纲里的邻居。
+
+    这条链路是「悬空指针」成立的前提：上一课的「下节课」按同一命名规则预写，下一课只要照规则起名，
+    链接自己就通了（零回填）。所以要拦的就是**名字**与**指针**——名字错了，上一课的指针就是死链；
+    指针漏写或指错，链子从中间断掉。
+
+    指向的文件不存在只提示不阻断：下节课通常还没产出，链接着落空是设计内的事。
+    """
+    problems = []
+    notes = []
+    if subject is None or node is None:
+        notes.append('跳过命名与上下节课指针检查：没给 --subject/--node')
+        return problems, notes
+    if subject.error:
+        notes.append(f'跳过命名与上下节课指针检查：{subject.error}')
+        return problems, notes
+
+    index = subject.index_of(node)
+    if index is None:
+        notes.append(f'跳过命名与上下节课指针检查：大纲里找不到节点 {node}（核对 --node 是否写对）')
+        return problems, notes
+
+    name = os.path.basename(path)
+    expected = f'{index:04d}-{node}.html'
+    if name != expected:
+        problems.append(f'文件名 {name!r} 与大纲不符：节点 {node} 是 nodes: 里第 {index} 个，'
+                        f'文件名必须是 {expected}（上一课的「下节课」指针就按这条规则预写）')
+
+    links = nav_links(text)
+    prev_id, next_id = subject.neighbors(node)
+    for direction, neighbor, number in (('prev', prev_id, index - 1), ('next', next_id, index + 1)):
+        label = '上节课' if direction == 'prev' else '下节课'
+        want = f'{number:04d}-{neighbor}.html' if neighbor else None
+        got = links.get(direction)
+        if want is None:
+            if got is not None:
+                tail = '前面没有节点' if direction == 'prev' else '后面没有节点'
+                problems.append(f'这课不该有{label}指针：节点 {node} 在大纲里是第 {index} 个，{tail}'
+                                f'——把 .lesson-nav 里 --{direction} 那条删掉')
+            continue
+        if got is None:
+            problems.append(f'缺{label}指针：.lesson-nav 里要有一条 --{direction} 指向 {want}')
+            continue
+        if got != want:
+            problems.append(f'{label}指针指向 {got!r}，应为 {want!r}'
+                            '（邻居取自 curriculum.yaml 的 nodes 顺序，标题用该节点 title）')
+            continue
+        if not os.path.exists(os.path.join(os.path.dirname(path) or '.', want)):
+            notes.append(f'{label} {want} 还没产出——悬空指针，属正常（那一课一按此名产出就通）')
+    return problems, notes
+
+
 class HeadingScanner(HTMLParser):
     """收集 <h2> 的文本——小节标题会进侧边目录，太长就换行/扫读变差。"""
 
@@ -316,22 +425,53 @@ def check_section_titles(text):
 
 
 class QuizScanner(HTMLParser):
-    """收集 .quiz 块的 data-quiz 原文，并记下带 .quiz 但缺 data-quiz 的标签数。"""
+    """找出缺少 data-quiz 的 .quiz 块（用途只剩这一条）。
+
+    **data-quiz 的值不走这里取**：属性值用单引号包裹时，值里若出现裸的直角单引号
+    （题面里很常见，例如 `expected ';' before 'return'`、`it's`），HTMLParser 会在第一个
+    `'` 处把属性截断，后续 JSON 报「Unterminated string」——错误信息指向 JSON，真凶却在取值。
+    HTML5 只禁止属性值里出现**同种**引号，裸 `'` 在单引号属性里合法，浏览器也照常渲染；
+    templates/assets/quiz.js 的契约同样没禁止过单引号。所以取值改用 scan_quiz_blocks()。
+    """
 
     def __init__(self):
         super().__init__()
-        self.blocks = []
         self.missing = 0
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
         if 'quiz' not in (attributes.get('class') or '').split():
             return
-        data = attributes.get('data-quiz')
-        if data is None:
+        if attributes.get('data-quiz') is None:
             self.missing += 1
-        else:
-            self.blocks.append(data)
+
+
+# 开始标签 + 其中的 class 属性值（class 值可以用单引号或双引号包裹）。
+# 标签取到第一个 > 为止：HTML 属性值里的裸 > 是无效写法（要写 &gt;），
+# 所以这样不会误截断，而且与属性书写顺序无关（class 写在 data-quiz 后面也能匹配）。
+QUIZ_TAG_RE = re.compile(
+    r'<[a-zA-Z][^>]*\bclass\s*=\s*(["\'])(.*?)\1[^>]*>', re.S)
+# 标签范围内的 data-quiz 属性：值取到「同类引号 + 空白/标签结束」为止。
+# 用 ([\"'])(.*)\1(?=[\s/>]) 而不是非贪婪 .*?：值里允许出现裸的直角单引号，
+# 非贪婪会在第一个引号处就闭合，把值截断（这正是原先 HTMLParser 那个 bug 的形态）。
+DATA_QUIZ_ATTR_RE = re.compile(r'\bdata-quiz\s*=\s*(["\'])(.*)\1(?=[\s/>])', re.S)
+
+
+def scan_quiz_blocks(text):
+    """取出全部 .quiz 块的 data-quiz 值（顺序与文档一致）。
+
+    匹配口径与 QuizScanner 一致：class 属性按**空白分词**后含 `quiz` 才算题目块
+    （这样 `class="foo quiz bar"` 也算），避免用 `\\bquiz\\b` 误伤 `quizlet` 这类类名。
+    值里的 HTML 实体（`&quot;` / `&#39;`）解码后再交给 JSON，与浏览器把属性值交给 JS 的行为一致。
+    """
+    blocks = []
+    for tag_match in QUIZ_TAG_RE.finditer(text):
+        if 'quiz' not in tag_match.group(2).split():
+            continue
+        attr_match = DATA_QUIZ_ATTR_RE.search(tag_match.group(0))
+        if attr_match:
+            blocks.append(html.unescape(attr_match.group(2)))
+    return blocks
 
 
 def check_quiz(text, required=True):
@@ -347,7 +487,7 @@ def check_quiz(text, required=True):
     if scanner.missing:
         problems.append(f'题目块 .quiz 缺少 data-quiz 属性（{scanner.missing} 处）')
 
-    blocks = scanner.blocks
+    blocks = scan_quiz_blocks(text)
     if not blocks:
         if not problems and required:
             problems.append('缺少 .quiz[data-quiz] 题目块（每份课件至少一道题）')
@@ -443,15 +583,17 @@ def check_file(path, subject=None, node=None):
     quiz_problems, notes = check_quiz(text, required=(kind != '实验'))
     notes += check_section_titles(text)
     lab_problems, lab_notes = check_lab(text, path, subject, node)
+    nav_problems, nav_notes = check_naming_and_nav(text, path, subject, node)
     problems = []
     problems += check_name(path)
     problems += check_shared_refs(text)
     problems += check_subject_refs(text)
     problems += quiz_problems
     problems += lab_problems
+    problems += nav_problems
     problems += check_theme_toggle(text)
     problems += check_placeholder(raw, path)
-    return problems, notes + lab_notes
+    return problems, notes + lab_notes + nav_notes
 
 
 def parse_args(argv):

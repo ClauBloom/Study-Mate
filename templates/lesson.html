@@ -2,14 +2,17 @@
 <!-- ═══════════════════════════════════════════════════════════════
      课件骨架（learning-coach 写课件时从这里开始）
      ═══════════════════════════════════════════════════════════════
-     用法：整份拷到 <subject>/lessons/NNNN-dash-case.html，再按这一课的内容写正文。
+     用法：整份拷到 <subject>/lessons/<NNNN>-<节点id>.html，再按这一课的内容写正文。
+      文件名是**硬规则**：NNNN = 本节点在 curriculum.yaml `nodes:` 里的序号（4 位），后半段就是节点 id。
+      上一课的「下节课」指针按这条规则预写，名字一错、链接就断——闸门会拦。
      本文件只给工程外壳与组件示例——正文分几节、小节标题怎么写、用什么组件，都由你按内容决定。
 
      必须保留（工程件，改丢会被闸门判 FAIL）：
        · 顶部三条样式引用与底部三条脚本引用的路径（共享层 ../../../assets/、科目内组件 ../assets/）
        · .lesson-bar 里的主题开关（id="lesson-theme-checkbox"）与底部的 LearnTheme.wire(...) 接线
        · 底部的提问提示块 .lesson-ask（告诉学生：看不懂就把那段贴回会话问）
-       · 文件名 NNNN-dash-case.html（编号递增）
+       · 文件名 <NNNN>-<节点id>.html（序号取自 curriculum.yaml，见上）
+       · .lesson-nav 里的上/下节课指针（第一课不写 --prev、最后一课不写 --next）
 
      要填的占位：<title>、.lesson-bar 的科目名与编号、.lesson-header 的编号 + 节点 / 标题 / 本节目标。
 
@@ -89,6 +92,10 @@
        动手块 .lesson-practice（标题 + 步骤；标题写中文阶段名，如「第 3 步 · 改造」，
          别用 L1-L4 标步骤——那是题目的层级词汇，不进页面）
        侧边目录：不用手写——lesson-toc.js 按本页 <h2> 自动生成（照搬 sayo-ui 文档页的侧边栏：可折叠、窄屏变抽屉、当前小节高亮）
+       上/下节课指针（见正文末尾的 .lesson-nav）：href 一律是**同一目录下的文件名**
+         <序号>-<节点id>.html——上一个/下一个节点取自 curriculum.yaml 的 nodes 顺序，
+         标题写节点 title。「下节课」的文件通常还没产出，链接着落空是正常的，不用等它存在。
+         第一课没有上节课、最后一课没有下节课：缺哪个就把那条 <a> 整行删掉。
        资源列表 .lesson-resources、相关链接 .lesson-related
        （要素与呈现要求见 lesson-design；学生偏好见 MEMORY.md） -->
 
@@ -98,6 +105,20 @@
     <b>没看懂？随时问</b>
     把看不懂的段落（或报错）原样复制回会话，说一句哪里不懂就行，我只解释这一段，不打断你的进度。
   </div>
+
+  <!-- ── 上/下节课指针（lesson-toc.js 会把它搬到侧栏目录下面；写法见文件头的组件说明） ──
+       把 0000-节点id / 节点标题 换成真实值；第一课删掉 --prev 那条，最后一课删掉 --next 那条 -->
+
+  <nav class="lesson-nav" aria-label="上一课 / 下一课">
+    <a class="lesson-nav__link lesson-nav__link--prev" href="0000-节点id.html">
+      <span class="lesson-nav__dir">上节课</span>
+      <span class="lesson-nav__title">节点标题</span>
+    </a>
+    <a class="lesson-nav__link lesson-nav__link--next" href="0000-节点id.html">
+      <span class="lesson-nav__dir">下节课</span>
+      <span class="lesson-nav__title">节点标题</span>
+    </a>
+  </nav>
 
   <footer class="lesson-footer">
     StudyMate · <!-- 编号 + 课名 --> · 本地学习工作区

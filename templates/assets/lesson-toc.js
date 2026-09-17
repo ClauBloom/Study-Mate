@@ -14,9 +14,15 @@
          <button class="sidebar-toggle">…</button>   ← 折叠成 44px rail
          <p class="doc-sidebar-title">…本节目录</p>   ← 图标 + 标题
          <a href="#sec-1">…</a> …                     ← 每个 h2 一条
+         <nav class="lesson-nav">…</nav>             ← 正文里的上/下节课指针，搬到这里
        </aside>
        <article class="lesson">…</article>
      </div>
+
+    上/下节课指针不在这里生成——它是**课件里的真实链接**（`<nav class="lesson-nav">`，由讲解角色按
+    `<序号>-<节点id>.html` 写），本脚本只负责把那一块搬到目录下面。理由：取值来自
+    `curriculum.yaml`（节点 id 与顺序），只有写课件的人手上有；照原样留在正文里，没有 javascript
+    时也还能点。
 
    行为也照搬：桌面折叠状态记在 localStorage、≤1024px 自动收成 rail、≤768px 变抽屉
    （顶栏里的汉堡拉开、点遮罩或点链接关掉）；当前小节高亮由 Sayo 的 data-syo-scrollspy 负责
@@ -96,6 +102,12 @@
       link.textContent = item.text;
       aside.appendChild(link);
     });
+
+    // ③b 上/下节课指针：把正文里的 .lesson-nav 搬到目录下面（appendChild 自带"从原位移走"）。
+    //     页面里没有这一块（第一课没写、或旧课件）就跳过。
+    var nav = lesson.querySelector('.lesson-nav');
+    if (nav) aside.appendChild(nav);
+
     grid.insertBefore(aside, lesson);
 
     // ④ 顶栏里的汉堡（只有 ≤768px 显示，CSS 管可见性）

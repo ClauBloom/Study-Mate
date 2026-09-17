@@ -12,7 +12,7 @@
 | `learn-theme.js` | **共享行为层**：① 主题（亮/暗）逻辑——早期应用、切换并持久化、绑定开关（`LearnTheme.apply/set/toggle/current/wire`）；② **代码块高亮**——课件里的 `<pre><code>` 与 `.syo-editor` 加载即自动上色（`LearnTheme.highlight`）。三个页面共用，别各写一份 | 本项目自研 |
 | `style.css` | **课件层**（讲解排版 + 练习样式），叠在 Sayo 之上 | 本项目自研；Task 8 拷进每个科目 |
 | `quiz.js` | 课件**题目组件**（选择题即时反馈 + 开放题点开对照参考答案与算过标准）。数据契约以它顶部注释为准 | 同上 |
-| `lesson-toc.js` | 课件**侧边目录**：按页面 `<h2>` 自动生成；样式照搬 sayo-ui 文档页的 `.doc-sidebar`（可折叠成 rail、≤768px 变抽屉 + 汉堡），高亮交给 Sayo 的 `data-syo-scrollspy` | 同上 |
+| `lesson-toc.js` | 课件**侧边目录 + 上/下节课入口**：目录按页面 `<h2>` 自动生成；正文里的 `<nav class="lesson-nav">`（讲解角色写的真实链接）会被搬到目录下面。样式照搬 sayo-ui 文档页的 `.doc-sidebar`（可折叠成 rail、≤768px 变抽屉 + 汉堡），高亮交给 Sayo 的 `data-syo-scrollspy` | 同上 |
 
 ## 在工作区里的落地位置与引用路径
 
@@ -30,7 +30,7 @@
         │   ├── style.css
         │   ├── quiz.js
         │   └── lesson-toc.js
-        └── lessons/0001-xxx.html               # 课件
+        └── lessons/<NNNN>-<节点id>.html         # 课件（NNNN = 节点在 curriculum.yaml 里的序号）
 ```
 
 各页面**必须**按下面的相对路径引用（路径写死在模板/课件里）：
@@ -39,7 +39,7 @@
 |------|-----------|-------------|
 | 根主页 `<WS>/index.html` | `.learning/assets/sayo/sayo.css`<br>`.learning/assets/learn-theme.css`<br>`.learning/assets/learn-theme.js`<br>`.learning/assets/sayo/sayo.js` | — |
 | 科目主页 `<WS>/.learning/subjects/<slug>/index.html` | `../../assets/sayo/sayo.css`<br>`../../assets/learn-theme.css`<br>`../../assets/learn-theme.js`<br>`../../assets/sayo/sayo.js` | `assets/style.css` |
-| 课件 `<WS>/.learning/subjects/<slug>/lessons/NNNN-x.html`<br>（从 `templates/lesson.html` 拷起） | `../../../assets/sayo/sayo.css`<br>`../../../assets/learn-theme.css`<br>`../../../assets/learn-theme.js`<br>`../../../assets/sayo/sayo.js` | `../assets/style.css`<br>`../assets/quiz.js`<br>`../assets/lesson-toc.js` |
+| 课件 `<WS>/.learning/subjects/<slug>/lessons/<NNNN>-<节点id>.html`<br>（从 `templates/lesson.html` 拷起） | `../../../assets/sayo/sayo.css`<br>`../../../assets/learn-theme.css`<br>`../../../assets/learn-theme.js`<br>`../../../assets/sayo/sayo.js` | `../assets/style.css`<br>`../assets/quiz.js`<br>`../assets/lesson-toc.js` |
 
 > 路径提示：课件在 `.learning/subjects/<slug>/lessons/` 下，向上三层就是 `.learning/`，
 > 所以共享层是 `../../../assets/…`（不要再写一层 `.learning`）；科目内组件则是 `../assets/…`。
