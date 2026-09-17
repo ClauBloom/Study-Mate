@@ -63,10 +63,9 @@
 
   <!-- ── 正文从这里写起：下面只是可用组件的示例，用不用、怎么排、分不分节都由你按内容决定 ──
 
-       讲解段落：普通 h2/p/ul/table 即可（要不要小节标题、标题怎么写，按内容定）
-       代码块（Sayo 编辑器外观；要简单就直接 <pre><code>）：
-         代码**自动上色**（页面加载时按内容认语言：cpp/sh/终端输出/html/js/json，认不出就保持原样），
-         照抄原文即可，不用手写高亮；要指定语言就在 <pre> 上写 data-lang="cpp|sh|term|…"（text = 不上色）
+       讲解段落：普通 h2/p/ul/table 即可
+       代码块（Sayo 编辑器外观；要简单就直接 <pre><code>）——**自动上色**，照抄原文即可，
+         指定语言就在 <pre> 上写 data-lang="cpp|sh|term|html|js|json"（text = 不上色）：
          <div class="syo-editor">
            <div class="syo-editor-titlebar">
              <span class="syo-editor-dots"><span class="syo-editor-dot syo-editor-dot--red"></span><span class="syo-editor-dot syo-editor-dot--yellow"></span><span class="syo-editor-dot syo-editor-dot--green"></span></span>
@@ -80,23 +79,16 @@
              </div>
            </div>
          </div>
-         （行号槽里的 <span> 个数与代码行数对齐；正文里的代码不要手抄行号；
-           要突出某个词时才手写 .syn-keyword / .syn-type / .syn-number 等类——写了高亮类的块整块不再自动上色）
-       提示卡 .lesson-tip / 误区卡 .lesson-warn
-       题目位标记：回合一在打算放题或动手块的地方留一行 HTML 注释，注释内容以「题目位：」开头
-         （例：题目位：L1 概念题 ×2 ／ 题目位：L3 开放题 ／ 题目位：动手块（实操课，指向 lab/NN-…））；
-         回合二把这些注释整行换成下面的块——交付的课件里不许残留（闸门会拦）
-       题目块 <div class="quiz" data-quiz='[{...}]'></div>：选择题 {q,opts,ans,why}（点选项即时反馈）、
-         开放题 {q,answer,criteria}（学生先自己想，点开对照参考答案与算过标准）；
-         数据契约见 assets/quiz.js 顶部注释，出题与判分规范见 <root>/.dsh/skills/layered-practice
-       动手块 .lesson-practice（标题 + 步骤；标题写中文阶段名，如「第 3 步 · 改造」，
-         别用 L1-L4 标步骤——那是题目的层级词汇，不进页面）
-       侧边目录：不用手写——lesson-toc.js 按本页 <h2> 自动生成（照搬 sayo-ui 文档页的侧边栏：可折叠、窄屏变抽屉、当前小节高亮）
-       上/下节课指针（见正文末尾的 .lesson-nav）：href 一律是**同一目录下的文件名**
-         <序号>-<节点id>.html——上一个/下一个节点取自 curriculum.yaml 的 nodes 顺序，
-         标题写节点 title。「下节课」的文件通常还没产出，链接着落空是正常的，不用等它存在。
-         第一课没有上节课、最后一课没有下节课：缺哪个就把那条 <a> 整行删掉。
-       资源列表 .lesson-resources、相关链接 .lesson-related
+         （行号槽里的 <span> 个数与代码行数对齐；要突出某个词时才手写 .syn-keyword 等类——
+           写了高亮类的块整块不再自动上色）
+       提示卡 .lesson-tip / 误区卡 .lesson-warn / 资源列表 .lesson-resources / 相关链接 .lesson-related
+       题目块 <div class="quiz" data-quiz='[{...}]'></div>：选择题 {q,opts,ans,why}、开放题 {q,answer,criteria}；
+         字段契约见 assets/quiz.js 顶部注释
+       动手块 .lesson-practice：标题写中文阶段名（如「第 3 步 · 改造」）
+       题目位标记：回合一在放题或动手块的位置留一行注释，以「题目位：」开头（例：题目位：L1 概念题 ×2）；
+         回合二整行换成真块——交付的课件里不许残留（闸门会拦）
+       侧边目录与上/下节课指针都不用你排版：lesson-toc.js 按本页 <h2> 生成目录、并把正文末尾的
+         .lesson-nav 搬到侧栏底部，你只按 lesson-design 第四节填 href 与标题
        （要素与呈现要求见 lesson-design；学生偏好见 MEMORY.md） -->
 
   <!-- ── 提问提示：固定写法，别删 ── -->

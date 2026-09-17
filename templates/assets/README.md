@@ -44,18 +44,15 @@
 > 路径提示：课件在 `.learning/subjects/<slug>/lessons/` 下，向上三层就是 `.learning/`，
 > 所以共享层是 `../../../assets/…`（不要再写一层 `.learning`）；科目内组件则是 `../assets/…`。
 >
-> 为什么共享层只放一份：Sayo 有两个主题、体积 260KB+，每个科目各拷一份纯属浪费；
-> 而 `style.css` / `quiz.js` 留在科目内，是因为讲解角色会往 `<subject>/assets/` 里
-> 追加该科目专用的展示组件（模拟器、图表等；题目本身的内容与字段契约由题目角色定，不在这里改），
-> 科目自带的组件库要跟着科目走。
+> 为什么分两层：共享层体积 260KB+，每个科目各拷一份纯属浪费；`style.css` / `quiz.js` / `lesson-toc.js`
+> 留在科目内，是因为讲解角色会往 `<subject>/assets/` 追加该科目专用的展示组件（题目内容与字段契约归题目角色，不在这里改）。
 
 ## 代码块高亮约定
 
 课件的代码块**不用手写高亮**：页面加载时 `learn-theme.js` 会给 `<pre><code>` 与 `.syo-editor-code` 里的
 代码自动上色（token 类沿用 Sayo 的 `.syn-*`，颜色随亮/暗主题走）。
 
-- 语言按内容猜：`cpp` / `sh` / `term`（终端与编译器输出）/ `html` / `js` / `json`
-- 猜不出来就**保持原样**（程序输出、题面文字不该被染色）
+- 语言按内容猜：`cpp` / `sh` / `term`（终端与编译器输出）/ `html` / `js` / `json`；猜不出来就**保持原样**（程序输出、题面文字不该被染色）
 - 要指定就写 `data-lang="cpp|sh|html|js|json|term"`；`data-lang="text"` = 明确不上色
 - 一个块里只要手写过 `.syn-*`，整块跳过——手工优先，自动不覆盖
 - 猜错的常见场合：整块贴的都是「命令 + 输出」混排时按首行判定，可用 `data-lang` 纠正
@@ -86,11 +83,7 @@ cp -r <sayo-ui>/icons templates/assets/sayo/icons
 2. `scripts/preview_templates.py` 里的 `shared_files` / `shared_dirs`
 3. `docs/实施计划.md` Global Constraints 的「前端技术选型」与 Task 13 的资源就位要求
 
-## 跨任务提示
+## 谁在哪里落地
 
-- **Task 11（install.sh）/ Task 13（gen_home.py）**：必须保证 `<WS>/.learning/assets/` 存在
-  （把 `templates/assets/sayo/` 与 `templates/assets/learn-theme.css` 放进去）。生成器找不到资源时，
-  页面会退化成无样式裸 HTML，所以这一步是硬要求，且要幂等。
-- **Task 8（总控建科目）**：只拷 `style.css`、`quiz.js` 到 `<subject>/assets/`，
-  不要把 `sayo/` 再拷一遍。
-- **Task 5（learning-coach 写课件）**：先读 `<subject>/assets/` 与共享层已有的组件，复用而不是内联。
+- **总控建科目**：只拷 `style.css`、`quiz.js`、`lesson-toc.js` 到 `<subject>/assets/`，别把 `sayo/` 再拷一遍
+- **`gen_home.py`**：负责共享层（`sayo/` + `learn-theme.css/js`）就位，幂等；缺资源页面会退化成裸 HTML

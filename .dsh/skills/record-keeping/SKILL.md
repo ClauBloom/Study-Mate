@@ -33,7 +33,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 1. **新建**：建 `subjects/<slug>/` 与 `lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 只从 `<root>/templates/assets/` 拷 `style.css`、`quiz.js`、`lesson-toc.js`（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**——只有 `kind: 实操/实验` 的节点才需要
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
-4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
+4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js`、`lesson-toc.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
 
 ## 学习记录（learning-records/）
 
@@ -50,24 +50,14 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 项目与实验课
 
-`progress.yaml` 的 `project` **只有一句"在做的是什么"**：
+`progress.yaml` 的 `project` **只有一句"在做的是什么"**（`current`；schema 只要求这一个键）。**里程碑不在这里**——它们就是 `kind: 实验` 的验收课节点，进度就在 `nodes` 里（课型见 `layered-practice` 第四节）。
 
-```yaml
-project:
-  current: "订单 API（本地可跑，逐步加到可部署）"
-nodes:
-  exp.crud-routes:            # id 来自 curriculum.yaml 里 kind: 实验 的节点
-    status: 未开始
-    mastery: 0
-```
-
-- 里程碑不在这里——它们就是 `kind: 实验` 的验收课节点，进度就在 `nodes` 里（课型见 `layered-practice` 第四节）
 - **实验课通过时（硬规则）**：把该节点与它的 `prerequisites`（被验收节点）都置为「**已通过项目验证**」（mastery 保留或上调），再写一条学习记录（"实验通过：<标题>"）。这是"项目推进"的唯一依据，不要凭印象提前置、也不要漏置
 - `current` 变了先跟学生确认；改完过 `schemas/progress.schema.json`
 
 ## 主页刷新
 
-主页是生成产物（模板在 `<root>/templates/`，生成器 `<root>/scripts/gen_home.py`）：**刷新 = 跑 `python3 <root>/scripts/gen_home.py`**，覆盖旧文件、不改数据文件。时机：新建科目后、节点状态变化后、材料新增后、会话结束前。
+主页是生成产物（模板在 `<root>/templates/`）：**刷新 = 跑 `python3 <root>/scripts/gen_home.py`**（一次刷新根主页与所有科目主页），覆盖旧文件、不改数据文件。非零退出看 stderr——断链或某个科目数据读不出来，修完重跑。时机：新建科目后、节点状态变化后、材料新增后、会话结束前。
 
 ## 读写规则（硬约束）
 

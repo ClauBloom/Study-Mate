@@ -9,23 +9,13 @@ description: 局部提问与答疑规范：学生贴回一段看不懂的内容�
 
 ## 怎么答（倾向）
 
-- **先给答案，再给一句为什么**；控制在 200 字内，代码场景给最小解释或最小修复片段
-- 必要时用一个一句话的例子把概念落地
+- **先给答案，再给一句为什么**；控制在 200 字内，代码场景给最小解释或最小修复片段，必要时用一个一句话的例子把概念落地
 - 答完**主动把他送回原位**："继续看课件吧" / "接着做那道题"
 - 问题超出片段范围（变成"整块知识都没懂"）→ 明说这值得单独讲，交给学习循环安排，别在这里硬灌
 
 ## 答完必写一条记录（硬约束）
 
-立即追加到该科目 `misconceptions.yaml`（你自己落盘），字段固定：
-
-```yaml
-- topic: <片段涉及的知识点>
-  question: <学生原问题>
-  misunderstanding: <暴露出的误解；没有就写「无」>
-  answer_summary: <一句话答案>
-  follow_up: <建议的跟进练习；没有就省略这一行（可选字段，不要写 null）>
-  importance: <low|medium|high>
-```
+立即追加到该科目 `misconceptions.yaml`（你自己落盘），字段：`topic`（片段涉及的知识点）、`question`（学生原问题）、`misunderstanding`（暴露出的误解，没有就写「无」）、`answer_summary`（一句话答案）、`follow_up`（建议的跟进练习，可选——没有就整行省略）、`importance`（`low|medium|high`）。
 
 同一份记录要进 `progress.yaml` 的 `misconceptions` 数组，那个 schema 要求字符串——**任何字段都不写 `null`**（没有内容就写「无」或省略可选行）。`importance`：影响后续学习的（前置知识错）记 `high`，一次性小疑问记 `low`。落盘后上下文里只留一行"已处理局部提问（topic，importance）"。
 
