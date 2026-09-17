@@ -28,6 +28,8 @@ user-invocable: false
 
 把回合一的注释位换成出题人给的题：按 `<root>/templates/assets/quiz.js` 顶部契约**原样嵌入**（位置、引入的一句话、上下文由你定；**题面与答案一个字都不改**，要改先回去找出题人）。返回嵌完的路径 + 每道题落在第几节。
 
+**交回前自己先跑一遍闸门**：`python3 <root>/scripts/check_lesson.py <课件路径> --subject <subject_path> --node <节点id>`，把 `FAIL` 修掉再交（回合一的课件带着题目位标记，那时闸门会 FAIL，那是预期；回合二交回时必须过）。
+
 ## 速查页（按需）
 
 值得长期速查的知识点，在 `<subject_path>/reference/` 写一份 HTML 速查页（自包含、引用同一套共享层与组件），并在课件里链接它；不必每课都写。
