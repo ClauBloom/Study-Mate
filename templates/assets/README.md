@@ -12,7 +12,7 @@
 | `learn-theme.js` | **主题（亮/暗）共享逻辑**：早期应用、切换并持久化、绑定开关（`LearnTheme.apply/set/toggle/current/wire`）。三个页面共用，别各写一份 | 本项目自研 |
 | `style.css` | **课件层**（讲解排版 + 练习样式），叠在 Sayo 之上 | 本项目自研；Task 8 拷进每个科目 |
 | `quiz.js` | 课件**题目组件**（选择题即时反馈 + 开放题点开对照参考答案与算过标准）。数据契约以它顶部注释为准 | 同上 |
-| `lesson-toc.js` | 课件**侧边目录**：按页面 `<h2>` 自动生成，高亮交给 Sayo 的 `data-syo-scrollspy`。窄窗口不显示 | 同上 |
+| `lesson-toc.js` | 课件**侧边目录**：按页面 `<h2>` 自动生成；样式照搬 sayo-ui 文档页的 `.doc-sidebar`（可折叠成 rail、≤768px 变抽屉 + 汉堡），高亮交给 Sayo 的 `data-syo-scrollspy` | 同上 |
 
 ## 在工作区里的落地位置与引用路径
 
