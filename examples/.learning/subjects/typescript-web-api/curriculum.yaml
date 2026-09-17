@@ -12,7 +12,7 @@ nodes:
     practice: "用 curl 请求一个公开 API，观察状态码与响应头"
     pitfalls: [把状态码背成数字, 混淆请求头与响应头]
     realworld: "浏览器开发者工具 Network 面板里的每一条请求"
-    evidence: ["能说清一次 404 的完整过程", "curl -v 输出解释正确"]
+    验收点: ["能说清一次 404 的完整过程", "curl -v 输出解释正确"]
     status: 未开始
     mastery: 0
   - id: http.routing
@@ -28,7 +28,7 @@ nodes:
     practice: "为订单 API 加 3 条路由（GET/POST/DELETE）"
     pitfalls: [路径参数与查询参数混淆, 路由顺序影响匹配]
     realworld: "网关 → 服务 → 处理函数的转发链"
-    evidence: ["手写路由表并解释匹配顺序", "为路由写测试并运行通过"]
+    验收点: ["手写路由表并解释匹配顺序", "为路由写测试并运行通过"]
     status: 未开始
     mastery: 0
   - id: http.validation
@@ -44,7 +44,7 @@ nodes:
     practice: "给订单创建接口加参数校验，用 curl 发三种非法请求看返回"
     pitfalls: [把校验散落在业务逻辑里, 校验失败返回 500 而不是 400]
     realworld: "表单提交、第三方回调里的字段清洗"
-    evidence: ["非法请求全部返回 400 且有可读错误信息", "校验代码集中在一处，业务处理函数里没有 if 判空"]
+    验收点: ["非法请求全部返回 400 且有可读错误信息", "校验代码集中在一处，业务处理函数里没有 if 判空"]
     status: 未开始
     mastery: 0
   - id: http.errors
@@ -60,7 +60,7 @@ nodes:
     practice: "把项目里散落的 try/catch 收拢成一个错误处理中间件"
     pitfalls: [把堆栈直接返回给客户端, 用 200 携带错误信息]
     realworld: "线上接口出错时的 5xx 日志与告警"
-    evidence: ["抛出自定义错误后客户端收到正确状态码", "错误响应体格式统一"]
+    验收点: ["抛出自定义错误后客户端收到正确状态码", "错误响应体格式统一"]
     status: 未开始
     mastery: 0
   - id: db.access
@@ -79,7 +79,7 @@ nodes:
     practice: "为订单表写 CRUD，含按状态过滤的查询"
     pitfalls: [字符串拼接 SQL 造成注入, 在请求里新建连接而不复用池]
     realworld: "订单、用户表在服务端的读写"
-    evidence: ["能用 psql 看到代码写入的那一行", "查询全部走参数化写法"]
+    验收点: ["能用 psql 看到代码写入的那一行", "查询全部走参数化写法"]
     status: 未开始
     mastery: 0
   - id: auth.basics
@@ -98,7 +98,7 @@ nodes:
     practice: "给订单接口加登录校验，让用户只能看到自己的订单"
     pitfalls: [明文存密码, 拿用户 id 当唯一凭证而不校验归属]
     realworld: "任何带登录的应用：凭证过期、越权访问的排错"
-    evidence: ["未带凭证的请求被 401 拦下", "改请求里的 id 拿不到别人的数据"]
+    验收点: ["未带凭证的请求被 401 拦下", "改请求里的 id 拿不到别人的数据"]
     status: 未开始
     mastery: 0
   - id: test.api
@@ -114,7 +114,7 @@ nodes:
     practice: "给订单 API 的每个端点写测试，含一个失败路径"
     pitfalls: [测试之间共享数据导致顺序依赖, 只测成功路径]
     realworld: "重构之前先跑一遍测试套件"
-    evidence: ["一次命令跑完所有测试", "故意改坏一处实现，有测试报红"]
+    验收点: ["一次命令跑完所有测试", "故意改坏一处实现，有测试报红"]
     status: 未开始
     mastery: 0
   - id: project.deploy
@@ -133,7 +133,7 @@ nodes:
     practice: "把订单 API 部到一台云主机上并用公网地址访问"
     pitfalls: [把连接串硬编码进代码, 部署后没有健康检查就以为服务在跑]
     realworld: "第一次让自己的接口被真实用户调用"
-    evidence: ["公网地址上能注册、登录、完成一次 CRUD", "服务重启后数据仍在"]
+    验收点: ["公网地址上能注册、登录、完成一次 CRUD", "服务重启后数据仍在"]
     status: 未开始
     mastery: 0
 edges:

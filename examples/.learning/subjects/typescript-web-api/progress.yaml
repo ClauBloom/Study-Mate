@@ -28,7 +28,12 @@ misconceptions: []
 project:
   current: "订单 API（本地可跑，逐步加到可部署）"
   milestones:
-    - "能跑通 3 条 CRUD 路由"
-    - "接上 PostgreSQL 并写测试"
-    - "加认证并部署"
-  done: []
+    - text: "能跑通 3 条 CRUD 路由"
+      nodes: [http.basics, http.routing]
+      done: false
+    - text: "接上 PostgreSQL 并写测试"
+      nodes: [db.access, test.api]
+      done: false
+    - text: "加认证并部署"
+      nodes: [auth.basics, project.deploy]
+      done: false
