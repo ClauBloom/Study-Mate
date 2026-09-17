@@ -27,6 +27,9 @@
          · 开放题（写了 answer/criteria）：`answer`（参考答案）与 `criteria`（算过标准）都非空；
          · 两组字段不能同时出现在一题里；都没有则题型不明。
        普通课件至少要有一道题；`kind: 实验` 的说明页是任务书，没有题目块不算缺项。
+       两条**属性值写法**的检查（浏览器口径与取值正则不一致，必须单独拦）：
+         · 裸的同类引号（`'` 包属性又出现裸 `'`）：浏览器在那里截断属性；
+         · 单引号包裹时，JSON 字符串内部写了实体引号 `&quot;`：解码后是裸 `"`，提前闭合字符串。
     5 实操（按节点的 `kind` 条件判定，需 --subject 与 --node）：
        · `kind: 实操` 或 `kind: 实验`：必须有 href 含 lab/ 的链接，且 `<科目>/lab/<本课编号>-*/`
          存在、里面有任务文件、`<科目>/lab/solutions/` 非空；
@@ -523,6 +526,42 @@ def bare_delimiter_in_json_strings(raw, delimiter):
                if index % 2 == 1)
 
 
+# 检查项 4：属性值里被实体化的引号（`&quot;` / `&#34;` / `&#x22;`）。
+# 单引号包裹时，值里的 JSON **结构引号是裸写的**，所以按书写原样跟踪引号状态就能判断一个
+# 实体引号是落在字符串内部（会提前闭合字符串，必须报）还是当结构引号用（多余但合法，不报）。
+ENTITY_QUOTE_RE = re.compile(r'&(?:quot|#0*34|#x0*22);', re.I)
+
+
+def entity_quotes_in_json_strings(raw):
+    """落在 JSON 字符串字面量**内部**的实体引号（按书写原样判定）。"""
+    spans, offset = [], 0
+    for index, part in enumerate(json_string_spans(raw)):
+        if index % 2:
+            spans.append((offset, offset + len(part)))
+        offset += len(part)
+    return [match.group(0) for match in ENTITY_QUOTE_RE.finditer(raw)
+            if any(start <= match.start() < end for start, end in spans)]
+
+
+def check_quiz_attr_entities(tag):
+    """单引号包裹的 data-quiz 值里，JSON 字符串内部的引号是否写成了实体。
+
+    这种写法浏览器解码后是一个**裸 `"`**，会提前闭合 JSON 字符串：多数情况 JSON.parse 报错、
+    题目块显示「解析失败」，少数情况还能解析成功但把后半句吃掉。闸门原有的「合法 JSON」检查
+    只会说一句 `Expecting ',' delimiter`，看的人不知道该怎么改——这条把口径说清楚：
+    字符串内部的引号写 JSON 自己的 `\\"`，单引号才写实体 `&#39;`。
+    """
+    delimiter, raw = data_quiz_delimiter_span(tag)
+    if delimiter != "'" or not raw:
+        return []
+    hits = sorted(set(entity_quotes_in_json_strings(raw)))
+    if not hits:
+        return []
+    return [f'data-quiz 用单引号包裹，值里的 JSON 字符串内部却写了实体引号（{"、".join(hits)}）——'
+            f'浏览器解码后是一个裸 "，会提前闭合 JSON 字符串（解析失败，或内容被吃掉一截）。'
+            f'字符串内部的引号写 JSON 自己的转义 \\"；单引号才写 &#39;']
+
+
 def check_quiz_attr_delimiters(tag):
     """data-quiz 的值片段里是否含**裸的同类引号**（浏览器会在那里把属性截断）。
 
@@ -588,7 +627,8 @@ def check_quiz(text, required=True):
     for tag_match in QUIZ_TAG_RE.finditer(text):
         if 'quiz' not in tag_match.group(2).split():
             continue
-        for problem in check_quiz_attr_delimiters(tag_match.group(0)):
+        for problem in (check_quiz_attr_delimiters(tag_match.group(0))
+                        + check_quiz_attr_entities(tag_match.group(0))):
             if problem not in seen_delimiter_problems:
                 seen_delimiter_problems.add(problem)
                 problems.append(problem)

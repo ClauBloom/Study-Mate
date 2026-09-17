@@ -660,8 +660,8 @@ def lesson_node_id(name, known_ids):
 
     归属只有一个来源，别再从页头文字反推：文件名里编号与节点 id 都是硬规则
     （`lesson-design` 管着、`check_lesson.py` 的检查项 8 按 curriculum.yaml 校验），
-    而页头是写给学生看的可读文字（「0001 · 第一份能提交的代码」）。两边各推一次的结果
-    会对不上——本轮就有课件页头没写节点 id、于是主页路线图上一直挂着 WARN。
+    而页头是写给学生看的可读文字（「0001 · 第一份能提交的代码」）。两个来源各推一次，
+    对不上时谁也看不出来——归属只留这一个。
     """
     match = LESSON_FILE_RE.match(name)
     if not match:
