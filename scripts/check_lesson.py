@@ -27,9 +27,10 @@
          · 开放题（写了 answer/criteria）：`answer`（参考答案）与 `criteria`（算过标准）都非空；
          · 两组字段不能同时出现在一题里；都没有则题型不明。
        普通课件至少要有一道题；`kind: 实验` 的说明页是任务书，没有题目块不算缺项。
-       两条**属性值写法**的检查（浏览器口径与取值正则不一致，必须单独拦）：
+       三条**属性值写法**的检查（浏览器口径与取值正则不一致，必须单独拦）：
          · 裸的同类引号（`'` 包属性又出现裸 `'`）：浏览器在那里截断属性；
-         · 单引号包裹时，JSON 字符串内部写了实体引号 `&quot;`：解码后是裸 `"`，提前闭合字符串。
+         · 单引号包裹时，JSON 字符串内部写了实体引号 `&quot;`：解码后是裸 `"`，提前闭合字符串；
+         · 双引号包裹时，值里出现裸 `"`（含 `\"`）：浏览器同样在那里截断属性。
     5 实操（按节点的 `kind` 条件判定，需 --subject 与 --node）：
        · `kind: 实操` 或 `kind: 实验`：必须有 href 含 lab/ 的链接，且 `<科目>/lab/<本课编号>-*/`
          存在、里面有任务文件、`<科目>/lab/solutions/` 非空；
@@ -562,6 +563,33 @@ def check_quiz_attr_entities(tag):
             f'字符串内部的引号写 JSON 自己的转义 \\"；单引号才写 &#39;']
 
 
+def check_quiz_attr_truncation(tag):
+    """双引号包裹的 data-quiz：值里出现裸 `"`（含写成 `\\"` 的）时属性被浏览器截断。
+
+    为什么必须单独查：`DATA_QUIZ_ATTR_RE` 是贪婪取值，能跨过那个裸引号取出「完整」的值、
+    JSON 还解析得通——于是闸门放行，而学生看到的是「题目数据解析失败」。
+    只在「宽松取值能解析、浏览器口径取到的值解析不了」时报，避免与「不是合法 JSON」重复。
+    """
+    delimiter, raw = data_quiz_delimiter_span(tag)
+    if delimiter != '"' or not raw:
+        return []
+    loose = DATA_QUIZ_ATTR_RE.search(tag)
+    if not loose:
+        return []
+    try:
+        json.loads(html.unescape(loose.group(2)))       # 宽松取值就解析不了 → 交给「合法 JSON」那条报
+    except ValueError:
+        return []
+    try:
+        json.loads(html.unescape(raw.split('"', 1)[0]))  # 浏览器口径：值到第一个裸 " 为止
+        return []
+    except ValueError:
+        pass
+    return ['data-quiz 用双引号包裹，值里出现了裸的 "（哪怕写成 \\" 也一样）——浏览器在那里就把属性'
+            '截断了，题目块会退化成「题目数据解析失败」。本项目一律用单引号包裹；非要用双引号，'
+            '字符串内部的引号写 \\&quot;（反斜杠 + 实体，两个都不能少）']
+
+
 def check_quiz_attr_delimiters(tag):
     """data-quiz 的值片段里是否含**裸的同类引号**（浏览器会在那里把属性截断）。
 
@@ -628,7 +656,8 @@ def check_quiz(text, required=True):
         if 'quiz' not in tag_match.group(2).split():
             continue
         for problem in (check_quiz_attr_delimiters(tag_match.group(0))
-                        + check_quiz_attr_entities(tag_match.group(0))):
+                        + check_quiz_attr_entities(tag_match.group(0))
+                        + check_quiz_attr_truncation(tag_match.group(0))):
             if problem not in seen_delimiter_problems:
                 seen_delimiter_problems.add(problem)
                 problems.append(problem)
