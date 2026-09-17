@@ -30,7 +30,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 科目文件夹
 
-1. **新建**：建 `subjects/<slug>/` 与 `lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 只从 `<root>/templates/assets/` 拷 `style.css`、`quiz.js`、`lesson-toc.js`（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**——只有 `kind: 实操/实验` 的节点才需要
+1. **新建**：建 `subjects/<slug>/` 与 `lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 只从 `<root>/templates/assets/` 拷 `style.css`、`quiz.js`、`lesson-toc.js`（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**——只有 `kind: 实操/实验` 的节点才需要。盘问时定下的**载体**先随派工 prompt 传给 `practice-evaluator`，等**首个实操/实验节点**建 `lab/` 时再落盘进 `lab/README.md`（那之前没有 `lab/` 不是漏了）
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
 4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js`、`lesson-toc.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
@@ -66,6 +66,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 3. **写入类型化的状态**：结构化事实进 YAML，偏好与观察进 `MEMORY.md`
 4. **会话摘要**（会话结束时）：按 session-summary schema 生成，存 `subjects/<slug>/sessions/<YYYY-MM-DD>.md`（同日多段追加）；**YAML frontmatter 承载 schema 字段**（日期加引号），正文写本次要点；同时在对话里给一条 `memory_updates` 建议，学生确认后写进 `MEMORY.md`
 5. **恢复视图**（开场自读）：`MEMORY.md` 相关分节 + 当前节点 + 前置节点摘要 + 最近 5 条 misconceptions + 最近 3 条学习记录 + 最近 3 条评估记录 + 实验课节点进度与 `project.current`。只读需要的部分（offset/limit/grep），不把长文件整份读进来
+6. **进度只认 `progress.yaml`**：`curriculum.yaml` 的每个节点也带 `status`/`mastery`（schema 要求），那是**建课时的初始快照**，建课后不再回头维护；运行期的状态只写 `progress.yaml`、也只读它——里面**只记有变化的节点**，没写的按大纲里的初始值算（`gen_home.py` 就是这么合并的）。两份文件都改是漂移的源头
 
 ## 边界
 

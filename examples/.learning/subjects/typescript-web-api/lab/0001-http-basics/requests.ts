@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
-   StudyMate · 实操 01-http-basics（与课件 0001 对齐）
+   StudyMate · 实操 0001-http-basics（与课件 0001 对齐）
    节点：http.basics　载体：源码 + 测试（零依赖，Node 原生跑 TypeScript）
    ═══════════════════════════════════════════════════════════════
    怎么用：
-   1. 先跑一遍看结果   →  cd lab/01-http-basics && npm test
+   1. 先跑一遍看结果   →  cd lab/0001-http-basics && npm test
       教程部分（narrative / explainStatus / quizOptions）是全的，那几条断言直接通过；
       任务部分（带 ▸ 你的任务 标记的四个函数）此刻还是空的，测试用 test.skip 放着不跑。
    2. 逐个实现四个任务函数：把下面的 throw 换成实现。

@@ -1,4 +1,4 @@
-# 实操：01-http-basics
+# 实操：0001-http-basics
 
 对应节点 `http.basics`。
 把一次 HTTP 请求与响应拆开看，并且**自己写代码把那段文本解析成对象**。
@@ -6,14 +6,14 @@
 
 ## 载体
 
-**源码 + 测试**：`01-http-basics/` 里是一份 TypeScript 源码 `requests.ts` 加一份测试 `requests.test.ts`，
+**源码 + 测试**：`0001-http-basics/` 里是一份 TypeScript 源码 `requests.ts` 加一份测试 `requests.test.ts`，
 用 Node 自带的测试运行器跑，**零依赖、不联网、不装 npm 包**。
 
 | 文件 | 是什么 |
 | --- | --- |
-| `01-http-basics/requests.ts` | 你要读和写的源码：教程部分已完成，四个函数留白（标了 `▸ 你的任务`） |
-| `01-http-basics/requests.test.ts` | 自检脚本：教程断言 + 四个任务断言（任务部分此刻用 `test.skip` 放着） |
-| `01-http-basics/package.json` | 只有一个 `test` 脚本：`node --test` |
+| `0001-http-basics/requests.ts` | 你要读和写的源码：教程部分已完成，四个函数留白（标了 `▸ 你的任务`） |
+| `0001-http-basics/requests.test.ts` | 自检脚本：教程断言 + 四个任务断言（任务部分此刻用 `test.skip` 放着） |
+| `0001-http-basics/package.json` | 只有一个 `test` 脚本：`node --test` |
 | `solutions/requests.ts` | 参考答案（做完再对照，别提前看） |
 
 ## 环境
@@ -25,7 +25,7 @@
 
 ```bash
 # 先进入本文件所在的科目目录（.learning/subjects/typescript-web-api/），然后：
-cd lab/01-http-basics
+cd lab/0001-http-basics
 npm test
 ```
 
@@ -56,7 +56,7 @@ npm test
 ## 答案
 
 - `../solutions/requests.ts`：四个任务的完整实现。
-- 对照方式：把那份整个覆盖到 `01-http-basics/requests.ts`，再把四条 `test.skip(` 改成 `test(`，`npm test` 应全绿。
+- 对照方式：把那份整个覆盖到 `0001-http-basics/requests.ts`，再把四条 `test.skip(` 改成 `test(`，`npm test` 应全绿。
   可用的命令：
 
   ```bash

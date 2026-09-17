@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
-   StudyMate · 实操 01-http-basics 参考答案（做完再看）
+   StudyMate · 实操 0001-http-basics 参考答案（做完再看）
    ═══════════════════════════════════════════════════════════════
-   用法：把这份整个覆盖到 lab/01-http-basics/requests.ts，再回
+   用法：把这份整个覆盖到 lab/0001-http-basics/requests.ts，再回
    requests.test.ts 把四条 test.skip( 改成 test(，
    然后 npm test——应该全绿。
    这份文件与 requests.ts 的接口完全一致，只是把四个 ▸ 你的任务 实现了。
