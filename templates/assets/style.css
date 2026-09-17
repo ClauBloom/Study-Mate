@@ -223,6 +223,11 @@
   background: var(--syo-bg-surface);
   border: 1px solid var(--syo-border);
   border-radius: var(--syo-radius-md);
+  /* 题面、选项、why、参考答案、算过标准都是 quiz.js 用 textContent 写入的，可以含 \n
+     （L3 排错题要「给一段代码或真实报错」，多行是常态）。不声明的话浏览器把换行折叠成一行，
+     代码挤成一串没法读。pre-line = 保留 \n、照常折叠连续空格与行首缩进；写在这里让容器内
+     所有文本继承，省得每个子元素各写一遍。 */
+  white-space: pre-line;
 }
 
 .quiz__q {
@@ -231,13 +236,7 @@
   font-weight: 600;
   color: var(--syo-fg-default);
   line-height: 1.7;
-  /* 题面/答案/算过标准都是 textContent 写入的，可以含 \n（例如题干或参考答案里嵌一段多行代码）。
-     不加这行，浏览器会把换行折叠掉，代码挤成一串没法读。
-     pre-line = 保留 \n、照常折叠连续空格与行首缩进，对纯文本内容无影响。 */
-  white-space: pre-line;
 }
-.quiz__answer-text,
-.quiz__criteria { white-space: pre-line; }
 
 .quiz__opts { display: flex; flex-direction: column; gap: 8px; }
 
