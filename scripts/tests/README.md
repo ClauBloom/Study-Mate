@@ -12,6 +12,7 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的高
 
 | 套件 | 钉住什么 |
 |---|---|
+| `test_install.py` | `install.sh`：预设装到哪、占位符换成引擎 skills 路径、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。全部在沙箱 `HOME` 里跑（19 项） |
 | `test_quiz_attr.py` | 闸门对 `data-quiz` 属性值写法的判定：9 例矩阵（单引号/双引号包裹 × 引号怎么写），含「实体引号提前闭合 JSON 字符串」与「裸引号把属性截断」两类 |
 | `test_quiz_code.py` | 题面里的 ` ``` ` 代码围栏：成对放行、没闭合即拦（含 `answer` 字段）、行内单个反引号不算围栏（6 例） |
 | `test_naming_nav.py` | 闸门检查项 8：文件名与大纲位次一致、上/下节课指针指向大纲邻居、悬空指针只提示、归属查不出即 FAIL（9 个场景） |

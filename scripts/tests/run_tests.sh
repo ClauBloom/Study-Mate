@@ -21,6 +21,7 @@ if ! python3 -c 'import yaml' 2>/dev/null; then
   exit 1
 fi
 
+step '安装脚本（沙箱 HOME，16 项）'        python3 scripts/tests/test_install.py
 step '题目属性转义（闸门，9 例）'          python3 scripts/tests/test_quiz_attr.py
 step '题目里的代码围栏（闸门，6 例）'      python3 scripts/tests/test_quiz_code.py
 step '命名与上下节课指针（闸门，9 例）'    python3 scripts/tests/test_naming_nav.py

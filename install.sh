@@ -7,6 +7,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DSH="${DSH_HOME:-$HOME/.dsh}"
 
 # 1) 学习模式预设 → ~/.dsh/.agent-presets/learning/，并把引擎的 skill 目录写进去
+if [ ! -d "$ROOT/.dsh/skills" ]; then
+  echo "找不到 $ROOT/.dsh/skills——引擎目录不完整（仓库要整个克隆，别只拷 install.sh）" >&2
+  exit 1
+fi
 DEST_PRESET="$DSH/.agent-presets/learning"
 mkdir -p "$DEST_PRESET"
 cp -r "$ROOT/preset/learning/." "$DEST_PRESET/"
@@ -38,7 +42,12 @@ fi
 if [ -z "$WORKSPACE" ]; then
   WORKSPACE="$ROOT/workspace"
 fi
+# 路径统一成绝对路径：开头一个 ~ 展开成家目录，相对路径按当前目录解析。
+# 配置是机器全局的（会话在任意目录启动时按它定位工作区），留相对路径的话
+# 换个目录开会话就找不到工作区了——所以这里就把它钉成绝对路径。
+WORKSPACE="${WORKSPACE/#\~/$HOME}"
 mkdir -p "$WORKSPACE/.learning/subjects"
+WORKSPACE="$(cd "$WORKSPACE" && pwd)"
 cat > "$CONFIG" <<EOF
 # StudyMate 学习工作区与引擎项目定位
 workspace: $WORKSPACE
