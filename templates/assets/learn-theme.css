@@ -47,6 +47,11 @@
   --learn-soft-yellow: rgba(210, 153, 34, .14);
 
   --learn-glow:        rgba(188, 140, 255, .28);
+
+  /* 卡片阴影（本项目的全局阴影令牌）：暗色用纯黑，与 Sayo 卡片同一族；
+     亮色由 html[data-theme="light"] 换成暖色版——阴影是**分主题**的，
+     写死在通用规则里必然有一边失效（暖褐阴影叠暗底等于没有）。 */
+  --learn-shadow-card: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 16px rgba(0, 0, 0, .25);
 }
 
 html[data-theme="light"] {
@@ -69,6 +74,9 @@ html[data-theme="light"] {
   --learn-soft-yellow: rgba(192, 138, 45, .16);
 
   --learn-glow:        rgba(47, 125, 95, .22);
+
+  /* 卡片阴影：暖褐，且比暗色更淡（亮底上淡阴影就够，重了发脏） */
+  --learn-shadow-card: 0 1px 2px rgba(38, 36, 31, .05), 0 6px 16px rgba(38, 36, 31, .05);
 }
 
 /* ── 3. 亮色主题：Sayo 令牌 → 我们的暖色系 ── */
@@ -88,30 +96,35 @@ html[data-theme="light"] {
   --syo-fg-body:    #3b382f;
   --syo-fg-muted:   #6b665c;
 
-  /* 功能色（暖化，保证亮底对比度） */
+  /* 功能色（暖化，保证亮底对比度；每个值都按「文字色」标定 ≥4.5:1，
+     对的是它实际出现的那层底：yellow/green/blue 常压在自己的 --learn-soft-* 上，
+     所以标定背景比纯白更严） */
   --syo-red:    #b3402f;
   --syo-orange: #b06a1f;
-  --syo-yellow: #9a7420;
-  --syo-green:  #2f7d5f;
+  --syo-yellow: #80601b;   /* 误区卡标签：对 --learn-soft-yellow 合成底 4.6:1（原 #9a7420 只有 3.4） */
+  --syo-green:  #2b7357;   /* 提示卡标签 / 已完成徽章：对 --learn-soft-green 合成底 4.6:1（原 #2f7d5f 只有 4.0） */
   --syo-teal:   #1f7a6b;
   --syo-cyan:   #2c6f8f;
-  --syo-blue:   #3a7ca5;
+  --syo-blue:   #336c90;   /* 进行中徽章：对 --learn-soft-blue 合成底 4.6:1（原 #3a7ca5 只有 3.7） */
   --syo-purple: #6b5b8a;
   --syo-pink:   #a05070;
 
-  /* 语义角色：亮色强调色是深学习绿，不是 Sayo 默认的紫 */
-  --syo-accent:    #2f7d5f;
+  /* 语义角色：亮色强调色是深学习绿，不是 Sayo 默认的紫。
+     取值与 --syo-green 一致，且要同时满足「当文字用」的场合：强调色会压在
+     --learn-soft-accent 上（侧栏当前项、筛选按钮选中态），那里比纯白更严。 */
+  --syo-accent:    #2b7357;
   --syo-secondary: #3a7ca5;
   --syo-special:   #b06a1f;
   --syo-subtle:    #1f7a6b;
 
-  /* 语法高亮（暖化，仍保持可辨识度） */
-  --syo-syn-comment:  #8a8478;
+  /* 语法高亮（暖化，仍保持可辨识度）：每个值都按代码块底色 #ffffff 标定 ≥4.5:1。
+     注释原是 #8a8478（3.72:1，全套里唯一明显偏淡的），压到 #7a7469。 */
+  --syo-syn-comment:  #7a7469;
   --syo-syn-keyword:  #a4462f;
   --syo-syn-string:   #2f6b4f;
   --syo-syn-func:     #6b5b8a;
   --syo-syn-type:     #8a5a1f;
-  --syo-syn-macro:    #9a7420;
+  --syo-syn-macro:    #946f1f;
   --syo-syn-operator: #2c6f8f;
   --syo-syn-number:   #2c6f8f;
 }
