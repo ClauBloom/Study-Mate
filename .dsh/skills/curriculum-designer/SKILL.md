@@ -25,7 +25,7 @@ user-invocable: false
 | `problem` | 场景钩子：这一课用哪个真实场景／真实问题开场——是问题，不是定义 |
 | `验收点` | 1-3 条可核对的话（如"手写路由表并解释匹配顺序"）；必须指向具体产物或具体解释，**不写"理解了 X"** |
 | `resources` | 权威教材的章节 + 一处权威来源；**稳定基础知识可空或只放一条延伸阅读**，易变/版本相关（框架 API、工具配置、部署）必须放核对过的官方文档，冷门领域找不到来源就留空并在报告里说明；每条带 `title`/`type`/`url` |
-| 其余字段（`id`、`prerequisites`、`concepts`、`practice`、`pitfalls`、`realworld`、`status`、`mastery`） | 字段全量以 `schemas/curriculum.schema.json` 为准；`status` 初始"未开始"、`mastery` 0；`concepts` / `pitfalls` / `realworld` 按需写，不为"整齐"逐个填满 |
+| 其余字段（`id`、`prerequisites`、`concepts`、`practice`、`pitfalls`、`realworld`、`status`、`mastery`） | 字段全量以 `<root>/schemas/curriculum.schema.json` 为准；`status` 初始"未开始"、`mastery` 0；`concepts` / `pitfalls` / `realworld` 按需写，不为"整齐"逐个填满 |
 
 4. 自查：把全部标题连起来读一遍——同一个句式说明标题在套模板
 
