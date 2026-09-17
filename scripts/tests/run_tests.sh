@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# StudyMate 回归测试：纯 Python / Node，不需要浏览器（默认）。
+#   bash scripts/tests/run_tests.sh              # 5 套快测
+#   bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的几套
+set -u
+cd "$(dirname "$0")/../.." || exit 1
+
+BROWSER=0
+[ "${1:-}" = "--browser" ] && BROWSER=1
+
+fail=0
+step() {
+  printf '\n=== %s ===\n' "$1"
+  shift
+  "$@" || { fail=1; printf '  ↑ 这一套没全过\n'; }
+}
+
+if ! python3 -c 'import yaml' 2>/dev/null; then
+  printf '\n缺少 pyyaml：闸门读不了 curriculum.yaml，命名与指针那套会失败。\n'
+  printf '先装：python3 -m pip install pyyaml\n'
+  exit 1
+fi
+
+step '题目属性转义（闸门，9 例）'          python3 scripts/tests/test_quiz_attr.py
+step '命名与上下节课指针（闸门，9 例）'    python3 scripts/tests/test_naming_nav.py
+step '提示词规则清单（278 条）'            python3 scripts/tests/test_skill_rules.py
+
+if command -v node >/dev/null 2>&1; then
+  step 'quiz.js 渲染（18 项）'             node scripts/tests/quiz_dom_test.js
+  step 'lesson-toc.js 侧栏（27 项）'       node scripts/tests/toc_dom_test.js
+else
+  printf '\n跳过两套 JS 测试：没装 node。\n'
+fi
+
+if [ "$BROWSER" = 1 ]; then
+  if command -v google-chrome >/dev/null 2>&1; then
+    step '代码块高亮（真实 Chrome，29 项）' node scripts/tests/browser/hl_test.mjs
+  else
+    printf '\n跳过浏览器那几套：没装 google-chrome。\n'
+  fi
+fi
+
+printf '\n──────────────────────────────\n'
+if [ "$fail" = 0 ]; then
+  printf '全部通过\n'
+else
+  printf '有未通过的项目（见上）\n'
+fi
+exit "$fail"

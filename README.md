@@ -113,11 +113,14 @@ python3 scripts/preview_templates.py --open    # 用假数据渲染主页模板�
 python3 scripts/check_curriculum.py examples/.learning/subjects/typescript-web-api/curriculum.yaml
 python3 scripts/check_lesson.py workspace/.learning/subjects/cpp-competitive-programming/lessons/0001-hello.first.html --subject workspace/.learning/subjects/cpp-competitive-programming --node hello.first
 python3 scripts/check_skill.py .dsh/skills/*    # 技能 frontmatter（改过技能就跑一次）
+bash scripts/tests/run_tests.sh                # 回归测试：闸门/题目属性/命名指针/提示词规则/DOM（改引擎就跑一次）
 
 # 换成你自己的科目：--subject 给科目目录，--node 给该课件对应的节点 id；大纲校验可一次传多个 curriculum.yaml
 ```
 
-`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、共享层引用、题目结构、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示。退出码：`check_lesson.py` / `check_curriculum.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
+`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示。退出码：`check_lesson.py` / `check_curriculum.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
+
+`scripts/tests/run_tests.sh` 不需要浏览器（`--browser` 才加真实 Chrome 的高亮那套）；测试自己造临时科目，不碰 `workspace/`。改了闸门、`templates/assets/` 或 `.dsh/skills/` 之后跑一次，见 `scripts/tests/README.md`。
 
 </details>
 
@@ -139,7 +142,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 ├── preset/learning/           # 「学习模式」预设源（install.sh 装到 ~/.dsh/）
 ├── schemas/                   # 5 份数据结构：大纲 / 进度 / 评估 / 会话摘要 / 科目
 ├── templates/                 # 页面骨架（主页、科目页、课件）与前端资源 assets/
-├── scripts/                   # 主页生成 + 三道校验闸门（用法见上）
+├── scripts/                   # 主页生成 + 三道校验闸门（用法见上）+ tests/ 回归测试
 ├── examples/                  # 示例学习工作区：两门示例科目，可拿来跑生成器看效果
 ├── docs/                      # 使用说明、设计方案、实施计划、docs/images/ 截图
 └── workspace/                 # 你的学习数据（默认位置，可配置；也被 .gitignore 忽略）
