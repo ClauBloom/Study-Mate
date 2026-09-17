@@ -1,6 +1,6 @@
 # 实操：01-http-basics
 
-对应课件 `lessons/0001-http-basics.html`，节点 `http.basics`。
+对应节点 `http.basics`。
 把一次 HTTP 请求与响应拆开看，并且**自己写代码把那段文本解析成对象**。
 项目线索：订单 API 以后每一次排错都从这里开始，所以这段代码要亲手写一遍，不调用现成库。
 

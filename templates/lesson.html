@@ -61,7 +61,22 @@
   <!-- ── 正文从这里写起：下面只是可用组件的示例，用不用、怎么排、分不分节都由你按内容决定 ──
 
        讲解段落：普通 h2/p/ul/table 即可（要不要小节标题、标题怎么写，按内容定）
-       代码块：<div class="syo-editor">… 结构见 <root>/examples/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html 里的 .syo-editor
+       代码块（Sayo 编辑器外观；要简单就直接 <pre><code>）：
+         <div class="syo-editor">
+           <div class="syo-editor-titlebar">
+             <span class="syo-editor-dots"><span class="syo-editor-dot syo-editor-dot--red"></span><span class="syo-editor-dot syo-editor-dot--yellow"></span><span class="syo-editor-dot syo-editor-dot--green"></span></span>
+             <span class="syo-editor-filename">写文件名，或这段是什么</span>
+           </div>
+           <div class="syo-editor-body">
+             <div class="syo-editor-gutter"><span>1</span><span>2</span></div>
+             <div class="syo-editor-code">
+               <span class="line">第一行</span>
+               <span class="line"><span class="syn-keyword">const</span> total = <span class="syn-number">2</span>;</span>
+             </div>
+           </div>
+         </div>
+         （行号槽里的 <span> 个数与代码行数对齐；高亮类 .syn-keyword / .syn-type / .syn-number / .syn-operator
+           定义在 assets/style.css 与 Sayo 里；正文里的代码不要手抄行号）
        提示卡 .lesson-tip / 误区卡 .lesson-warn
        题目位标记：回合一在打算放题或动手块的地方留一行 HTML 注释，注释内容以「题目位：」开头
          （例：题目位：L1 概念题 ×2 ／ 题目位：L3 开放题 ／ 题目位：动手块（实操课，指向 lab/NN-…））；
