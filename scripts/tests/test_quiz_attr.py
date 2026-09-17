@@ -18,6 +18,7 @@
 用法：python3 scripts/tests/test_quiz_attr.py
 """
 import os
+import shutil
 import sys
 import tempfile
 
@@ -73,6 +74,7 @@ def main():
         fixtures.check(label, ok, note if ok else note + '\n' + out)
     total = len(CASES)
     print(f'\n{total - failures}/{total} 通过')
+    shutil.rmtree(tmp, ignore_errors=True)
     return 1 if failures else 0
 
 

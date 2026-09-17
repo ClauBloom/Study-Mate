@@ -10,6 +10,7 @@
 """
 import json
 import os
+import shutil
 import sys
 import tempfile
 
@@ -54,6 +55,7 @@ def main():
         fixtures.check(label, ok, out if not ok else f'闸门={"FAIL" if code else "OK"}')
     total = len(CASES)
     print(f'\n{total - failures}/{total} 通过')
+    shutil.rmtree(tmp, ignore_errors=True)
     return 1 if failures else 0
 
 

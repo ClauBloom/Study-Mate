@@ -33,6 +33,17 @@ async function pageTarget() {
   throw new Error('chrome 没起来');
 }
 
+async function killChrome() {
+  // 等 chrome 真的退出再删 profile：kill() 只是发信号，进程还在写盘时删会被它重建
+  await new Promise((resolve) => {
+    const done = () => resolve();
+    chrome.once('exit', done);
+    setTimeout(done, 3000);
+    chrome.kill();
+  });
+  try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
+}
+
 let failures = 0;
 function check(label, ok, extra = '') {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${extra ? '  — ' + extra : ''}`);
@@ -112,8 +123,8 @@ const res = await send('Runtime.evaluate', { expression: probe, returnByValue: t
 if (res.exceptionDetails) {
   console.log('FAIL  探测脚本自身报错：' + (res.exceptionDetails.exception
     ? res.exceptionDetails.exception.description : res.exceptionDetails.text));
-  ws.close(); chrome.kill();
-  try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
+  ws.close();
+  await killChrome();
   process.exit(1);
 }
 const v = res.result.value || {};
@@ -142,5 +153,5 @@ check('纯散文题面的换行仍保留', v.q2Text.includes('n 是 5。') && v.
 console.log(failures === 0 ? '\n全部通过' : `\n${failures} 项失败`);
 ws.close();
 chrome.kill();
-try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
+await killChrome();
 process.exit(failures === 0 ? 0 : 1);

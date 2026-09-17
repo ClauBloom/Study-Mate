@@ -5,6 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+async function killChrome() {
+  // 等 chrome 真的退出再删 profile：kill() 只是发信号，进程还在写盘时删会被它重建
+  await new Promise((resolve) => {
+    const done = () => resolve();
+    chrome.once('exit', done);
+    setTimeout(done, 3000);
+    chrome.kill();
+  });
+  try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
+}
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const FIXTURE = 'file://' + join(HERE, 'highlight-fixture.html');
@@ -130,6 +141,5 @@ console.log(`\n${checks.length - bad}/${checks.length} 通过`);
 if (bad) console.log('detail:', JSON.stringify(r));
 
 ws.close();
-try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
-chrome.kill();
+await killChrome();
 process.exit(bad ? 1 : 0);

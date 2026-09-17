@@ -5,6 +5,17 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+async function killChrome() {
+  // 等 chrome 真的退出再删 profile：kill() 只是发信号，进程还在写盘时删会被它重建
+  await new Promise((resolve) => {
+    const done = () => resolve();
+    chrome.once('exit', done);
+    setTimeout(done, 3000);
+    chrome.kill();
+  });
+  try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
+}
+
 const url = process.argv[2];
 const hoverIdx = process.argv.indexOf('--hover');
 const hoverSel = hoverIdx > 0 ? process.argv[hoverIdx + 1] : null;
@@ -170,5 +181,4 @@ if (DUMP) {
 }
 
 ws.close();
-try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
-chrome.kill();
+await killChrome();

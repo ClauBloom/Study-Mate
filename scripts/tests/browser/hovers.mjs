@@ -4,6 +4,18 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+async function killChrome() {
+  // 等 chrome 真的退出再删 profile：kill() 只是发信号，进程还在写盘时删会被它重建
+  await new Promise((resolve) => {
+    const done = () => resolve();
+    chrome.once('exit', done);
+    setTimeout(done, 3000);
+    chrome.kill();
+  });
+  try { rmSync(PROFILE, { recursive: true, force: true }); } catch {}
+}
+
+
 const pages = process.argv.slice(2);
 const PORT = 9400 + Math.floor(Math.random() * 300);
 const PROFILE = join(tmpdir(), 'smtest-hover-' + Date.now());
@@ -63,4 +75,5 @@ for (const url of pages) {
     }
   }
 }
-ws.close(); chrome.kill();
+ws.close();
+await killChrome();
