@@ -495,12 +495,23 @@
   /* 页面底色与卡片底色只差 1.09:1，不靠阴影的话卡片形状立不住。
      阴影是分主题的 → 取值放令牌（learn-theme.css）：亮色暖褐、暗色纯黑。 */
   box-shadow: var(--learn-shadow-card);
-  /* 题面、选项、why、参考答案、算过标准都是 quiz.js 用 textContent 写入的，可以含 \n
+  /* 题面、选项、why、参考答案、算过标准都是 quiz.js 写进去的纯文本，可以含 \n
      （L3 排错题要「给一段代码或真实报错」，多行是常态）。不声明的话浏览器把换行折叠成一行，
-     代码挤成一串没法读。pre-line = 保留 \n、照常折叠连续空格与行首缩进；写在这里让容器内
-     所有文本继承，省得每个子元素各写一遍。 */
-  white-space: pre-line;
+     代码挤成一串没法读。pre-wrap = 保留 \n **与行首缩进**，同时照常在行尾换行。
+     缩进必须留住：有的题面就拿缩进提问（`else` 对齐、嵌套层次），折叠掉等于把题抽掉。
+     多行代码另写进 ``` 围栏 → quiz.js 渲染成真 <pre><code>（等宽 + 上色 + 横向滚动），
+     见 quiz.js 顶部契约；这条 pre-wrap 是给没进围栏的普通多行文本兜底的。 */
+  white-space: pre-wrap;
 }
+
+/* 围栏渲染出的代码块。底色/边框/横向滚动由 .lesson pre 给（题目块在 .lesson 里），
+   这里只补字重与行距：.quiz__q 是 600，代码跟着变粗会很难读。 */
+.quiz__code {
+  white-space: pre;
+  tab-size: 4;
+  line-height: 1.6;
+}
+.quiz__code code { font-weight: 400; }
 
 .quiz__q {
   margin: 0 0 var(--syo-space-4);

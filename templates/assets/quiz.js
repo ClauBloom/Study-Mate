@@ -37,6 +37,19 @@
      answer    参考答案（必填）
      criteria  算过标准：凭什么算答对了（必填；学生点开对照时看到的就是这两段）
 
+   题面里的代码（`q` / `answer` / `criteria` / `why` 四个字段都适用）：
+     多行代码写进**围栏**——起止各占一整行，中间照原样写（**缩进与空格全保留**）：
+
+       {"q":"下面这段为什么死循环？\n\n```cpp\nwhile (i <= 100) {\n    ++cnt;\n}\n```\n\n① 哪里出问题？"}
+
+     围栏行的写法是「行首可有缩进 + 三个反引号 + 语言标签」，语言可省（自动识别），
+     写 `text` 表示不上色。渲染结果是真代码块（等宽 + 底色 + 自动上色），
+     与课件正文里的代码块同款。
+     **多行代码不进围栏就会掉缩进**：没有围栏的多行文本按纯文本渲染，只保留换行，
+     浏览器会把行首空格折叠掉——靠缩进提问的题（`else` 对齐、嵌套层次）就废了。
+     行内的单个反引号是普通字符，不做解析（shell 题面里合法）。
+     围栏没闭合闸门会拦（`scripts/check_lesson.py`）。
+
    行为：
    - 选择题：点选项立刻给反馈（对/错 + why）；选错的标红、正确的标绿；允许改选，计分只算第一次；
      一组里的选择题全部答完后显示"答对 N / M"，并用 Sayo toast 提示一次（M 只数选择题）
@@ -68,17 +81,73 @@
     return (total > 1 ? (index + 1) + '. ' : '') + (item.q || '');
   }
 
+  /* ── 题面/答案里的代码：```lang 围栏渲染成真代码块 ────────────────
+     纯文本走 textContent 时，多行代码没有等宽字体、缩进也会被 white-space 折叠掉
+     （有的题面恰恰靠缩进提问，学生就看不见了）。围栏里的内容改渲染成 <pre><code>：
+     缩进、空格原样保留，底色/边框用 .lesson pre 那套，上色交给 learn-theme.js。
+     围栏必须**单独占一行**（行首可缩进）：起一行 ```lang、止一行 ```；行内出现的
+     单个反引号是普通字符，不做解析（shell 题面里合法）。语言标签可省（自动识别）。 */
+  var FENCE_RE = /^[ \t]*```[ \t]*([A-Za-z0-9+#.-]*)[ \t]*$/;
+
+  function renderRich(el, text) {
+    var lines = String(text == null ? '' : text).split('\n');
+    var prose = [];
+    var code = null;
+
+    function flushProse() {
+      var body = prose.join('\n').replace(/^\n+|\n+$/g, '');
+      if (body) el.appendChild(document.createTextNode(body));
+      prose = [];
+    }
+    function flushCode() {
+      var pre = document.createElement('pre');
+      pre.className = 'quiz__code';
+      if (code.lang) pre.setAttribute('data-lang', code.lang);
+      var inner = document.createElement('code');
+      inner.textContent = code.lines.join('\n');
+      pre.appendChild(inner);
+      el.appendChild(pre);
+      code = null;
+    }
+
+    lines.forEach(function (line) {
+      var fence = FENCE_RE.exec(line);
+      if (fence) {
+        if (code) flushCode();
+        else { flushProse(); code = { lang: fence[1], lines: [] }; }
+        return;
+      }
+      (code ? code.lines : prose).push(line);
+    });
+    if (code) flushCode();          /* 围栏没闭合：照代码块渲染到结尾（闸门会拦这种写法） */
+    else flushProse();
+  }
+
+  /* 建块（div 而非 p：代码块是 <pre>，不能塞进 p 里） */
+  function richBlock(className, text) {
+    var el = document.createElement('div');
+    el.className = className;
+    renderRich(el, text);
+    return el;
+  }
+
+  /* 上色是增强项：learn-theme.js 的自动扫描在本文件建块**之前**就跑完了
+     （它挂在 head、DOMContentLoaded 先注册），所以这里必须显式再扫一遍自己的块 */
+  function highlight(block) {
+    if (window.LearnTheme && typeof window.LearnTheme.highlight === 'function') {
+      try { window.LearnTheme.highlight(block); } catch (e) { /* 忽略 */ }
+    }
+  }
+
   /* ── 选择题：点选项即时反馈 ─────────────────────────────────── */
   function buildChoice(block, item, index, total, state) {
-    var question = document.createElement('p');
-    question.className = 'quiz__q';
-    question.textContent = questionText(item, index, total);
+    var question = richBlock('quiz__q', questionText(item, index, total));
     block.appendChild(question);
 
     var opts = document.createElement('div');
     opts.className = 'quiz__opts';
 
-    var feedback = document.createElement('p');
+    var feedback = document.createElement('div');
     feedback.className = 'feedback';
     feedback.hidden = true;
 
@@ -101,7 +170,9 @@
 
         feedback.hidden = false;
         feedback.className = 'feedback ' + (ok ? 'correct' : 'wrong');
-        feedback.textContent = (ok ? '✓ 对' : '✗ 再想想') + (item.why ? '　' + item.why : '');
+        feedback.textContent = '';
+        renderRich(feedback, (ok ? '✓ 对' : '✗ 再想想') + (item.why ? '　' + item.why : ''));
+        highlight(feedback);
 
         if (firstAnswer) {
           firstAnswer = false;
@@ -130,9 +201,7 @@
 
   /* ── 开放题：自己先答，点开对照参考答案与算过标准（不贴回会话）── */
   function buildOpen(block, item, index, total) {
-    var question = document.createElement('p');
-    question.className = 'quiz__q';
-    question.textContent = questionText(item, index, total);
+    var question = richBlock('quiz__q', questionText(item, index, total));
     block.appendChild(question);
 
     var wrap = document.createElement('div');
@@ -150,16 +219,12 @@
     var answerLabel = document.createElement('p');
     answerLabel.className = 'quiz__answer-label';
     answerLabel.textContent = '参考答案';
-    var answerText = document.createElement('p');
-    answerText.className = 'quiz__answer-text';
-    answerText.textContent = item.answer || '';
+    var answerText = richBlock('quiz__answer-text', item.answer || '');
 
     var criteriaLabel = document.createElement('p');
     criteriaLabel.className = 'quiz__answer-label';
     criteriaLabel.textContent = '算过标准';
-    var criteriaText = document.createElement('p');
-    criteriaText.className = 'quiz__criteria';
-    criteriaText.textContent = item.criteria || '';
+    var criteriaText = richBlock('quiz__criteria', item.criteria || '');
 
     answer.appendChild(answerLabel);
     answer.appendChild(answerText);
@@ -178,9 +243,7 @@
 
   /* ── 数据不完整时的兜底 ─────────────────────────────────────── */
   function buildBroken(block, item, index, total) {
-    var question = document.createElement('p');
-    question.className = 'quiz__q';
-    question.textContent = questionText(item, index, total);
+    var question = richBlock('quiz__q', questionText(item, index, total));
     block.appendChild(question);
 
     var hint = document.createElement('p');
@@ -232,6 +295,8 @@
       });
 
       if (state.scoreEl) block.appendChild(state.scoreEl);
+
+      highlight(block);            /* 围栏渲染出的代码块：建完立刻上色（见 highlight 注释） */
     });
   });
 })();

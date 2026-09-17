@@ -26,6 +26,7 @@
          · 选择题（写了 opts/ans）：`opts` 是 ≥2 项的数组、`ans` 是范围内的整数、`why` 非空；
          · 开放题（写了 answer/criteria）：`answer`（参考答案）与 `criteria`（算过标准）都非空；
          · 两组字段不能同时出现在一题里；都没有则题型不明。
+         · `q`/`answer`/`criteria`/`why` 里的 ``` 围栏必须成对（不成对后半段会被渲染成代码块）。
        普通课件至少要有一道题；`kind: 实验` 的说明页是任务书，没有题目块不算缺项。
        三条**属性值写法**的检查（浏览器口径与取值正则不一致，必须单独拦）：
          · 裸的同类引号（`'` 包属性又出现裸 `'`）：浏览器在那里截断属性；
@@ -87,6 +88,10 @@ NUMBERED_NAME_RE = re.compile(r'^(\d{4})-.*\.html$')
 # 检查项 2/3：共享层与科目组件引用（按 href/src 属性值比对，不吃注释里的路径）
 SHARED_REFS = ('sayo.css', 'learn-theme.css', 'learn-theme.js', 'sayo.js')
 SUBJECT_REFS = ('../assets/style.css', '../assets/quiz.js')
+
+# 检查项 4：题目结构里的 ``` 围栏（与 templates/assets/quiz.js 的渲染口径一致）
+# 围栏行 = 行首可有缩进 + 三个反引号 + 可选语言标签；行内的单个反引号不算。
+QUIZ_FENCE_RE = re.compile(r'^[ \t]*```[ \t]*[A-Za-z0-9+#.-]*[ \t]*$')
 
 # 检查项 4：每题选项最长与最短的长度差**提示**阈值（R5）——超过只提示，不阻断
 MAX_OPT_LEN_GAP = 4
@@ -630,6 +635,24 @@ def scan_quiz_blocks(text):
     return blocks
 
 
+def check_quiz_fences(item, label):
+    """题面/答案里的 ``` 围栏是否成对（不成对 = 后半段全被当成代码渲染）。
+
+    围栏是 quiz.js 渲染真代码块的写法（缩进与等宽都在里面保证），见它顶部契约。
+    只查「成对」这一件结构事：语言标签写不写、写什么由作者定，闸门不管。
+    """
+    problems = []
+    for field in ('q', 'answer', 'criteria', 'why'):
+        value = item.get(field)
+        if not isinstance(value, str):
+            continue
+        fences = sum(1 for line in value.split('\n') if QUIZ_FENCE_RE.match(line))
+        if fences % 2:
+            problems.append(f'{label}的 `{field}` 里 ``` 围栏没闭合（起止各占一整行，'
+                            f'中间才是代码）——不闭合的话后半段会被整段渲染成代码块')
+    return problems
+
+
 def check_quiz(text, required=True):
     """检查项 4：题目结构（阻断）＋选项长度差（提示）。字段契约见 quiz.js 顶部注释。
 
@@ -682,6 +705,9 @@ def check_quiz(text, required=True):
             question = item.get('q')
             if not isinstance(question, str) or not question.strip():
                 problems.append(f'{label}缺题面（q 必须是非空字符串）')
+
+            for problem in check_quiz_fences(item, label):
+                problems.append(problem)
 
             is_choice = 'opts' in item or 'ans' in item
             is_open = 'answer' in item or 'criteria' in item

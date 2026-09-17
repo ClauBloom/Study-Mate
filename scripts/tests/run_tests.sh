@@ -22,11 +22,12 @@ if ! python3 -c 'import yaml' 2>/dev/null; then
 fi
 
 step '题目属性转义（闸门，9 例）'          python3 scripts/tests/test_quiz_attr.py
+step '题目里的代码围栏（闸门，6 例）'      python3 scripts/tests/test_quiz_code.py
 step '命名与上下节课指针（闸门，9 例）'    python3 scripts/tests/test_naming_nav.py
 step '提示词规则清单（278 条）'            python3 scripts/tests/test_skill_rules.py
 
 if command -v node >/dev/null 2>&1; then
-  step 'quiz.js 渲染（18 项）'             node scripts/tests/quiz_dom_test.js
+  step 'quiz.js 渲染（26 项）'             node scripts/tests/quiz_dom_test.js
   step 'lesson-toc.js 侧栏（27 项）'       node scripts/tests/toc_dom_test.js
 else
   printf '\n跳过两套 JS 测试：没装 node。\n'
@@ -34,7 +35,8 @@ fi
 
 if [ "$BROWSER" = 1 ]; then
   if command -v google-chrome >/dev/null 2>&1; then
-    step '代码块高亮（真实 Chrome，29 项）' node scripts/tests/browser/hl_test.mjs
+    step '代码块高亮（真实 Chrome，29 项）'     node scripts/tests/browser/hl_test.mjs
+    step '题目里的代码块（真实 Chrome，11 项）' node scripts/tests/browser/quiz_code_test.mjs
   else
     printf '\n跳过浏览器那几套：没装 google-chrome。\n'
   fi

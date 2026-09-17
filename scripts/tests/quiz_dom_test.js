@@ -5,7 +5,7 @@ const ASSET = path.join(__dirname, '..', '..', 'templates', 'assets', 'quiz.js')
 
 function makeEl(tag) {
   const el = {
-    tagName: tag, className: '', textContent: '', hidden: false, type: '', _data: null,
+    tagName: tag, className: '', hidden: false, type: '', _data: null, _attrs: {}, _text: '',
     children: [], _handlers: {},
     classList: {
       _set: new Set(),
@@ -20,9 +20,24 @@ function makeEl(tag) {
     appendChild(c) { this.children.push(c); return c; },
     addEventListener(t, fn) { (this._handlers[t] = this._handlers[t] || []).push(fn); },
     click() { (this._handlers.click || []).forEach(fn => fn()); },
-    getAttribute(n) { return n === 'data-quiz' ? this._data : null; },
+    getAttribute(n) { return n === 'data-quiz' ? this._data : (n in this._attrs ? this._attrs[n] : null); },
+    setAttribute(n, v) { this._attrs[n] = String(v); },
   };
+  // 真实 DOM 的 textContent：设值清空子节点，读值把整棵子树的文本拼起来。
+  // quiz.js 现在用 createTextNode + <pre><code> 渲染围栏代码块，两条语义都要有，
+  // 否则断言读到的是空串。
+  Object.defineProperty(el, 'textContent', {
+    get() { return this._text + this.children.map(c => c.textContent || '').join(''); },
+    set(v) { this._text = String(v == null ? '' : v); this.children.length = 0; },
+  });
   return el;
+}
+
+function makeText(text) {
+  const node = makeEl('#text');
+  node.nodeType = 3;
+  node.textContent = text;
+  return node;
 }
 
 function makeBlock(items) {
@@ -40,6 +55,7 @@ function run(blocks) {
       addEventListener() {},
       querySelectorAll() { return blocks; },
       createElement: makeEl,
+      createTextNode: makeText,
     },
   };
   vm.createContext(sandbox);
@@ -124,6 +140,47 @@ check('坏数据 → 显示数据不完整提示', !!hint && hint.textContent.in
 const b5 = makeEl('div'); b5._data = '{不是 JSON';
 run([b5]);
 check('非法 JSON → 显示解析失败', b5.textContent.includes('解析失败'), b5.textContent);
+
+
+// ── 场景六：围栏代码块（```lang）───────────────────────────────
+const fenced = makeBlock([{
+  q: '下面这段为什么死循环？\n\n```cpp\nwhile (i <= 100) {\n    ++cnt;\n}\n```\n\n① 哪里出问题？',
+  opts: ['i 没变', 'cnt 没变', '循环条件写反'],
+  ans: 0,
+  why: '循环体里没改 i',
+}]);
+run([fenced]);
+
+const codeBlocks = findAll(fenced, 'quiz__code');
+check('围栏 → 生成代码块', codeBlocks.length === 1, `实际 ${codeBlocks.length}`);
+const cb = codeBlocks[0] || {};
+const cbCode = (cb.children || [])[0] || {};
+check('代码块是 <pre>，里面是 <code>', cb.tagName === 'pre' && cbCode.tagName === 'code');
+check('data-lang 传到 pre 上', cb.getAttribute('data-lang') === 'cpp', String(cb.getAttribute('data-lang')));
+check('代码原文一字不动（含缩进）', cbCode.textContent === 'while (i <= 100) {\n    ++cnt;\n}',
+      JSON.stringify(cbCode.textContent));
+check(' prose 保留在代码块之外（前后两段都在）',
+      fenced.textContent.includes('为什么死循环') && fenced.textContent.includes('① 哪里出问题'),
+      JSON.stringify(findAll(fenced, 'quiz__q')[0].textContent));
+
+const noLang = makeBlock([{ q: '看：\n```\nx = 1\n```', opts: ['a', 'b'], ans: 0, why: 'w' }]);
+run([noLang]);
+check('围栏不写语言 → 不设 data-lang（交给自动识别）',
+      findAll(noLang, 'quiz__code')[0].getAttribute('data-lang') === null);
+
+const inlineTick = makeBlock([{ q: 'shell 里 `pwd` 是做什么的？', opts: ['a', 'b'], ans: 0, why: 'w' }]);
+run([inlineTick]);
+check('行内单个反引号是普通字符（不解析成代码块）',
+      findAll(inlineTick, 'quiz__code').length === 0 && inlineTick.textContent.includes('`pwd`'));
+
+const unclosed = makeBlock([{ q: '看：\n```cpp\nx = 1;\ny = 2;', opts: ['a', 'b'], ans: 0, why: 'w' }]);
+run([unclosed]);
+check('围栏没闭合 → 兜底渲染成代码块到结尾',
+      findAll(unclosed, 'quiz__code').length === 1 && unclosed.textContent.includes('y = 2;'));
+
+const openFenced = makeBlock([{ q: '题面', answer: '参考答案：\n\n```cpp\nreturn 0;\n```', criteria: '写出即算过' }]);
+run([openFenced]);
+check('answer 里的围栏也渲染成代码块', findAll(openFenced, 'quiz__code').length === 1);
 
 console.log(failures === 0 ? '\n全部通过' : `\n${failures} 项失败`);
 process.exit(failures === 0 ? 0 : 1);
