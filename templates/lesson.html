@@ -86,6 +86,7 @@
          数据契约见 assets/quiz.js 顶部注释，出题与判分规范见 <root>/.dsh/skills/layered-practice
        动手块 .lesson-practice（标题 + 步骤；标题写中文阶段名，如「第 3 步 · 改造」，
          别用 L1-L4 标步骤——那是题目的层级词汇，不进页面）
+       侧边目录：不用手写——lesson-toc.js 按本页 <h2> 自动生成（宽窗口显示在左侧，当前小节高亮）
        资源列表 .lesson-resources、相关链接 .lesson-related
        （要素与呈现要求见 lesson-design；学生偏好见 MEMORY.md） -->
 
@@ -104,6 +105,7 @@
 
 <script src="../../../assets/sayo/sayo.js"></script>
 <script src="../assets/quiz.js" defer></script>
+<script src="../assets/lesson-toc.js" defer></script>
 <script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
 </body>
 </html>

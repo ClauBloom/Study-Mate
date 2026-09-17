@@ -30,7 +30,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 科目文件夹
 
-1. **新建**：建 `subjects/<slug>/` 与 `lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 只从 `<root>/templates/assets/` 拷 `style.css`、`quiz.js`（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**——只有 `kind: 实操/实验` 的节点才需要
+1. **新建**：建 `subjects/<slug>/` 与 `lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 只从 `<root>/templates/assets/` 拷 `style.css`、`quiz.js`、`lesson-toc.js`（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**——只有 `kind: 实操/实验` 的节点才需要
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
 4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动

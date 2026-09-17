@@ -310,7 +310,7 @@ def main():
         shutil.copytree(os.path.join(src_assets, name), os.path.join(assets, name))
 
     # 模拟 Task 8 建科目：课件层组件拷进科目 assets/（每科目一份）
-    for name in ('style.css', 'quiz.js'):
+    for name in ('style.css', 'quiz.js', 'lesson-toc.js'):
         shutil.copy(os.path.join(src_assets, name), os.path.join(subject, 'assets', name))
 
     home = open(os.path.join(ROOT, 'templates', 'home-index.html'), encoding='utf-8').read()
