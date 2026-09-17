@@ -38,6 +38,7 @@
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
     · 选项长度差：每题 max(len(opt)) - min(len(opt)) > MAX_OPT_LEN_GAP 时提示。
     · 实操判定被跳过（没给 --subject/--node，或 progress.yaml 读不出来）。
+    · 小节标题超过 14 字：它会进左侧目录（220px 宽），长了要换行。
 
 本闸门**不判内容风格**：真实场景开场、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
 要素与倾向，由讲解角色按内容与学生偏好现场定；闸门不用关键词词表去替它做判断——那种代理会把
@@ -73,6 +74,9 @@ SUBJECT_REFS = ('../assets/style.css', '../assets/quiz.js')
 
 # 检查项 4：每题选项最长与最短的长度差**提示**阈值（R5）——超过只提示，不阻断
 MAX_OPT_LEN_GAP = 4
+
+# 检查项 8：小节标题长度**提示**阈值——目录侧栏 220px，14 个汉字一行放得下
+MAX_H2_CHARS = 14
 
 # 检查项 6：主题开关元素 id
 THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
@@ -273,6 +277,44 @@ def check_placeholder(text, path):
     return []
 
 
+class HeadingScanner(HTMLParser):
+    """收集 <h2> 的文本——小节标题会进侧边目录，太长就换行/扫读变差。"""
+
+    def __init__(self):
+        super().__init__()
+        self.titles = []
+        self._inside = False
+        self._buf = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'h2':
+            self._inside = True
+            self._buf = []
+
+    def handle_endtag(self, tag):
+        if tag == 'h2' and self._inside:
+            self._inside = False
+            text = ''.join(self._buf).strip()
+            if text:
+                self.titles.append(text)
+
+    def handle_data(self, data):
+        if self._inside:
+            self._buf.append(data)
+
+
+def check_section_titles(text):
+    """检查项 8（提示）：小节标题长度 ≤ MAX_H2_CHARS；超了只提示，不阻断。"""
+    notes = []
+    scanner = HeadingScanner()
+    scanner.feed(text)
+    for title in scanner.titles:
+        if len(title) > MAX_H2_CHARS:
+            notes.append(f'小节标题「{title}」{len(title)} 字 > {MAX_H2_CHARS}'
+                         '（会进左侧目录，窄了要换行）')
+    return notes
+
+
 class QuizScanner(HTMLParser):
     """收集 .quiz 块的 data-quiz 原文，并记下带 .quiz 但缺 data-quiz 的标签数。"""
 
@@ -399,6 +441,7 @@ def check_file(path, subject=None, node=None):
     kind = subject.kind_of(node) if (subject is not None and node is not None
                                      and not subject.error) else None
     quiz_problems, notes = check_quiz(text, required=(kind != '实验'))
+    notes += check_section_titles(text)
     lab_problems, lab_notes = check_lab(text, path, subject, node)
     problems = []
     problems += check_name(path)
