@@ -561,15 +561,46 @@ def mission_excerpt(slug, ws):
     return sentence.group(1).strip() if sentence else paragraph
 
 
+def milestone_text(item):
+    """里程碑条目 → 文案。新结构是 {text, nodes, done}；旧结构（纯字符串）兼容读。"""
+    if isinstance(item, dict):
+        return str(item.get('text') or '').strip()
+    return str(item or '').strip()
+
+
+def milestone_done(item):
+    """新结构看 `done` 布尔；旧结构（字符串）一律算未完成。"""
+    return bool(item.get('done')) if isinstance(item, dict) else False
+
+
 def render_project_html(prog):
-    """项目里程碑卡片（progress.yaml 的 project）；没有项目时输出 .learn-project__none 提示。"""
+    """项目里程碑卡片（progress.yaml 的 project）；没有项目时输出 .learn-project__none 提示。
+
+    `project.milestones` 是新结构 `[{text, nodes, done}]`；旧的 `project.done`（字符串数组）
+    仍然兼容读，便于工作区数据迁移期间页面不空。
+    """
     project = (prog or {}).get('project')
     if not isinstance(project, dict) or not str(project.get('current') or '').strip():
         return PROJECT_NONE_HTML
+
+    milestones = project.get('milestones')
+    if not isinstance(milestones, list):
+        milestones = []
+    done_items = []
+    todo_items = []
+    for item in milestones:
+        text = milestone_text(item)
+        if not text:
+            continue
+        (done_items if milestone_done(item) else todo_items).append(text)
+
+    legacy_done = project.get('done')
+    if isinstance(legacy_done, list):
+        done_items = [str(item).strip() for item in legacy_done if str(item or '').strip()] + done_items
+
     lists = []
-    for label, key in (('已完成', 'done'), ('待推进', 'milestones')):
-        items = project.get(key)
-        if not isinstance(items, list) or not items:
+    for label, items in (('已完成', done_items), ('待推进', todo_items)):
+        if not items:
             continue          # 空列表整块省略
         lis = ''.join(f'<li>{esc(item)}</li>' for item in items)
         lists.append(PROJECT_LIST_TEMPLATE.format(label=esc(label), items=lis))

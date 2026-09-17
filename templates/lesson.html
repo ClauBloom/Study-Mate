@@ -63,10 +63,15 @@
        讲解段落：普通 h2/p/ul/table 即可（要不要小节标题、标题怎么写，按内容定）
        代码块：<div class="syo-editor">… 结构见 <root>/examples/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html 里的 .syo-editor
        提示卡 .lesson-tip / 误区卡 .lesson-warn
-       交互练习 <div class="quiz" data-quiz='[{...}]'></div>，数据契约见 assets/quiz.js 顶部注释
-       动手块 .lesson-practice（层级标签 L1-L4 + 标题 + 步骤）
+       题目位标记：回合一在打算放题或动手块的地方留一行 HTML 注释，注释内容以「题目位：」开头
+         （例：题目位：L1 概念题 ×2 ／ 题目位：L3 开放题 ／ 题目位：动手块（实操课，指向 lab/NN-…））；
+         回合二把这些注释整行换成下面的块——交付的课件里不许残留（闸门会拦）
+       题目块 <div class="quiz" data-quiz='[{...}]'></div>：选择题 {q,opts,ans,why}（点选项即时反馈）、
+         开放题 {q,answer,criteria}（学生先自己想，点开对照参考答案与算过标准）；
+         数据契约见 assets/quiz.js 顶部注释，出题与判分规范见 <root>/.dsh/skills/layered-practice
+       动手块 .lesson-practice（标题 + 步骤；层级标签由出题人给，别自己编）
        资源列表 .lesson-resources、相关链接 .lesson-related
-       （要素与实操要求见 lesson-design；学生偏好见 MEMORY.md） -->
+       （要素与呈现要求见 lesson-design；学生偏好见 MEMORY.md） -->
 
   <!-- ── 提问提示：固定写法，别删 ── -->
 

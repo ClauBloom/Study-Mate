@@ -1,26 +1,37 @@
 /* ═══════════════════════════════════════════════════════════════
-   StudyMate · 课件交互组件：选择题即时反馈
+   StudyMate · 课件题目组件（数据契约的唯一出处）
    ═══════════════════════════════════════════════════════════════
-   用法（与计划约定一致，课件里这样写）：
+   用法（课件里这样写）：
 
      <div class="quiz" data-quiz='[
-       {"q":"问题文本","opts":["选项A","选项B","选项C"],"ans":1}
+       {"q":"选择题题干","opts":["选项A","选项B","选项C"],"ans":1,"why":"一句解释"},
+       {"q":"开放题题干","answer":"参考答案","criteria":"算过标准（学生据此自评）"}
      ]'></div>
      <script src="../assets/quiz.js" defer></script>
 
-   data-quiz 是 JSON 数组，每项：
-     q    问题（字符串，必填）
-     opts 选项数组（必填）
-     ans  正确选项的下标，从 0 开始（必填）
-     why  可选：答完显示的一句解释（推荐写上，"对/错"之外给个为什么）
+   data-quiz 是 JSON 数组，每项是一道题，**两种题型二选一**（不能同时写两组字段）：
+
+   题型一 · 选择题（页内自动判）
+     q     题干（字符串，必填，两种题型都要）
+     opts  选项数组（必填，≥2 项）
+     ans   正确选项下标，从 0 开始（必填，必须落在 opts 范围内）
+     why   答完显示的一句解释（必填：闸门会拦，见 scripts/check_lesson.py）
+
+   题型二 · 开放题（学生自评，不贴回会话）
+     q         题干（字符串，必填）
+     answer    参考答案（必填）
+     criteria  算过标准：凭什么算答对了（必填；学生点开对照时看到的就是这两段）
 
    行为：
-   - 点选项立刻给反馈：答对/答错 + 解释；选错的选项标红，正确的标绿
-   - 允许改选（重讲一遍后可以再点一次），但计分只算第一次作答
-   - 一组题全部答完后显示"答对 N / M"，并用 Sayo toast 提示一次
+   - 选择题：点选项立刻给反馈（对/错 + why）；选错的标红、正确的标绿；允许改选，计分只算第一次；
+     一组里的选择题全部答完后显示"答对 N / M"，并用 Sayo toast 提示一次（M 只数选择题）
+   - 开放题：先只显示题干和"想好了，看参考答案"按钮；点开显示参考答案 + 算过标准；再点一次收起
+     （方便隔一会儿重答一遍）。开放题不计分、不判定——它是自测
    - 课件没加载 sayo.js 时自动降级为纯内联反馈（不依赖 Sayo）
+   - 题目数据不完整时页面显示提示，不静默吞掉
 
-   出题规范（给写课件的人）：选项尽量等长（同句式、同字数），避免长度泄露答案。
+   出题与判分规范在 <root>/.dsh/skills/layered-practice（题目唯一规范）；
+   闸门 scripts/check_lesson.py 按上面这套字段做结构校验。
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -38,10 +49,15 @@
     return false;
   }
 
-  function buildItem(block, item, index, total, state) {
+  function questionText(item, index, total) {
+    return (total > 1 ? (index + 1) + '. ' : '') + (item.q || '');
+  }
+
+  /* ── 选择题：点选项即时反馈 ─────────────────────────────────── */
+  function buildChoice(block, item, index, total, state) {
     var question = document.createElement('p');
     question.className = 'quiz__q';
-    question.textContent = (total > 1 ? (index + 1) + '. ' : '') + (item.q || '');
+    question.textContent = questionText(item, index, total);
     block.appendChild(question);
 
     var opts = document.createElement('div');
@@ -76,12 +92,15 @@
           firstAnswer = false;
           state.answered += 1;
           if (ok) state.correct += 1;
-          if (state.answered === total && state.scoreEl) {
-            state.scoreEl.hidden = false;
-            state.scoreEl.textContent = '本题组：答对 ' + state.correct + ' / ' + total;
+          if (state.answered === state.total) {
+            if (state.scoreEl) {
+              state.scoreEl.hidden = false;
+              state.scoreEl.textContent = '本题组：答对 ' + state.correct + ' / ' + state.total;
+            }
             toast(
-              state.correct === total ? '全部答对（' + total + '/' + total + '）' : '答对 ' + state.correct + ' / ' + total,
-              state.correct === total ? 'success' : 'info'
+              state.correct === state.total ? '全部答对（' + state.total + '/' + state.total + '）'
+                                            : '答对 ' + state.correct + ' / ' + state.total,
+              state.correct === state.total ? 'success' : 'info'
             );
           }
         }
@@ -92,6 +111,78 @@
 
     block.appendChild(opts);
     block.appendChild(feedback);
+  }
+
+  /* ── 开放题：自己先答，点开对照参考答案与算过标准（不贴回会话）── */
+  function buildOpen(block, item, index, total) {
+    var question = document.createElement('p');
+    question.className = 'quiz__q';
+    question.textContent = questionText(item, index, total);
+    block.appendChild(question);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'quiz__open';
+
+    var reveal = document.createElement('button');
+    reveal.type = 'button';
+    reveal.className = 'quiz__reveal';
+    reveal.textContent = '想好了，看参考答案';
+
+    var answer = document.createElement('div');
+    answer.className = 'quiz__answer';
+    answer.hidden = true;
+
+    var answerLabel = document.createElement('p');
+    answerLabel.className = 'quiz__answer-label';
+    answerLabel.textContent = '参考答案';
+    var answerText = document.createElement('p');
+    answerText.className = 'quiz__answer-text';
+    answerText.textContent = item.answer || '';
+
+    var criteriaLabel = document.createElement('p');
+    criteriaLabel.className = 'quiz__answer-label';
+    criteriaLabel.textContent = '算过标准';
+    var criteriaText = document.createElement('p');
+    criteriaText.className = 'quiz__criteria';
+    criteriaText.textContent = item.criteria || '';
+
+    answer.appendChild(answerLabel);
+    answer.appendChild(answerText);
+    answer.appendChild(criteriaLabel);
+    answer.appendChild(criteriaText);
+
+    reveal.addEventListener('click', function () {
+      answer.hidden = !answer.hidden;
+      reveal.textContent = answer.hidden ? '想好了，看参考答案' : '收起，再自己答一遍';
+    });
+
+    wrap.appendChild(reveal);
+    wrap.appendChild(answer);
+    block.appendChild(wrap);
+  }
+
+  /* ── 数据不完整时的兜底 ─────────────────────────────────────── */
+  function buildBroken(block, item, index, total) {
+    var question = document.createElement('p');
+    question.className = 'quiz__q';
+    question.textContent = questionText(item, index, total);
+    block.appendChild(question);
+
+    var hint = document.createElement('p');
+    hint.className = 'feedback wrong';
+    hint.textContent = '（这道题的数据不完整：选择题要 opts/ans/why，开放题要 answer/criteria）';
+    block.appendChild(hint);
+  }
+
+  /* ── 题型判定（与闸门、分层规范一致：两组字段只能二选一）──────── */
+  function isChoiceItem(item) {
+    return !!item && typeof item === 'object' && !Array.isArray(item) &&
+           Array.isArray(item.opts) && typeof item.ans === 'number';
+  }
+
+  function isOpenItem(item) {
+    return !!item && typeof item === 'object' && !Array.isArray(item) &&
+           typeof item.answer === 'string' && typeof item.criteria === 'string';
   }
 
   whenReady(function () {
@@ -110,15 +201,19 @@
         return;
       }
 
-      var state = { answered: 0, correct: 0 };
-      if (items.length > 1) {
+      var choiceCount = items.filter(isChoiceItem).length;
+
+      var state = { answered: 0, correct: 0, total: choiceCount };
+      if (choiceCount > 1) {
         state.scoreEl = document.createElement('p');
         state.scoreEl.className = 'quiz__score';
         state.scoreEl.hidden = true;
       }
 
       items.forEach(function (item, index) {
-        buildItem(block, item, index, items.length, state);
+        if (isChoiceItem(item)) buildChoice(block, item, index, items.length, state);
+        else if (isOpenItem(item)) buildOpen(block, item, index, items.length);
+        else buildBroken(block, item, index, items.length);
       });
 
       if (state.scoreEl) block.appendChild(state.scoreEl);

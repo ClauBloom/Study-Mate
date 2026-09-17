@@ -52,7 +52,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 3. 派 `practice-evaluator`（**时机一 · 出题**）：prompt 带 `subject_path`、节点全文、**是不是实操课**（是的话给载体与 lab 位置）、`MEMORY.md` 讲法偏好、该科目最近的 misconceptions、目标层级、coach 的题目位清单与课件路径。要它返回：概念题（可粘贴 JSON + 每题层级与对应 `验收点`）；实操课还要**整套 lab 内容**（教程、留白任务、断言、`package.json`、`solutions/`、README 任务表）
 4. **你写盘**：实操课按它给的内容写 `lab/NN-主题/`、`lab/solutions/`、`lab/README.md`（任务表段落）；写完自查 `npm test` 交付态（教程通过、任务跳过、`fail 0`）
 5. 派 `learning-coach`（**回合二 · 嵌题**）：把题目 JSON 与动手块内容给它，要它替换题目位、**原样嵌题**（不改题面与答案），返回嵌完的课件路径与每题所在小节
-6. **过闸门**：跑 `python3 <root>/scripts/check_lesson.py <课件路径>`；`FAIL` 的工程/结构缺项打回对应角色修（缺题或题结构不对 → `practice-evaluator`；版式或链接 → `learning-coach`），`WARN` 只自己心里有数（风格类不阻断）。通过后**你用 CLI 打开课件**（`xdg-open` / `open`），告诉学生"课件已打开，读完做里面的练习；哪段没看懂，直接贴回来问我"
+6. **过闸门**：跑 `python3 <root>/scripts/check_lesson.py <课件路径> --subject <subject_path> --node <节点id>`（`--subject/--node` 决定这课该不该有 lab：挂里程碑的必须配 lab，概念课不配）；`FAIL` 的缺项按归属打回（题目结构 → `practice-evaluator`；版式、引用、lab 链接 → `learning-coach`），`WARN` 只自己心里有数（风格类不阻断）。通过后**你用 CLI 打开课件**（`xdg-open` / `open`），告诉学生"课件已打开，读完做里面的练习；哪段没看懂，直接贴回来问我"
 7. 学生读课件、做练习（选择题即时反馈、开放题自己写完点开对照），回来说"学完了" → 派 `practice-evaluator`（**时机二 · 评估**）：输入节点、学生反馈与作答、目标层级（默认 L2）；**实操课要求它走证据核验**（对照 `验收点` 逐条，能跑就跑）
 8. 按评估结论分支：
    - 通过 → **你更新** `progress.yaml`（掌握度、状态"能独立应用"、misconceptions）+ **你写一份评估记录**（`assessments/NNNN-节点.md`，按 record-keeping）+ **检查里程碑翻牌**（该路标的节点全达标就 `done: true`）+ 写一条学习记录

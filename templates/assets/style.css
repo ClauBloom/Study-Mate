@@ -9,7 +9,9 @@
 
    定位：课件是"读+练"的长文页面。
    - 讲解部分按可读性排版（46rem 行宽、1.8 行高、克制的层级）
-   - 练习部分沿用计划约定的类名：.quiz / .feedback / .correct / .wrong
+   - 题目部分用约定类名：选择题 .quiz / .feedback / .correct / .wrong；
+     开放题 .quiz__open / .quiz__answer / .quiz__criteria（点开对照参考答案与算过标准）
+     数据契约见 quiz.js 顶部注释；出题与判分规范见 <root>/.dsh/skills/layered-practice
    - 颜色一律走 Sayo 令牌（--syo-*），亮色是暖纸白+深绿、暗色是 Sayo 暗色
    ═══════════════════════════════════════════════════════════════ */
 
@@ -285,6 +287,41 @@
   font-family: var(--syo-font-mono);
   font-size: .75rem;
   color: var(--syo-fg-muted);
+}
+
+/* ── 练习：开放题（自己先答，点开对照参考答案与算过标准） ───────── */
+
+.quiz__reveal { font-weight: 600; }
+
+.quiz__answer {
+  margin: var(--syo-space-3) 0 0;
+  padding: var(--syo-space-3) var(--syo-space-4) var(--syo-space-4);
+  background: var(--syo-bg-base);
+  border: 1px solid var(--syo-border);
+  border-left: 3px solid var(--syo-accent);
+  border-radius: var(--syo-radius-sm);
+}
+
+.quiz__answer-label {
+  margin: 0 0 4px;
+  font-family: var(--syo-font-mono);
+  font-size: .6875rem;
+  letter-spacing: .04em;
+  color: var(--syo-fg-muted);
+}
+
+.quiz__answer-text {
+  margin: 0 0 var(--syo-space-3);
+  font-size: .875rem;
+  line-height: 1.75;
+  color: var(--syo-fg-body);
+}
+
+.quiz__criteria {
+  margin: 0;
+  font-size: .875rem;
+  line-height: 1.75;
+  color: var(--syo-fg-body);
 }
 
 /* ── 练习任务块（四层练习：L1 理解 / L2 改造 / L3 排错 / L4 应用） ── */
