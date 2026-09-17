@@ -214,6 +214,10 @@
 /* 展开时只给父卡片描边高亮，父卡片本身不长大——长大的是它下面的子卡片组 */
 .learn-slot[open] > .learn-node { border-color: var(--syo-accent); }
 
+/* 卡片不许被内容撑宽：details 是网格项、.learn-node 是它的子块，两层都要 min-width:0，
+   否则标题的 min-content（nowrap 中文串）会把卡片顶出所在列——"标题超出卡片宽度"就是这么来的 */
+.learn-slot, .learn-node { min-width: 0; }
+
 /* 父卡片作为 <summary>：去掉原生三角标记 */
 summary.learn-node { list-style: none; }
 summary.learn-node::-webkit-details-marker { display: none; }
@@ -226,12 +230,16 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
 .learn-node__title {
   margin: 0;
   min-width: 0;
+  /* 标题最多两行：卡片这一行还有课型徽标/状态/箭头，一行放不下 16 字标题；
+     两行比省略号友好，也不至于把卡片撑高（上限由 gen_home.py 的软提醒兜着） */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: .875rem;
   font-weight: 600;
   line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .learn-node__now {
@@ -286,14 +294,17 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
 .learn-slot[open] .learn-node__caret { transform: rotate(45deg); }
 
 .learn-node__objective {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   margin: 6px 0 0;
   font-size: .8125rem;
   line-height: 1.55;
   color: var(--syo-fg-muted);
 }
 
-.learn-node__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.learn-node__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 .learn-node__prereq, .learn-node__chip, .learn-node__mastery, .learn-node__pct { display: inline-flex; }
 
@@ -662,6 +673,10 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
       · 前置标签用 prerequisites 里每个 id 对应的节点 title；
         没有前置时写 <span class="learn-node__chip learn-node__chip--none">无</span>
       · 掌握度：i 的 width 用 mastery × 100；没有 mastery 时按 0 处理
+      · **卡片是地图不是教案**：标题与 objective 都**最多两行**（超出省略号截断），所以两者都要给
+        `title` 属性（悬停看全文：`<span class="learn-node__title" title="全文">`）。
+        两条软上限由 gen_home.py 在 stderr 提醒（不阻断）：标题 ≤16 字、objective ≤34 字；
+        更长的说明写进 problem / practice / 验收点——那些字段不上卡片
       ============================================================
     -->
     <!-- @LEARN:ROADMAP -->

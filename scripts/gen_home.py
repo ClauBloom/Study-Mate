@@ -77,6 +77,11 @@ DONE_STATUSES = frozenset(NODE_STATUSES[NODE_STATUSES.index('能独立应用'):]
 CURRENT_STATUS = '学习中'
 NOT_STARTED_TEXT = '还没开始'
 
+# 卡片字段的**软上限**：超了不阻断生成，只在 stderr 提醒（卡片上标题一行省略号、目标两行截断，
+# 太长就只剩省略号——大纲是地图，不是教案）。判定规则写在 templates/subject-index.html 的渲染规范里。
+TITLE_SOFT_LIMIT = 16          # 节点标题建议 ≤16 个字符（全角按 1 计）
+OBJECTIVE_SOFT_LIMIT = 34      # objective 建议 ≤34 个字符
+
 # 模板注释里写死的两段提示文案
 PROJECT_NONE_HTML = ('<p class="learn-project__none">还没有挂项目。告诉 agent 你想做什么，'
                      '它会把项目排进路线图，并把里程碑插成实验课。</p>')
@@ -417,6 +422,20 @@ def curriculum_nodes(cur, prog, slug=None):
         })
     if live and slug:
         warn(f'{slug}: progress.yaml 里有 curriculum.yaml 之外的节点，已忽略：{"、".join(sorted(live))}')
+    if slug:
+        # 卡片字段的软上限：只提醒，不阻断（细节写进 problem/practice/验收点，那些不上卡片）
+        long_titles = [n for n in nodes if len(n['title']) > TITLE_SOFT_LIMIT]
+        if long_titles:
+            sample = '、'.join(f'{n["title"]}（{len(n["title"])}）' for n in long_titles[:3])
+            warn(f'{slug}: {len(long_titles)} 个节点标题超过 {TITLE_SOFT_LIMIT} 字，卡片上会被省略号截断'
+                 f'（标题写短，细节留给 objective/problem）：{sample}'
+                 + ('…' if len(long_titles) > 3 else ''), key=('node-title', slug))
+        long_objectives = [n for n in nodes if len(n['objective']) > OBJECTIVE_SOFT_LIMIT]
+        if long_objectives:
+            sample = '、'.join(f'{n["title"]}（{len(n["objective"])}）' for n in long_objectives[:3])
+            warn(f'{slug}: {len(long_objectives)} 个节点的 objective 超过 {OBJECTIVE_SOFT_LIMIT} 字，'
+                 f'卡片上只显示两行（建议一句话说清）：{sample}'
+                 + ('…' if len(long_objectives) > 3 else ''), key=('node-objective', slug))
     return nodes
 
 
@@ -712,7 +731,9 @@ def render_node_html(node, nodes, lessons):
     now = '<span class="learn-node__now">当前</span>' if status == CURRENT_STATUS else ''
     badge = ('<span class="learn-node__kind">实验</span>'
              if str(node.get('kind') or '').strip() == '实验' else '')
-    objective = (f'<span class="learn-node__objective">{esc(node["objective"])}</span>'
+    # 卡片上标题一行省略号、目标两行截断；全文放进 title 属性，鼠标悬停能看全（截断只影响显示，信息不丢）
+    title_attr = f' title="{esc(node["title"], attr=True)}"'
+    objective = (f'<span class="learn-node__objective"{title_attr}>{esc(node["objective"])}</span>'
                  if node['objective'] else '')
     foot = ('<span class="learn-node__foot">'
             f'<span class="learn-node__prereq">前置 {prereq_chips(node, nodes)}</span>'
@@ -722,7 +743,7 @@ def render_node_html(node, nodes, lessons):
     if lessons:
         row = ('<span class="learn-node__row">'
                '<span class="learn-node__dot"></span>'
-               f'<span class="learn-node__title">{esc(node["title"])}</span>'
+               f'<span class="learn-node__title"{title_attr}>{esc(node["title"])}</span>'
                f'{badge}'
                f'{now}'
                f'<span class="learn-node__status">{esc(status)}</span>'
@@ -735,7 +756,7 @@ def render_node_html(node, nodes, lessons):
                                          row=row, objective=objective, foot=foot, children=children)
     row = ('<span class="learn-node__row">'
            '<span class="learn-node__dot"></span>'
-           f'<span class="learn-node__title">{esc(node["title"])}</span>'
+           f'<span class="learn-node__title"{title_attr}>{esc(node["title"])}</span>'
            f'{badge}'
            f'{now}'
            '<span class="learn-node__nolesson">课件待生成</span>'

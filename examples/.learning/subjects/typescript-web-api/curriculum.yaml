@@ -36,7 +36,7 @@ nodes:
   - id: exp.crud-routes
     title: "实验一：把订单 CRUD 跑起来"
     kind: 实验
-    objective: "用目前学到的 HTTP 与路由知识，把订单 API 的三条 CRUD 路由跑通并亲手验收"
+    objective: "用已学的 HTTP 与路由，把三条 CRUD 路由跑通并亲手验收"
     problem: "学了三课，合起来到底能不能做出一个能用的接口"
     prerequisites: [http.basics, http.routing]
     practice: "按实验说明页做出三条 CRUD 路由，用 curl 逐条验收，最后跑一遍自检"
@@ -82,7 +82,7 @@ nodes:
   - id: db.access
     title: 数据库访问
     kind: 实操
-    objective: "能用 TypeScript 读写 PostgreSQL，写出参数化查询并映射结果类型"
+    objective: "用参数化查询给订单表做增删改查，并连上 PostgreSQL"
     problem: "数据要活过进程重启——代码怎么跟数据库说话"
     prerequisites: [http.errors]
     concepts: [连接池, 参数化查询, 行到对象的类型映射]
@@ -102,7 +102,7 @@ nodes:
   - id: exp.pg-and-tests
     title: "实验二：接上数据库并写测试"
     kind: 实验
-    objective: "把订单数据落进 PostgreSQL，并给接口写上一组一条命令能跑完的测试"
+    objective: "把数据落进 PostgreSQL，并写一组一条命令跑完的测试"
     problem: "数据只活在内存里，重启就没了；接口改一行就不敢动"
     prerequisites: [http.validation, db.access, test.api]
     practice: "为订单表接上真实数据库读写，补一组覆盖失败路径的测试，再跑一遍自检"
