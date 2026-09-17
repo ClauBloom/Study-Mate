@@ -275,7 +275,6 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
   flex: none;
   font-size: .6875rem;
   color: var(--syo-fg-muted);
-  opacity: .8;
   white-space: nowrap;
 }
 
@@ -324,7 +323,8 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
   border-radius: var(--syo-radius-sm);
   background: var(--syo-bg-base);
 }
-.learn-node__chip--none { opacity: .6; }
+/* 「无前置」用虚线边框区分，不用 opacity：半透明文字会把对比度压到 2.4:1 */
+.learn-node__chip--none { border-style: dashed; }
 
 .learn-node__mastery {
   flex: 1;

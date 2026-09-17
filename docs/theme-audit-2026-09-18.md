@@ -212,6 +212,10 @@ workspace/.learning/subjects/<slug>/assets/{style.css, quiz.js, lesson-toc.js}  
 | `--syo-accent` | `#2f7d5f` (4.37) | `#2b7357` | `--learn-soft-accent` 合成底（侧栏当前项、筛选按钮选中态） |
 | **新增** `--learn-shadow-card` | — | 亮 `rgba(38,36,31,.05)×2` / 暗 `rgba(0,0,0,.3)+rgba(0,0,0,.25)` | 卡片阴影第一次有了分主题令牌 |
 
+`templates/assets/learn-theme.css` 另有两处**半透明文字**（原文没算 opacity，见 7.3）：
+`.learn-node__nolesson` 去掉 `opacity: .8`、`.learn-node__chip--none` 的 `opacity: .6` 改成虚线边框、
+`.learn-filter__btn.is-active .learn-filter__count` 取消 `.75` 透明。
+
 `templates/assets/style.css`：
 
 1. `.quiz__opt:hover` / `.quiz button:hover`：底色改成 **中性提升**
@@ -223,11 +227,21 @@ workspace/.learning/subjects/<slug>/assets/{style.css, quiz.js, lesson-toc.js}  
 
 ### 7.3 复核结果（改完实测）
 
-- 课件页（含滚动后的侧栏当前项、点开参考答案后的答案块、答过题的 `.is-correct`/`.is-wrong`/反馈行）：
-  亮色 **34 → 0**、暗色 0 → 0。
-- 科目主页：亮 **1 → 0**；根主页：亮 **3 → 0**；两页暗色均 0。
-- **唯一仍在 4.5 以下的是编辑器行号**（`.syo-editor-gutter`，亮 1.95 / 暗 2.38）：Sayo 自己给行号槽写了
-  `opacity: .5`，且 `user-select: none`——属装饰性元素，两个主题一致偏淡，**未改**（要改就得把不透明度提到
+对比度按**两套口径**各算一遍，差别在「元素自身 `opacity`」这一层：
+
+| 口径 | 课件（静态 / 答过题 / 滚到中部） | 科目主页 | 根主页 |
+|---|---|---|---|
+| 改前·不透明色（同原文口径） | 亮 34 / 暗 0 | 亮 1 / 暗 0 | 亮 3 / 暗 0 |
+| 改前·**计入 opacity** | 亮 34+20 / 暗 20 | 亮 1+58+1 / 暗 59 | 亮 3+1 / 暗 1 |
+| **改后·计入 opacity** | 亮 **20** / 暗 **20** | **0 / 0** | **0 / 0** |
+
+- 计入 opacity 后多出来的那批是**半透明文字**——原文的扫描不算这一层，所以漏了三处：
+  - 科目主页 `课件待生成` 58 处（`opacity: .8` → 3.69:1）、`无` 前置 chip 1 处（`opacity: .6` → 2.42:1）
+  - 根主页选中筛选按钮里的计数 1 处（`opacity: .75` → 亮 2.97 / 暗 4.18）
+  这三处**已一并修掉**（超出原文清单，但属同一类问题）：两处去掉 opacity（`无` 改用虚线边框保留区分），
+  计数只在选中态取消透明度。
+- **剩下 20 处全是编辑器行号**（`.syo-editor-gutter`，亮 1.95 / 暗 2.38）：Sayo 自己给行号槽写了
+  `opacity: .5`，且 `user-select: none`——装饰性元素，两主题一致偏淡，**未改**（要改就得把不透明度提到
   ~0.85，行号会跟代码一样黑，反而更难扫读）。
 - 扫描器复跑：颜色字面量 37 → **31**，剩下的全是本文件已判定保留的（亮色专用阴影、遮罩、`mask-image` 的
   `#000`、日/月图标描边）。
