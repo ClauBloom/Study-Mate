@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="StudyMate">
+  <title>StudyMate</title>
+  <!-- 取自主页顶栏的品牌标识：三个知识点节点连成的迷你路线图 -->
+  <rect x="2" y="2" width="116" height="116" rx="27" fill="#1c5a40"/>
+  <g stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M60 43.2 28.2 75.6M60 43.2l31.8 32.4"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="60" cy="31.2" r="12"/>
+    <circle cx="27" cy="87" r="12"/>
+    <circle cx="93" cy="87" r="12"/>
+  </g>
+</svg>
