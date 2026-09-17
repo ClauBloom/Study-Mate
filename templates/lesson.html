@@ -62,6 +62,8 @@
 
        讲解段落：普通 h2/p/ul/table 即可（要不要小节标题、标题怎么写，按内容定）
        代码块（Sayo 编辑器外观；要简单就直接 <pre><code>）：
+         代码**自动上色**（页面加载时按内容认语言：cpp/sh/终端输出/html/js/json，认不出就保持原样），
+         照抄原文即可，不用手写高亮；要指定语言就在 <pre> 上写 data-lang="cpp|sh|term|…"（text = 不上色）
          <div class="syo-editor">
            <div class="syo-editor-titlebar">
              <span class="syo-editor-dots"><span class="syo-editor-dot syo-editor-dot--red"></span><span class="syo-editor-dot syo-editor-dot--yellow"></span><span class="syo-editor-dot syo-editor-dot--green"></span></span>
@@ -71,12 +73,12 @@
              <div class="syo-editor-gutter"><span>1</span><span>2</span></div>
              <div class="syo-editor-code">
                <span class="line">第一行</span>
-               <span class="line"><span class="syn-keyword">const</span> total = <span class="syn-number">2</span>;</span>
+               <span class="line">const total = 2;</span>
              </div>
            </div>
          </div>
-         （行号槽里的 <span> 个数与代码行数对齐；高亮类 .syn-keyword / .syn-type / .syn-number / .syn-operator
-           定义在 assets/style.css 与 Sayo 里；正文里的代码不要手抄行号）
+         （行号槽里的 <span> 个数与代码行数对齐；正文里的代码不要手抄行号；
+           要突出某个词时才手写 .syn-keyword / .syn-type / .syn-number 等类——写了高亮类的块整块不再自动上色）
        提示卡 .lesson-tip / 误区卡 .lesson-warn
        题目位标记：回合一在打算放题或动手块的地方留一行 HTML 注释，注释内容以「题目位：」开头
          （例：题目位：L1 概念题 ×2 ／ 题目位：L3 开放题 ／ 题目位：动手块（实操课，指向 lab/NN-…））；
