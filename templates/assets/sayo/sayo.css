@@ -375,13 +375,16 @@ hr {
   align-items: flex-end;
   padding: 0 14px 0 16px;
   color: var(--syo-syn-comment);
-  font-size: 0.8125rem;
+  /* 字号继承 .syo-editor-body：行高 1.75 是倍数，字号不同会让每行高度差 1.75px，
+     行号到末尾整体漂移。行号看着小一点由下一行的 span 负责，不影响行高。 */
+  font-size: inherit;
   user-select: none;
   min-width: 38px;
   opacity: 0.5;
 }
 
-.syo-editor-gutter span { line-height: 1.75; height: 1.75em; }
+/* height 用 em：1.75em 落在 body 的字号上，与 .syo-editor-code .line 逐行对齐 */
+.syo-editor-gutter span { font-size: 0.8125rem; line-height: 1.75; height: 1.75em; }
 
 .syo-editor-code {
   flex: 1;

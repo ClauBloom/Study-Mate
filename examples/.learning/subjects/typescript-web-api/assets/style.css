@@ -49,6 +49,248 @@
    没有主页那套导航，所以开关必须长在课件自己身上（见 lesson.html） */
 .lesson-bar__toggle { margin-left: var(--syo-space-3); }
 
+/* ═══════════════════════════════════════════════════════════════
+   侧边目录：照搬 sayo-ui 文档页的 .doc-sidebar（含折叠 rail 与移动端抽屉）
+   来源：/home/tofu/我的项目/sayo-ui/index.html 的 <style> 块——.doc-grid / .doc-sidebar /
+        .sidebar-toggle / .doc-sidebar-title / .nav-hamburger / .sidebar-backdrop + 两段媒体查询
+   只改两处：① var(--syo-nav-height) → 本页顶栏高度 var(--lesson-nav-h)；
+            ② 第二列改 minmax(0, 1fr)（防宽内容撑破），去掉与课件无关的 .doc-main/.doc-section/syo-hero-logo
+   目录内容由 lesson-toc.js 自动生成，页面里不用手写
+   ═══════════════════════════════════════════════════════════════ */
+
+.lesson-body { --lesson-nav-h: 44px; }
+
+  .doc-grid {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 100vh;
+  }
+
+  .doc-sidebar {
+    position: sticky; top: var(--lesson-nav-h);
+    height: calc(100vh - var(--lesson-nav-h));
+    width: 220px;
+    padding: var(--syo-space-6) var(--syo-space-5);
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--syo-bg-surface);
+    border-right: 1px solid var(--syo-border);
+    transition: width 350ms var(--syo-ease-out),
+                padding 350ms var(--syo-ease-out);
+  }
+  .doc-sidebar.collapsed {
+    width: 44px;
+    padding: var(--syo-space-3) var(--syo-space-1);
+  }
+
+  /* ── Sidebar toggle button ── */
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    margin-bottom: var(--syo-space-3);
+    border: 1px solid var(--syo-border);
+    border-radius: var(--syo-radius-sm);
+    background: var(--syo-bg-surface);
+    color: var(--syo-fg-muted);
+    cursor: pointer;
+    transition: color 180ms var(--syo-ease-out),
+                border-color 180ms var(--syo-ease-out),
+                margin 350ms var(--syo-ease-out);
+    flex-shrink: 0;
+  }
+  .sidebar-toggle:hover { color: var(--syo-accent); border-color: var(--syo-accent); }
+  .sidebar-toggle svg { width: 13px; height: 13px; transition: transform 350ms var(--syo-ease-out); }
+  .doc-sidebar.collapsed .sidebar-toggle { margin-left: auto; margin-right: auto; }
+  .doc-sidebar.collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+
+  /* Text — fade out during collapse */
+  .doc-sidebar a,
+  .doc-sidebar .doc-sidebar-title span {
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity 180ms ease;
+  }
+
+  /* Collapsed: links shrink to zero, titles keep only icon */
+  .doc-sidebar.collapsed a {
+    opacity: 0;
+    padding-top: 0; padding-bottom: 0;
+    height: 0; margin: 0;
+    overflow: hidden;
+    border-left: none;
+    transition: opacity 100ms ease, height 0ms linear 100ms,
+                padding 0ms linear 100ms, margin 0ms linear 100ms;
+  }
+  .doc-sidebar.collapsed .doc-sidebar-title span {
+    opacity: 0;
+    position: absolute;
+    pointer-events: none;
+    transition: opacity 100ms ease;
+  }
+
+  /* Collapsed: keep icons as nav dots, center them */
+  .doc-sidebar.collapsed .doc-sidebar-title {
+    justify-content: center;
+    position: relative;
+    margin-top: var(--syo-space-2);
+    margin-bottom: var(--syo-space-2);
+  }
+  .doc-sidebar.collapsed .doc-sidebar-title svg { width: 15px; height: 15px; }
+
+  .doc-sidebar a {
+    display: block;
+    padding: 6px 10px;
+    margin-bottom: 1px;
+    font-size: 0.8125rem;
+    color: var(--syo-fg-muted);
+    border-radius: var(--syo-radius-sm);
+    border-left: 2px solid transparent;
+    transition: color 180ms var(--syo-ease-out),
+                background 180ms var(--syo-ease-out),
+                border-color 200ms var(--syo-ease-out);
+  }
+  .doc-sidebar a:hover {
+    color: var(--syo-fg-default);
+    background: var(--syo-bg-surface);
+    border-left-color: var(--syo-border);
+  }
+  .doc-sidebar a.active {
+    color: var(--syo-accent);
+    /* 底色用强调色的柔和版令牌，不要写死 Primer 紫的 rgba：
+       亮色强调色是绿，写死紫色就变成「绿字绿条 + 淡紫底」，那个底在亮色下几乎是白的。 */
+    background: var(--learn-soft-accent);
+    border-left-color: var(--syo-accent);
+    font-weight: 500;
+  }
+  .doc-sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: var(--syo-space-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--syo-fg-default);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-top: var(--syo-space-5);
+    margin-bottom: var(--syo-space-2);
+  }
+  .doc-sidebar-title:first-child { margin-top: 0; }
+  .doc-sidebar-title svg {
+    flex-shrink: 0;
+    color: var(--syo-accent);
+  }
+
+  /* ── Hamburger button ── */
+  .nav-hamburger {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    margin-right: var(--syo-space-2);
+    border: none; background: none;
+    color: var(--syo-fg-muted);
+    cursor: pointer;
+    border-radius: var(--syo-radius-sm);
+    transition: color 150ms, background 150ms;
+    flex-shrink: 0;
+  }
+  .nav-hamburger:hover { color: var(--syo-fg-default); background: var(--syo-bg-surface); }
+
+  /* ── Sidebar backdrop (mobile) ── */
+  .sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    top: var(--lesson-nav-h);
+    background: rgba(0,0,0,0.5);
+    z-index: 150;
+    opacity: 0;
+    transition: opacity 300ms ease;
+    pointer-events: none;
+  }
+  .sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
+
+  @media (max-width: 1024px) {
+    /* Auto-collapse sidebar (unless user explicitly expanded via .collapsed toggle) */
+    .doc-sidebar:not(.collapsed) {
+      width: 44px;
+      padding: var(--syo-space-3) var(--syo-space-1);
+    }
+    .doc-sidebar:not(.collapsed) a {
+      opacity: 0; padding-top: 0; padding-bottom: 0;
+      height: 0; margin: 0; overflow: hidden;
+      border-left: none;
+      transition: opacity 100ms ease, height 0ms linear 100ms,
+                  padding 0ms linear 100ms, margin 0ms linear 100ms;
+    }
+    .doc-sidebar:not(.collapsed) .doc-sidebar-title {
+      justify-content: center; position: relative;
+      margin-top: var(--syo-space-2); margin-bottom: var(--syo-space-2);
+    }
+    .doc-sidebar:not(.collapsed) .doc-sidebar-title span {
+      opacity: 0; position: absolute; pointer-events: none;
+      transition: opacity 100ms ease;
+    }
+    .doc-sidebar:not(.collapsed) .doc-sidebar-title svg { width: 15px; height: 15px; }
+    .doc-sidebar:not(.collapsed) .sidebar-toggle { margin-left: auto; margin-right: auto; }
+    .doc-sidebar:not(.collapsed) .sidebar-toggle svg { transform: rotate(180deg); }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     MOBILE: ≤768px
+     Single column · off-canvas sidebar · hamburger visible
+     ═══════════════════════════════════════════════════════════════ */
+  @media (max-width: 768px) {
+    .nav-hamburger { display: flex; }
+    .doc-grid { grid-template-columns: 1fr; }
+
+    .doc-sidebar {
+      position: fixed;
+      top: var(--lesson-nav-h); left: 0; bottom: 0;
+      width: 260px; z-index: 200;
+      transform: translateX(-100%);
+      transition: transform 300ms var(--syo-ease-out);
+      box-shadow: 2px 0 16px rgba(0,0,0,0.3);
+      padding: var(--syo-space-5) var(--syo-space-4) !important;
+    }
+    .doc-sidebar.mobile-open { transform: translateX(0); }
+
+    /* Reset collapsed state when open on mobile */
+    .doc-sidebar.mobile-open,
+    .doc-sidebar.mobile-open.collapsed { width: 260px; }
+    .doc-sidebar.mobile-open a {
+      opacity: 1; padding-top: 6px; padding-bottom: 6px;
+      height: auto; margin-bottom: 1px; overflow: visible;
+    }
+    .doc-sidebar.mobile-open .doc-sidebar-title {
+      justify-content: flex-start; position: static;
+      margin-top: var(--syo-space-5); margin-bottom: var(--syo-space-2);
+    }
+    .doc-sidebar.mobile-open .doc-sidebar-title span {
+      opacity: 1; position: static; pointer-events: auto;
+    }
+    .doc-sidebar.mobile-open .doc-sidebar-title svg { width: 13px; height: 13px; }
+    .doc-sidebar.mobile-open .sidebar-toggle { margin-left: 0; margin-right: 0; }
+    .doc-sidebar.mobile-open .sidebar-toggle svg { transform: rotate(0); }
+
+    .sidebar-backdrop { display: block; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SMALL: ≤480px
+     Compact nav · tighter spacing
+     ═══════════════════════════════════════════════════════════════ */
+
+/* 目录条目允许换行：照搬来的样式是 white-space: nowrap，而小节标题是中文长句，
+   220px 的侧栏（去掉内边距只剩约 180px）会把尾巴裁掉。标题行仍保持 nowrap（折叠动画要靠它）。 */
+.doc-sidebar a {
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
+/* 目录跳转时，标题别被吸顶的顶栏盖住 */
+.lesson h2, .lesson h3 { scroll-margin-top: 64px; }
+
+
 .lesson {
   max-width: var(--lesson-width);
   margin: 0 auto;
@@ -223,6 +465,9 @@
   background: var(--syo-bg-surface);
   border: 1px solid var(--syo-border);
   border-radius: var(--syo-radius-md);
+  /* 页面底色与卡片底色只差 1.09:1，不靠阴影的话卡片形状立不住。
+     阴影是分主题的 → 取值放令牌（learn-theme.css）：亮色暖褐、暗色纯黑。 */
+  box-shadow: var(--learn-shadow-card);
   /* 题面、选项、why、参考答案、算过标准都是 quiz.js 用 textContent 写入的，可以含 \n
      （L3 排错题要「给一段代码或真实报错」，多行是常态）。不声明的话浏览器把换行折叠成一行，
      代码挤成一串没法读。pre-line = 保留 \n、照常折叠连续空格与行首缩进；写在这里让容器内
@@ -231,21 +476,48 @@
 }
 
 .quiz__q {
-  margin: 0 0 var(--syo-space-3);
+  margin: 0 0 var(--syo-space-4);
   font-size: .9375rem;
   font-weight: 600;
   color: var(--syo-fg-default);
   line-height: 1.7;
 }
+/* 题与题之间画一条分隔线：线画在第二题及其后每一题的顶边。
+   要留出两段空白，线才像分界：
+   ① **选项卡组下面**留 margin-bottom——这是关键。线是 .quiz__q 的 border-top，
+      而它紧邻的上一个盒子就是选项卡组；不在选项卡组下面留白，线就会贴着选项卡底边
+      （padding-top 画在线**下方**，只能推开题目文字，对这一段间距毫无帮助）。
+   ② 题目文字与线之间留 padding-top。
+   选择器用通用兄弟（~）而不是相邻兄弟（+）：quiz.js 给每道选择题都**无条件**插入一个
+   feedback 元素（先建好、答完才显示），两道 .quiz__q 之间永远隔着它，`+` 一个都匹配不到。 */
+.quiz__q ~ .quiz__q {
+  padding-top: var(--syo-space-4);
+  border-top: 1px solid color-mix(in srgb, var(--syo-border) 55%, var(--syo-fg-muted));
+}
+/* 首题不画线（也不留上内边距）：它上面就是卡片边缘。
+   用 :has 判定「这个卡片里不止一道题」，两条规则分工：
+   - 多题卡片：~ 规则给后面的题画线，首题由本规则清掉（本规则在后面，覆盖前者）
+   - 单题卡片：~ 规则本来就不匹配，本规则把 padding/线一并清为 0 更保险 */
+.quiz:has(.quiz__q ~ .quiz__q) .quiz__q:first-child,
+.quiz:not(:has(.quiz__q ~ .quiz__q)) .quiz__q:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
 
-.quiz__opts { display: flex; flex-direction: column; gap: 8px; }
+.quiz__opts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* 选项卡组下面留出的空白，就是分隔线到选项卡的距离（见上方说明） */
+  margin-bottom: var(--syo-space-4);
+}
 
 /* 选项做成整行按钮：好点、好读，且能容纳较长选项 */
 .quiz button,
 .quiz__opt {
   display: block;
   width: 100%;
-  padding: 9px 14px;
+  padding: 11px 15px;
   font-family: inherit;
   font-size: .875rem;
   line-height: 1.6;
@@ -255,10 +527,16 @@
   border: 1px solid var(--syo-border);
   border-radius: var(--syo-radius-sm);
   cursor: pointer;
-  transition: border-color 140ms var(--syo-ease-out), background-color 140ms var(--syo-ease-out), color 140ms var(--syo-ease-out);
+  transition: border-color 140ms var(--syo-ease-out), background-color 140ms var(--syo-ease-out), color 140ms var(--syo-ease-out), transform 80ms var(--syo-ease-out);
 }
+/* hover 底色用**中性提升**，不用语义色：绿色在本组件里已经表示「答对了」，
+   拿它当 hover 会把「可点」和「正确」混成同一个信号（亮色下两者本来就都是绿的）。
+   color-mix 让底色跟着主题走（亮色压暗一点、暗色提亮一点），且不引入第二个色相，
+   暗色下就不会再出现「紫边框 + 绿底」的打架。 */
 .quiz button:hover,
-.quiz__opt:hover { border-color: var(--syo-accent); color: var(--syo-fg-default); }
+.quiz__opt:hover { border-color: var(--syo-accent); color: var(--syo-fg-default); background: color-mix(in srgb, var(--syo-bg-base) 92%, var(--syo-fg-default)); }
+.quiz button:active,
+.quiz__opt:active { transform: translateY(1px); }
 .quiz button:focus-visible,
 .quiz__opt:focus-visible { outline: 2px solid var(--syo-accent); outline-offset: 2px; }
 
@@ -287,10 +565,9 @@
 
 .quiz__score {
   margin: var(--syo-space-3) 0 0;
-  padding-top: var(--syo-space-3);
-  border-top: 1px dashed var(--syo-border);
-  font-family: var(--syo-font-mono);
-  font-size: .75rem;
+  padding-top: var(--syo-space-2);
+  font-size: .8125rem;
+  text-align: right;
   color: var(--syo-fg-muted);
 }
 
