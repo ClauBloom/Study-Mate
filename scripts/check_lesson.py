@@ -49,6 +49,8 @@
          （有邻居就得写、没有邻居就不许写；href 是同目录下的文件名）。
        · 指针指向的文件不存在只提示不阻断——下节课通常还没产出，落空是设计内的。
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
+    · 题面/答案的散文里出现 Markdown/HTML 标记（`**加粗**`、行内反引号、`# 标题`、`- 列表`、
+      `<b>`）：字段是**纯文本**，这些会原样显示（换行用 `\n`、代码用 ``` 围栏）。
     · 选项长度差：每题 max(len(opt)) - min(len(opt)) > MAX_OPT_LEN_GAP 时提示。
     · 实操判定被跳过（没给 --subject/--node，或 progress.yaml 读不出来）。
     · 小节标题超过 14 字：它会进左侧目录（220px 宽），长了要换行。
@@ -88,6 +90,17 @@ NUMBERED_NAME_RE = re.compile(r'^(\d{4})-.*\.html$')
 # 检查项 2/3：共享层与科目组件引用（按 href/src 属性值比对，不吃注释里的路径）
 SHARED_REFS = ('sayo.css', 'learn-theme.css', 'learn-theme.js', 'sayo.js')
 SUBJECT_REFS = ('../assets/style.css', '../assets/quiz.js')
+
+# 检查项 4（提示）：字段是纯文本，这些 Markdown/HTML 标记不会被解析、会原样显示。
+# 保守集合：`1. ` 这类行首编号**不算**——作者的枚举写法本来就是这样；围栏里的内容不看。
+MARKDOWN_RE = (
+    re.compile(r'\*\*[^*\n]+\*\*'),          # **加粗**
+    re.compile(r'`[^`\n]+`'),                  # `行内代码`
+    re.compile(r'^#{1,6} ', re.M),             # # 标题
+    re.compile(r'^- ', re.M),                  # - 列表
+    re.compile(r'\[[^\]\n]+\]\([^)\n]+\)'),  # [链接](url)
+    re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*[ >/]'),  # <b> 之类
+)
 
 # 检查项 4：题目结构里的 ``` 围栏（与 templates/assets/quiz.js 的渲染口径一致）
 # 围栏行 = 行首可有缩进 + 三个反引号 + 可选语言标签；行内的单个反引号不算。
@@ -454,6 +467,7 @@ class QuizScanner(HTMLParser):
     def __init__(self):
         super().__init__()
         self.missing = 0
+        self.found = 0
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -461,6 +475,8 @@ class QuizScanner(HTMLParser):
             return
         if attributes.get('data-quiz') is None:
             self.missing += 1
+        else:
+            self.found += 1
 
 
 # 开始标签 + 其中的 class 属性值（class 值可以用单引号或双引号包裹）。
@@ -653,6 +669,34 @@ def check_quiz_fences(item, label):
     return problems
 
 
+def check_quiz_markdown(item, label):
+    """题面/答案的散文里是否用了 Markdown / HTML 标记（字段是纯文本，会原样显示）。
+
+    为什么只提示不阻断：这些标记**不是**语法错误，只是排版预期落空——页面上会露出
+    `**`、反引号、尖括号。而键盘上打得出这些字符的正常内容也存在（数学的 `a**b`、
+    代码片段被围栏包住时的指针 `int **p`），所以不进阻断项；围栏里的内容一律不看。
+    """
+    notes = []
+    for field in ('q', 'answer', 'criteria', 'why'):
+        value = item.get(field)
+        if not isinstance(value, str):
+            continue
+        prose, inside = [], False
+        for line in value.split('\n'):
+            if QUIZ_FENCE_RE.match(line):
+                inside = not inside
+                continue
+            if not inside:
+                prose.append(line)
+        body = '\n'.join(prose)
+        found = [mark.group(0) for pattern in MARKDOWN_RE for mark in pattern.finditer(body)]
+        if found:
+            notes.append(f'{label}的 `{field}` 里出现 {"、".join(sorted(set(found))[:3])}'
+                         f'——字段是**纯文本**，Markdown/HTML 标记会原样显示（换行用 \\n、'
+                         f'代码用 ``` 围栏，见 quiz.js 顶部契约）')
+    return notes
+
+
 def check_quiz(text, required=True):
     """检查项 4：题目结构（阻断）＋选项长度差（提示）。字段契约见 quiz.js 顶部注释。
 
@@ -668,7 +712,14 @@ def check_quiz(text, required=True):
 
     blocks = scan_quiz_blocks(text)
     if not blocks:
-        if not problems and required:
+        if scanner.found:
+            # 块在、属性也在（HTMLParser 是浏览器口径），是**闸门的取值正则**取不出来：
+            # QUIZ_TAG_RE 的标签取到第一个 `>` 为止，属性值里的裸 `>` 会把标签切断。
+            # 页面本身能渲染（HTML5 允许属性值里出现 `>`），所以必须说清是写法问题。
+            problems.append(f'题目块在，但 data-quiz 的值取不出来（{scanner.found} 处）——'
+                            f'属性值里可能有裸的 `>`（写成 &gt;）或裸的同类引号（写成 &#39;）：'
+                            f'闸门的取值正则到第一个 `>` 就断了')
+        elif not problems and required:
             problems.append('缺少 .quiz[data-quiz] 题目块（每份课件至少一道题）')
         return problems, notes
 
@@ -708,6 +759,8 @@ def check_quiz(text, required=True):
 
             for problem in check_quiz_fences(item, label):
                 problems.append(problem)
+            for note in check_quiz_markdown(item, label):
+                notes.append(note)
 
             is_choice = 'opts' in item or 'ans' in item
             is_open = 'answer' in item or 'criteria' in item
