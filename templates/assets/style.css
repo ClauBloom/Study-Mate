@@ -277,6 +277,14 @@
      Compact nav · tighter spacing
      ═══════════════════════════════════════════════════════════════ */
 
+/* 目录条目允许换行：照搬来的样式是 white-space: nowrap，而小节标题是中文长句，
+   220px 的侧栏（去掉内边距只剩约 180px）会把尾巴裁掉。标题行仍保持 nowrap（折叠动画要靠它）。 */
+.doc-sidebar a {
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
 /* 目录跳转时，标题别被吸顶的顶栏盖住 */
 .lesson h2, .lesson h3 { scroll-margin-top: 64px; }
 
