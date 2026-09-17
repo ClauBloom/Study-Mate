@@ -14,12 +14,13 @@
        · 文件名 <NNNN>-<节点id>.html（序号取自 curriculum.yaml，见上）
        · .lesson-nav 里的上/下节课指针（第一课不写 --prev、最后一课不写 --next）
 
-     要填的占位：<title>、.lesson-bar 的科目名与编号、.lesson-header 的编号 + 节点 / 标题 / 本节目标。
+     要填的占位：<title>、.lesson-bar 的科目名与编号、.lesson-header 的 eyebrow（编号 + 节点标题，如 `0001 · 第一份能提交的代码`——这是给学生看的可读文字）/ 标题 / 本节目标。
+      **归属只认文件名**：这份课件属于哪个节点、在主页路线图的哪个位置，只看文件名（页头怎么写都不影响）——所以页头不必写节点 id。
 
-     提交前跑一次闸门：python3 <root>/scripts/check_lesson.py <课件路径>
-       FAIL = 工程/结构缺项（文件名、两类引用——共享层四条 + 科目组件两条、.quiz[data-quiz]、指向 lab/ 的实操引用、主题开关），必须修；
-       WARN = 只是提示（例如选项长度差），不阻断。
-     ═══════════════════════════════════════════════════════════════ -->
+     提交前跑一次闸门：python3 <root>/scripts/check_lesson.py <课件路径> --subject <科目目录> --node <节点id>
+       FAIL = 工程/结构缺项（文件名与大纲位次不符、两类引用——共享层四条 + 科目组件两条、.quiz[data-quiz]、指向 lab/ 的实操引用、主题开关），必须修；
+       WARN = 只是提示（例如选项长度差、下节课还没产出的悬空指针），不阻断。
+      ═══════════════════════════════════════════════════════════════ -->
 <html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="UTF-8">
@@ -56,7 +57,7 @@
 <article class="lesson">
 
   <header class="lesson-header">
-    <span class="lesson-header__eyebrow"><!-- 编号 · 所属节点 --></span>
+    <span class="lesson-header__eyebrow"><!-- 编号 · 节点标题（如 0001 · 第一份能提交的代码） --></span>
     <h1><!-- 本节标题 --></h1>
     <p class="lesson-goal"><b>本节目标：</b><!-- 学生读完能做到什么 --></p>
   </header>

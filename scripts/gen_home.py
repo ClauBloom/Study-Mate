@@ -186,7 +186,6 @@ ANY_HEADING_RE = re.compile(r'^#{1,6}\s', re.M)
 SENTENCE_RE = re.compile(r'^(.+?[。！？!?])')
 DATE_RE = re.compile(r'(\d{4}-\d{2}-\d{2})')
 LESSON_FILE_RE = re.compile(r'^(\d{4})-.*\.html$')
-LESSON_NODE_RE = re.compile(r'所属节点[：:]\s*([^<>\n（(]+)')
 RECORD_FILE_RE = re.compile(r'^(\d{4})-')
 SESSION_FILE_RE = re.compile(r'^(\d{4}-\d{2}-\d{2})')
 # 链接自检跳过的值：外部链接（任何 scheme:，如 http:/mailto:/ftp:/file:/blob:，
@@ -656,31 +655,33 @@ def lesson_title(path):
     return os.path.splitext(os.path.basename(path))[0]
 
 
-def lesson_node_id(path, nodes):
-    """课件归属的节点 id：先读页头“所属节点”（写 id 或写标题都认），再退回全文里出现的节点 id。"""
-    text = read_text_quiet(path, '课件')
-    eyebrow = LESSON_NODE_RE.search(strip_comments(text))
-    if eyebrow:
-        label = eyebrow.group(1).strip()
-        ids = [node['id'] for node in nodes if node['id'] and node['id'] in label]
-        if ids:
-            return max(ids, key=len)
-        titles = [node['id'] for node in nodes if node['title'] and node['title'] in label]
-        if titles:
-            return max(titles, key=len)
-    for node in nodes:                    # 兜底：文件里出现的第一个已知节点 id
-        if re.search(r'(?<![\w.-])' + re.escape(node['id']) + r'(?![\w.-])', text):
-            return node['id']
-    return None
+def lesson_node_id(name, known_ids):
+    """课件归属的节点 id：**只认文件名** `<序号>-<节点id>.html`（认不出返回 None）。
+
+    归属只有一个来源，别再从页头文字反推：文件名里编号与节点 id 都是硬规则
+    （`lesson-design` 管着、`check_lesson.py` 的检查项 8 按 curriculum.yaml 校验），
+    而页头是写给学生看的可读文字（「0001 · 第一份能提交的代码」）。两边各推一次的结果
+    会对不上——本轮就有课件页头没写节点 id、于是主页路线图上一直挂着 WARN。
+    """
+    match = LESSON_FILE_RE.match(name)
+    if not match:
+        return None
+    node_id = name[len(match.group(1)) + 1:-len('.html')]
+    return node_id if node_id in known_ids else None
 
 
 def lessons_by_node(slug, ws, nodes):
     """节点 id → [(编号, 文件名, 标题)]（按编号升序）；挂不上节点的课件告警后跳过。"""
     grouped = {}
+    known_ids = {str(node['id']) for node in nodes if node.get('id')}
     for number, name, path in lesson_files(slug, ws):
-        node_id = lesson_node_id(path, nodes)
+        node_id = lesson_node_id(name, known_ids)
         if node_id is None:
-            warn(f'{slug}: 课件 {name} 没写“所属节点”，挂不到路线图上（已跳过）')
+            match = LESSON_FILE_RE.match(name)
+            got = name[len(match.group(1)) + 1:-len('.html')] if match else None
+            reason = (f'文件名里的节点 id {got!r} 不在 curriculum.yaml 的 nodes: 里'
+                      if got else '文件名不是 <序号>-<节点id>.html（4 位序号）')
+            warn(f'{slug}: 课件 {name} 挂不到路线图上（已跳过）——{reason}')
             continue
         grouped.setdefault(node_id, []).append((number, name, lesson_title(path)))
     return grouped

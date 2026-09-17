@@ -36,6 +36,8 @@
     7 题目位残留：`lessons/` 目录下的课件里不得留着 `<!-- 题目位：… -->` 标记
        （那是讲解角色回合一留下的占位，回合二必须替换掉）。
     8 命名与上/下节课指针（需 --subject 与 --node，邻居取自 curriculum.yaml 的 nodes 顺序）：
+       · 节点必须真实存在于 `nodes:` 里——归属查不出来即 FAIL（否则课件在主页路线图上不存在，
+         而主页只按文件名归属，见 gen_home.py 的 lesson_node_id）；
        · 文件名必须是 `<序号>-<节点id>.html`，序号 = 节点在 `nodes:` 里的位置（从 1 起）；
          上一课的「下节课」指针就按这条规则预写，名字错了那根指针就是死链。
        · `.lesson-nav` 里的 `--prev` / `--next` 必须正好指向大纲里的前后邻居
@@ -73,7 +75,9 @@ except ImportError:      # pragma: no cover - 环境缺 pyyaml 时降级
 # ── 判定口径（要调整只改这里）─────────────────────────────────────────────
 
 # 检查项 1：课件文件名与同目录编号（R4）
-LESSON_NAME_RE = re.compile(r'^(\d{4})-[a-z0-9]+(-[a-z0-9]+)*\.html$')
+# 节点 id 允许点号分段（如 hello.first、exp.first-blood、cpp.stl），文件名沿用同一 id，
+# 所以短横线之外还要容许点号；分隔符不许连续、不许落在结尾。
+LESSON_NAME_RE = re.compile(r'^(\d{4})-(?:[a-z0-9]+[.-])*[a-z0-9]+\.html$')
 NUMBERED_NAME_RE = re.compile(r'^(\d{4})-.*\.html$')
 
 # 检查项 2/3：共享层与科目组件引用（按 href/src 属性值比对，不吃注释里的路径）
@@ -353,7 +357,9 @@ def check_naming_and_nav(text, path, subject, node):
 
     index = subject.index_of(node)
     if index is None:
-        notes.append(f'跳过命名与上下节课指针检查：大纲里找不到节点 {node}（核对 --node 是否写对）')
+        # 归属查不出来 = 这份课件在主页路线图上不存在（曾经的沉默失败：只回显一条提示就放行）
+        problems.append(f'节点 {node} 不在 curriculum.yaml 的 nodes: 里——课件必须归属到一个真实存在的节点'
+                        f'（否则科目主页的路线图上没有它）；核对 --node 与文件名里的节点 id')
         return problems, notes
 
     name = os.path.basename(path)
@@ -430,8 +436,10 @@ class QuizScanner(HTMLParser):
     **data-quiz 的值不走这里取**：属性值用单引号包裹时，值里若出现裸的直角单引号
     （题面里很常见，例如 `expected ';' before 'return'`、`it's`），HTMLParser 会在第一个
     `'` 处把属性截断，后续 JSON 报「Unterminated string」——错误信息指向 JSON，真凶却在取值。
-    HTML5 只禁止属性值里出现**同种**引号，裸 `'` 在单引号属性里合法，浏览器也照常渲染；
-    templates/assets/quiz.js 的契约同样没禁止过单引号。所以取值改用 scan_quiz_blocks()。
+    HTML5 禁止属性值里出现**同种**引号，所以那种写法在浏览器里同样是截断的（不是「合法」）：
+    裸 `'` 在单引号属性里、裸 `"` 在双引号属性里都会截断，**必须写成 `&#39;` / `&quot;`**。
+    所以取值改用 scan_quiz_blocks()，并由它附带的 check_quiz_attr_delimiters() 把这类
+    写法报成 FAIL——正则取值比浏览器宽松，不查的话闸门会 OK 而学生的浏览器里炸。
     """
 
     def __init__(self):
@@ -452,9 +460,90 @@ class QuizScanner(HTMLParser):
 QUIZ_TAG_RE = re.compile(
     r'<[a-zA-Z][^>]*\bclass\s*=\s*(["\'])(.*?)\1[^>]*>', re.S)
 # 标签范围内的 data-quiz 属性：值取到「同类引号 + 空白/标签结束」为止。
-# 用 ([\"'])(.*)\1(?=[\s/>]) 而不是非贪婪 .*?：值里允许出现裸的直角单引号，
-# 非贪婪会在第一个引号处就闭合，把值截断（这正是原先 HTMLParser 那个 bug 的形态）。
+# 用 ([\"'])(.*)\1(?=[\s/>]) 而不是非贪婪 .*?：非贪婪会在值里第一个同类引号处就闭合。
+# ⚠️ 这个正则比浏览器**宽松**：属性值里出现裸的同类引号时，浏览器会在那里截断属性，
+# 而贪婪匹配会一路跨过去、取出「完整」的值交给 json.loads —— 于是 JSON 解析通过、闸门报 OK，
+# 学生的浏览器里却看到「题目数据解析失败」。所以取值之后必须再跑 check_quiz_attr_delimiters()。
 DATA_QUIZ_ATTR_RE = re.compile(r'\bdata-quiz\s*=\s*(["\'])(.*)\1(?=[\s/>])', re.S)
+
+
+def json_string_spans(raw):
+    """把「JSON 文本里处于字符串字面量内部」与「外部」的片段按顺序返回。
+
+    跟踪引号状态时必须处理反斜杠转义：JSON 里的 `\\"` 是字符串**内部**的一个引号，
+    不切换状态——不处理它的话，`"expected \\'; \\' before"` 这类值会被误切成
+    字符串外，本函数就漏报了（真实题面里 `\\"` 很常见）。
+    """
+    parts, buf, in_str, escaped = [], [], False, False
+    for ch in raw:
+        if escaped:
+            buf.append(ch)
+            escaped = False
+            continue
+        if ch == '\\':
+            buf.append(ch)
+            escaped = True
+            continue
+        if ch == '"':
+            parts.append(''.join(buf))
+            buf = []
+            in_str = not in_str
+        else:
+            buf.append(ch)
+    parts.append(''.join(buf))
+    return parts
+
+
+# 宽松取值：从 `data-quiz=` 后面的引号一直取到标签末尾（不吃标签自身的 `>`）。
+# 比浏览器的取值宽松是故意的——取到值之后，由下面的检查判断这份文档在浏览器里
+# 会不会被截断；取值本身不必还原浏览器的截断行为，否则就无从判断了。
+QUIZ_ATTR_AS_WRITTEN_RE = re.compile(r'\bdata-quiz\s*=\s*(["\'])([^>]*)', re.S)
+
+
+def data_quiz_delimiter_span(tag):
+    """返回 (定界引号, 值片段)；标签里没有 data-quiz 时返回 (None, None)。
+
+    值片段是**按书写原样**从定界引号之后一直取到标签末尾（不含标签的 `>`），
+    所以「裸的同种引号」会留在里面，供 check_quiz_attr_delimiters() 判定。
+    """
+    match = QUIZ_ATTR_AS_WRITTEN_RE.search(tag)
+    if not match:
+        return None, None
+    return match.group(1), match.group(2)
+
+
+def bare_delimiter_in_json_strings(raw, delimiter):
+    """JSON 字符串字面量**内部**是否出现了裸的定界引号。
+
+    判据是「包含」而不是「相等」：坏写法下整个题面都在同一个字符串里，
+    定界符只是其中一个字符（如 `"expected ';' before"` 里的 `'`）。
+    """
+    return any(delimiter in span
+               for index, span in enumerate(json_string_spans(raw))
+               if index % 2 == 1)
+
+
+def check_quiz_attr_delimiters(tag):
+    """data-quiz 的值片段里是否含**裸的同类引号**（浏览器会在那里把属性截断）。
+
+    为什么必须单独查：正则取值比浏览器宽松（贪婪跨过裸引号，取出「完整」的值），
+    于是 JSON 解析通过、闸门报 OK，而学生的浏览器里题目块退化成「题目数据解析失败」。
+    判定「坏」的原则：**只认能取出 JSON 合法字符串字面量的那种坏**——
+    出现在 JSON 字符串值里的裸定界引号必然截断；出现在字符串之外（如属性尾部的
+    空白）则不确定，宁可不报，避免误报。
+    """
+    delimiter, raw = data_quiz_delimiter_span(tag)
+    if not delimiter or not bare_delimiter_in_json_strings(raw, delimiter):
+        return []
+    if delimiter == "'":
+        what, entity = "单引号 '", '&#39;'
+        hint = (f"题面里含单引号就写成 {entity}（如 expected {entity};{entity} before）；"
+                f"含 < / > 写成 &lt; / &gt;")
+    else:
+        what, entity = '双引号 "', '&quot;'
+        hint = f'值里含双引号就写成 {entity}'
+    return [f'data-quiz 用{what}包裹，值里却出现了裸的同种引号——'
+            f'浏览器会在那里截断属性，题目块会退化成「题目数据解析失败」。{hint}']
 
 
 def scan_quiz_blocks(text):
@@ -492,6 +581,17 @@ def check_quiz(text, required=True):
         if not problems and required:
             problems.append('缺少 .quiz[data-quiz] 题目块（每份课件至少一道题）')
         return problems, notes
+
+    # 属性值里裸的同类引号：浏览器会截断，而取值正则不会——必须在这里报出来。
+    # 去重：畸形标签可能让 QUIZ_TAG_RE 在同一份文档里命中多次，同一件事只报一遍。
+    seen_delimiter_problems = set()
+    for tag_match in QUIZ_TAG_RE.finditer(text):
+        if 'quiz' not in tag_match.group(2).split():
+            continue
+        for problem in check_quiz_attr_delimiters(tag_match.group(0)):
+            if problem not in seen_delimiter_problems:
+                seen_delimiter_problems.add(problem)
+                problems.append(problem)
 
     for block_index, raw in enumerate(blocks, 1):
         prefix = f'第 {block_index} 个 .quiz 块' if len(blocks) > 1 else '.quiz'
