@@ -34,11 +34,28 @@
     },
     "project": {
       "type": "object",
-      "required": ["current"],
+      "required": ["current", "milestones"],
       "properties": {
         "current": { "type": "string" },
-        "milestones": { "type": "array", "items": { "type": "string" } },
-        "done": { "type": "array", "items": { "type": "string" } }
+        "milestones": {
+          "type": "array",
+          "minItems": 1,
+          "description": "项目路标。挂在这些路标上的节点才是实操课（配 lab）；其余节点是概念课，题目止于 L1-L3。",
+          "items": {
+            "type": "object",
+            "required": ["text", "nodes", "done"],
+            "properties": {
+              "text": { "type": "string" },
+              "nodes": {
+                "type": "array",
+                "minItems": 1,
+                "description": "实现这个路标的节点 id（curriculum.yaml 的 nodes[].id）",
+                "items": { "type": "string" }
+              },
+              "done": { "type": "boolean" }
+            }
+          }
+        }
       }
     }
   }
