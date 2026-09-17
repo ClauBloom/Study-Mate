@@ -231,7 +231,13 @@
   font-weight: 600;
   color: var(--syo-fg-default);
   line-height: 1.7;
+  /* 题面/答案/算过标准都是 textContent 写入的，可以含 \n（例如题干或参考答案里嵌一段多行代码）。
+     不加这行，浏览器会把换行折叠掉，代码挤成一串没法读。
+     pre-line = 保留 \n、照常折叠连续空格与行首缩进，对纯文本内容无影响。 */
+  white-space: pre-line;
 }
+.quiz__answer-text,
+.quiz__criteria { white-space: pre-line; }
 
 .quiz__opts { display: flex; flex-direction: column; gap: 8px; }
 

@@ -33,6 +33,13 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 1. **新建**：建 `subjects/<slug>/` 与 `lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 只从 `<root>/templates/assets/` 拷 `style.css`、`quiz.js`（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**——只有 `kind: 实操/实验` 的节点才需要
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
+4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css` 或 `quiz.js` 一改，各科目 `assets/` 里的同名**副本**就旧了（新科目是建课时拷的），必须一起覆盖——科目自己新增的组件不动：
+   ```bash
+   for d in <LEARN_WORKSPACE>/.learning/subjects/*/assets; do
+     cp <root>/templates/assets/style.css <root>/templates/assets/quiz.js "$d"/
+   done
+   ```
+   不跑这一步，模板里的修复到不了学生正打开的页面（`gen_home.py` 只负责共享层 sayo/learn-theme，不管科目内组件）
 
 ## 学习记录（learning-records/）
 
