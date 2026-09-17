@@ -7,6 +7,7 @@
 <p align="center">
 <img src="https://img.shields.io/badge/DSH-%E5%AD%A6%E4%B9%A0%E6%A8%A1%E5%BC%8F%E9%A2%84%E8%AE%BE-1c5a40" alt="DSH 学习模式预设">
 <img src="https://img.shields.io/badge/python-3.9%2B-3776ab" alt="Python">
+<img src="https://img.shields.io/github/license/Miaotofu01/Study-Mate" alt="MIT License">
 </p>
 
 <p align="center"><sub>DSH = DeepSeek Harness 智能体运行时；StudyMate 是它的一个「学习模式」预设加一套技能。</sub></p>
@@ -31,8 +32,8 @@
 `install.sh` 自己不做依赖检查，缺东西会在中途硬失败。DSH 本身的安装不在本项目范围内，按 DSH 的安装说明装好再回来。
 
 ```bash
-# ① 拿到引擎项目：把本目录拷到目标机器，或 clone 你自己的仓库
-cd StudyMate
+# ① 拿到引擎项目（换 SSH：git clone git@github.com:Miaotofu01/Study-Mate.git StudyMate）
+git clone https://github.com/Miaotofu01/Study-Mate.git StudyMate && cd StudyMate
 # ② 装「学习模式」预设 + 建学习工作区（幂等，可重复跑）
 ./install.sh
 # ③ 起 DSH，在任意目录新建会话并选「学习模式」预设
@@ -166,7 +167,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 
 ## 贡献 / 路线图 / License
 
-- **仓库状态**：当前**没有 GitHub 远端、没有 `LICENSE` 文件**。所以上面两个徽章只用真实可核实的值（预设形态、Python 版本），没有 star / 构建状态 / 下载量这类徽章；clone 地址也留给你自己的仓库，补齐后替换本节。
+- **仓库状态**：本仓库 **MIT 许可**（见 `LICENSE`，版权 Cattofu）；徽章只用真实可核实的值（预设形态、Python 版本、许可证），没有 star / 构建状态 / 下载量这类还不足据可填的徽章。
 - **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、闸门与档案规则）· [设计方案](docs/设计方案.md)（产品视角）· [实施计划](docs/实施计划.md)（任务清单与当前口径）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
 - **改之前先跑**：`python3 scripts/check_skill.py .dsh/skills/*`，以及上面对应那一条大纲 / 课件校验命令。
 - **当前口径（已知限制）**：一个知识点对应一节课件；大纲里插入或删除节点，会让已写好的上/下节课指针指错（闸门会报出来，人工改一次即可）；调试期移除的样板课件待重做。遗留项见 [实施计划](docs/实施计划.md) 文末。
