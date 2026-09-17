@@ -1,6 +1,7 @@
 nodes:
   - id: http.basics
     title: HTTP 基础
+    kind: 实操
     objective: "能解释 HTTP 请求/响应结构与常见状态码，并用 curl 实测"
     problem: "浏览器和服务器之间怎么对话"
     prerequisites: []
@@ -17,6 +18,7 @@ nodes:
     mastery: 0
   - id: http.routing
     title: 路由
+    kind: 实操
     objective: "能独立设计并实现 REST 路由"
     problem: "请求怎么找到对应的处理函数"
     prerequisites: [http.basics]
@@ -31,8 +33,21 @@ nodes:
     验收点: ["手写路由表并解释匹配顺序", "为路由写测试并运行通过"]
     status: 未开始
     mastery: 0
+  - id: exp.crud-routes
+    title: "实验一：把订单 CRUD 跑起来"
+    kind: 实验
+    objective: "用目前学到的 HTTP 与路由知识，把订单 API 的三条 CRUD 路由跑通并亲手验收"
+    problem: "学了三课，合起来到底能不能做出一个能用的接口"
+    prerequisites: [http.basics, http.routing]
+    practice: "按实验说明页做出三条 CRUD 路由，用 curl 逐条验收，最后跑一遍自检"
+    验收点:
+      - "三条路由用 curl 都能打通（列表 / 新建 / 删除）"
+      - "讲得清每条请求落到哪个处理函数、命中顺序为什么是这样"
+    status: 未开始
+    mastery: 0
   - id: http.validation
     title: 参数校验
+    kind: 实操
     objective: "能对路径参数、查询参数与请求体做显式校验，并让非法输入返回明确错误"
     problem: "客户端送来的数据不可信——脏数据怎么挡在业务逻辑之外"
     prerequisites: [http.routing]
@@ -49,6 +64,7 @@ nodes:
     mastery: 0
   - id: http.errors
     title: 错误处理
+    kind: 概念
     objective: "能设计统一的错误处理机制，让每类失败都映射到正确的状态码"
     problem: "一个 handler 抛异常，整个进程就挂——错误该在哪里被接住"
     prerequisites: [http.validation]
@@ -65,6 +81,7 @@ nodes:
     mastery: 0
   - id: db.access
     title: 数据库访问
+    kind: 实操
     objective: "能用 TypeScript 读写 PostgreSQL，写出参数化查询并映射结果类型"
     problem: "数据要活过进程重启——代码怎么跟数据库说话"
     prerequisites: [http.errors]
@@ -82,8 +99,21 @@ nodes:
     验收点: ["能用 psql 看到代码写入的那一行", "查询全部走参数化写法"]
     status: 未开始
     mastery: 0
+  - id: exp.pg-and-tests
+    title: "实验二：接上数据库并写测试"
+    kind: 实验
+    objective: "把订单数据落进 PostgreSQL，并给接口写上一组一条命令能跑完的测试"
+    problem: "数据只活在内存里，重启就没了；接口改一行就不敢动"
+    prerequisites: [http.validation, db.access, test.api]
+    practice: "为订单表接上真实数据库读写，补一组覆盖失败路径的测试，再跑一遍自检"
+    验收点:
+      - "重启服务后数据还在（能用 psql 看到代码写进去的那一行）"
+      - "一条命令跑完所有测试；故意改坏一处实现会有测试报红"
+    status: 未开始
+    mastery: 0
   - id: auth.basics
     title: 认证与授权
+    kind: 实操
     objective: "能实现注册/登录、签发与校验凭证、按用户隔离资源"
     problem: "别人凭什么相信你就是你——接口怎么知道该给谁数据"
     prerequisites: [db.access]
@@ -103,6 +133,7 @@ nodes:
     mastery: 0
   - id: test.api
     title: 接口测试
+    kind: 实操
     objective: "能用自动化测试覆盖每条路由，并让测试可重复运行"
     problem: "改一处代码就怕弄坏别处——怎么让改动有底气"
     prerequisites: [auth.basics]
@@ -119,6 +150,7 @@ nodes:
     mastery: 0
   - id: project.deploy
     title: 完整项目与部署
+    kind: 实操
     objective: "能把订单 API 部署到公网，用环境变量管理配置，并跑通一次真实访问"
     problem: "代码在你机器上跑得好好的——怎么让别人也用得上"
     prerequisites: [test.api]
@@ -134,6 +166,18 @@ nodes:
     pitfalls: [把连接串硬编码进代码, 部署后没有健康检查就以为服务在跑]
     realworld: "第一次让自己的接口被真实用户调用"
     验收点: ["公网地址上能注册、登录、完成一次 CRUD", "服务重启后数据仍在"]
+    status: 未开始
+    mastery: 0
+  - id: exp.auth-deploy
+    title: "实验三：加认证并部署上线"
+    kind: 实验
+    objective: "给订单接口加上登录校验并部署到公网，让真实地址能走完一次完整流程"
+    problem: "本地能跑不等于别人能用；接口裸奔着，谁都能删别人的订单"
+    prerequisites: [auth.basics, project.deploy]
+    practice: "加认证中间件、部署到一台云主机，用公网地址走一遍注册 / 登录 / 下单"
+    验收点:
+      - "未带凭证的请求被 401 拦下；改请求里的 id 拿不到别人的数据"
+      - "公网地址上能完成一次完整流程，服务重启后数据仍在"
     status: 未开始
     mastery: 0
 edges:
@@ -164,3 +208,24 @@ edges:
   - from: http.routing
     to: auth.basics
     reason: "认证是挂在路由上的一道关卡，要先会写路由与中间件"
+  - from: http.basics
+    to: exp.crud-routes
+    reason: "实验一验收 HTTP 基础"
+  - from: http.routing
+    to: exp.crud-routes
+    reason: "实验一验收路由"
+  - from: http.validation
+    to: exp.pg-and-tests
+    reason: "实验二验收参数校验"
+  - from: db.access
+    to: exp.pg-and-tests
+    reason: "实验二验收数据库读写"
+  - from: test.api
+    to: exp.pg-and-tests
+    reason: "实验二验收接口测试"
+  - from: auth.basics
+    to: exp.auth-deploy
+    reason: "实验三验收认证"
+  - from: project.deploy
+    to: exp.auth-deploy
+    reason: "实验三验收部署"

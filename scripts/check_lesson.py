@@ -4,9 +4,8 @@
 用法：
   python3 scripts/check_lesson.py <课件路径> [<课件路径> ...] [--subject <科目目录>] [--node <节点id>]
 
-`--subject` 与 `--node` 一起给，才能判定"这课该不该有 lab"：节点挂在
-`<科目>/progress.yaml` 的 `project.milestones[].nodes` 上就是**实操课**（必须有 lab），
-否则是**概念课**（不该有 lab）。不给这两个参数时跳过实操判定并回显一条提示。
+`--subject` 与 `--node` 一起给，才能判定"这课该不该有 lab"：读 `<科目>/curriculum.yaml` 里该节点的
+`kind`——`实操` 与 `实验` 必须有 lab 与产物，`概念` 不该有 lab。不给这两个参数时跳过实操判定并回显一条提示。
 
 输出：每个文件——无阻断项时一行 `OK   <path>`；有阻断项时 `FAIL <path>: 问题1；问题2`；
 另有提示项时再补一行 `WARN <path>: 提示1；提示2`（两类可以同时出现）。
@@ -27,10 +26,11 @@
          · 选择题（写了 opts/ans）：`opts` 是 ≥2 项的数组、`ans` 是范围内的整数、`why` 非空；
          · 开放题（写了 answer/criteria）：`answer`（参考答案）与 `criteria`（算过标准）都非空；
          · 两组字段不能同时出现在一题里；都没有则题型不明。
-    5 实操（按节点条件判定，需 --subject 与 --node）：
-       · 实操课：必须有 href 含 lab/ 的链接，且 `<科目>/lab/<本课编号>-*/` 存在、
-         里面有任务文件、`<科目>/lab/solutions/` 非空；
-       · 概念课：链接了 lab/ 只提示（规范上概念课不配实操），不阻断。
+       普通课件至少要有一道题；`kind: 实验` 的说明页是任务书，没有题目块不算缺项。
+    5 实操（按节点的 `kind` 条件判定，需 --subject 与 --node）：
+       · `kind: 实操` 或 `kind: 实验`：必须有 href 含 lab/ 的链接，且 `<科目>/lab/<本课编号>-*/`
+         存在、里面有任务文件、`<科目>/lab/solutions/` 非空；
+       · `kind: 概念`：链接了 lab/ 只提示（规范上概念课不配实操），不阻断。
     6 主题开关：存在 id="lesson-theme-checkbox" 的 <input type="checkbox">，
        且有 LearnTheme.wire(...) 引用该 id（骨架里的主题开关不能被改丢）。
     7 题目位残留：`lessons/` 目录下的课件里不得留着 `<!-- 题目位：… -->` 标记
@@ -99,36 +99,39 @@ def ref_values(text):
     return REF_ATTR_RE.findall(text)
 
 
-# ── 科目数据：节点是不是实操课（挂没挂项目里程碑）─────────────────────────
+# ── 科目数据：节点的课型（curriculum.yaml 的 kind）──────────────────────────
 
 
 class SubjectData:
-    """读 <科目>/progress.yaml，记下所有挂在项目里程碑上的节点 id。"""
+    """读 <科目>/curriculum.yaml，记下每个节点的 `kind`（概念／实操／实验）。
+
+    课型决定闸门怎么判实操：`概念` 不配 lab；`实操` 与 `实验` 必须有 lab 与产物。
+    """
 
     def __init__(self, subject_dir):
         self.dir = subject_dir
-        self.practice_nodes = set()
+        self.kinds = {}
         self.error = None
         if yaml is None:
             self.error = '未安装 pyyaml'
             return
-        path = os.path.join(subject_dir, 'progress.yaml')
+        path = os.path.join(subject_dir, 'curriculum.yaml')
         try:
             with open(path, encoding='utf-8') as handle:
-                progress = yaml.safe_load(handle) or {}
+                curriculum = yaml.safe_load(handle) or {}
         except (OSError, UnicodeDecodeError) as exc:
             self.error = f'读不出 {path}（{exc}）'
             return
         except Exception as exc:                      # yaml.YAMLError 及结构异常
             self.error = f'{path} 不是合法 YAML（{exc}）'
             return
-        project = progress.get('project') if isinstance(progress, dict) else None
-        milestones = (project or {}).get('milestones') if isinstance(project, dict) else None
-        for milestone in milestones or []:
-            if not isinstance(milestone, dict):
-                continue
-            for node in milestone.get('nodes') or []:
-                self.practice_nodes.add(str(node))
+        nodes = curriculum.get('nodes') if isinstance(curriculum, dict) else None
+        for node in nodes or []:
+            if isinstance(node, dict) and node.get('id'):
+                self.kinds[str(node['id'])] = str(node.get('kind') or '').strip()
+
+    def kind_of(self, node):
+        return self.kinds.get(str(node)) or None
 
 
 def lab_number_of(path):
@@ -168,7 +171,11 @@ def check_lab_artifacts(subject_dir, number):
 
 
 def check_lab(text, path, subject, node):
-    """检查项 5：实操引用与产物——按"这课是不是实操课"条件判定。"""
+    """检查项 5：实操引用与产物——按节点的 `kind` 条件判定。
+
+    `kind: 实操` / `kind: 实验` → 必须有 lab 链接，且 lab 产物齐全；
+    `kind: 概念` → 不该有 lab 链接（有就提示，不阻断）。
+    """
     problems = []
     notes = []
     has_link = bool(LAB_LINK_RE.search(text))
@@ -180,16 +187,25 @@ def check_lab(text, path, subject, node):
         notes.append(f'跳过实操判定：{subject.error}')
         return problems, notes
 
-    if node in subject.practice_nodes:
+    kind = subject.kind_of(node)
+    if kind is None:
+        notes.append(f'跳过实操判定：大纲里找不到节点 {node}（核对 --node 是否写对）')
+        return problems, notes
+
+    if kind in ('实操', '实验'):
         if not has_link:
-            problems.append(f'实操课缺少实操引用：节点 {node} 挂在项目里程碑上，'
-                            '课件里必须有 href 指向 lab/ 的链接')
-        else:
-            number = lab_number_of(path)
-            if number is not None:
-                problems += check_lab_artifacts(subject.dir, number)
-    elif has_link:
-        notes.append(f'概念课却链接了 lab/：节点 {node} 没挂项目里程碑，'
+            problems.append(f'{kind}课缺少实操引用：节点 {node} 的 kind 是「{kind}」，'
+                            '页面里必须有 href 指向 lab/ 的链接')
+            return problems, notes
+        number = lab_number_of(path)
+        if number is not None:
+            problems += check_lab_artifacts(subject.dir, number)
+        return problems, notes
+
+    if kind != '概念':
+        notes.append(f'节点 {node} 的 kind 是 {kind!r}，不在「概念/实操/实验」里——按概念课处理')
+    if has_link:
+        notes.append(f'概念课却链接了 lab/：节点 {node} 的 kind 是「概念」，'
                      '按规范概念课不配实操（只有轻量跟做）')
     return problems, notes
 
@@ -276,9 +292,10 @@ class QuizScanner(HTMLParser):
             self.blocks.append(data)
 
 
-def check_quiz(text):
+def check_quiz(text, required=True):
     """检查项 4：题目结构（阻断）＋选项长度差（提示）。字段契约见 quiz.js 顶部注释。
 
+    `required=False`（实验课的说明页）时，没有题目块不算缺项——那是任务书，不是课件。
     返回 (problems, notes)。
     """
     problems = []
@@ -290,7 +307,7 @@ def check_quiz(text):
 
     blocks = scanner.blocks
     if not blocks:
-        if not problems:
+        if not problems and required:
             problems.append('缺少 .quiz[data-quiz] 题目块（每份课件至少一道题）')
         return problems, notes
 
@@ -379,7 +396,9 @@ def check_file(path, subject=None, node=None):
         return [f'无法读取文件：{exc.strerror or exc}'], []
 
     text = strip_comments(raw)
-    quiz_problems, notes = check_quiz(text)
+    kind = subject.kind_of(node) if (subject is not None and node is not None
+                                     and not subject.error) else None
+    quiz_problems, notes = check_quiz(text, required=(kind != '实验'))
     lab_problems, lab_notes = check_lab(text, path, subject, node)
     problems = []
     problems += check_name(path)

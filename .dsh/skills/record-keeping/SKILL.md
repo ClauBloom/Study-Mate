@@ -1,6 +1,6 @@
 ---
 name: record-keeping
-description: 档案维护规范：学习状态的读写规则（共享记忆、进度、误解、评估记录、会话摘要、学习记录、主页刷新、新建科目、项目里程碑）。由 learning-system 总控加载并自己执行。
+description: 档案维护规范：学习状态的读写规则（共享记忆、进度、误解、评估记录、会话摘要、学习记录、主页刷新、新建科目、项目与实验课）。由 learning-system 总控加载并自己执行。
 ---
 
 # 档案维护规范
@@ -39,7 +39,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 科目文件夹操作
 
-1. **新建科目**：建 `<LEARN_WORKSPACE>/.learning/subjects/<slug>/` 与空目录（`lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`）；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 从 `<root>/templates/assets/` 只拷 `style.css`、`quiz.js` 两个起步组件（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**：只有实操课（挂了项目里程碑的节点）才有 `lab/`
+1. **新建科目**：建 `<LEARN_WORKSPACE>/.learning/subjects/<slug>/` 与空目录（`lessons/`、`reference/`、`assets/`、`learning-records/`、`sessions/`、`assessments/`）；按 `templates/subject.yaml` 建 `subject.yaml`（`created_at` 填当天）；`assets/` 从 `<root>/templates/assets/` 只拷 `style.css`、`quiz.js` 两个起步组件（共享层由 `gen_home.py` 负责）。**`lab/` 不预建**：只有 `kind: 实操` 或 `kind: 实验` 的节点才需要它
 2. **列出科目**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换科目**：切换即换路径，不复制、不搬运内容
 
@@ -56,22 +56,23 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 3. 逐题的 `验收点` 字段要与 `curriculum.yaml` 节点的 `验收点` **逐字对得上**；对不上就以节点为准并修正记录
 4. 与此同时照旧双落点记误解（`misconceptions.yaml` + `progress.yaml.misconceptions`）
 
-## 项目里程碑（progress.yaml 的 `project`）
+## 项目与实验课（`project` + `kind: 实验` 的节点）
 
-结构是**对象数组**，不是字符串数组：
+`progress.yaml` 的 `project` **只有一句"在做的是什么"**；里程碑不在这里——它们是 `curriculum.yaml` 里 **`kind: 实验` 的验收课节点**，进度就在 `nodes` 里：
 
 ```yaml
+# progress.yaml
 project:
   current: "订单 API（本地可跑，逐步加到可部署）"
-  milestones:
-    - text: "能跑通 3 条 CRUD 路由"
-      nodes: [http.routing]        # 实现这个路标的节点 id，至少一个
-      done: false
+nodes:
+  exp.crud-routes:            # 这个 id 来自 curriculum.yaml 里 kind: 实验 的节点
+    status: 未开始
+    mastery: 0
 ```
 
-- **实操归属**：节点出现在某个里程碑的 `nodes` 里 → 该节点是**实操课**（配 `lab/`、题目可到 L4）；否则是概念课（题目止于 L3、没有 lab）
-- **翻牌规则（硬）**：某个里程碑的 `nodes` 里的节点**全部**达到"能独立应用"及以上（含"已通过项目验证"）时，把它 `done: true`，并写一条学习记录（"里程碑达成：<text>"）。不要凭印象提前翻，也不要漏翻——`done` 是主页卡片与"要不要调路线"的依据
-- `current` 变了要先跟学生确认；每次改完对照 `schemas/progress.schema.json` 校验
+- **课型**由大纲节点的 `kind` 决定（概念／实操／实验，见 `layered-practice` 第四节）：概念不配 lab、题目止于 L3；实操配自己的小 lab；实验配**实验说明页 + 验收任务**
+- **实验课通过时（硬规则）**：把该实验课节点置为「**已通过项目验证**」，**并把它的 `prerequisites`（被验收节点）也置为「已通过项目验证」**（mastery 保留原值或上调），再写一条学习记录（"实验通过：<实验课标题>"）。这是"项目推进"的唯一依据——不要凭印象提前置，也不要漏置
+- `current` 变了要先跟学生确认（项目换了或范围变了）；每次改完对照 `schemas/progress.schema.json` 校验
 
 ## 主页刷新（生成产物）
 
@@ -88,11 +89,11 @@ project:
 2. 写后校验：`curriculum.yaml`、`progress.yaml`、`subject.yaml`、评估记录 frontmatter 分别对照 `<root>/schemas/*.json`；会话摘要对照 `session-summary.schema.json`
 3. **写入类型化的状态**：结构化事实进 YAML，偏好与观察进 `MEMORY.md`
 4. **会话摘要**（会话结束时写）：按 session-summary schema 生成，存 `subjects/<slug>/sessions/<YYYY-MM-DD>.md`，同日多段追加；格式：`.md` 文件，**YAML frontmatter 承载 `session-summary.schema.json` 的字段**（日期加引号），正文写本次要点；写的同时在对话里给出一条 `memory_updates` 建议（哪些观察值得进共享记忆），学生确认后写进 `MEMORY.md`
-5. **恢复视图**（开场时自读）：`MEMORY.md` 相关分节 + 该科目当前节点 + 前置节点摘要 + 最近 5 条 misconceptions + 最近 3 条学习记录 + **最近 3 条评估记录** + 项目里程碑（每个路标的 `done` 与未达成路标）；只读需要的部分（用 offset/limit/grep 取最近条目），不把整份长文件读进上下文
+5. **恢复视图**（开场时自读）：`MEMORY.md` 相关分节 + 该科目当前节点 + 前置节点摘要 + 最近 5 条 misconceptions + 最近 3 条学习记录 + **最近 3 条评估记录** + **实验课节点（`kind: 实验`）的进度与 `project.current`**；只读需要的部分（用 offset/limit/grep 取最近条目），不把整份长文件读进上下文
 
 ## 边界
 
-- 课程内容归 `curriculum-designer`；课件/参考/组件归 `learning-coach`；**题目与 lab 归 `practice-evaluator`（它给内容，你写盘）**；你只读写状态与元数据，发现不一致时以文件为准并修正记录
+- 课程内容归 `curriculum-designer`；课件/参考/组件归 `learning-coach`；**题目、lab 与实验说明页的内容归 `practice-evaluator`（它给内容，你写盘）**；你只读写状态与元数据，发现不一致时以文件为准并修正记录
 - 档案里存结构化摘要，聊天的原始过程留在会话里
 - 科目之间保持隔离：只读当前科目，唯一的跨科目来源是 `MEMORY.md`
 - 只在 `<LEARN_WORKSPACE>/` 下写学习文件，绝不写会话目录

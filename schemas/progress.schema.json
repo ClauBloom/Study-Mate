@@ -34,28 +34,10 @@
     },
     "project": {
       "type": "object",
-      "required": ["current", "milestones"],
+      "required": ["current"],
+      "description": "在做的项目。里程碑不在这里——它们是 curriculum.yaml 里 kind: 实验 的节点（进度即节点进度）。",
       "properties": {
-        "current": { "type": "string" },
-        "milestones": {
-          "type": "array",
-          "minItems": 1,
-          "description": "项目路标。挂在这些路标上的节点才是实操课（配 lab）；其余节点是概念课，题目止于 L1-L3。",
-          "items": {
-            "type": "object",
-            "required": ["text", "nodes", "done"],
-            "properties": {
-              "text": { "type": "string" },
-              "nodes": {
-                "type": "array",
-                "minItems": 1,
-                "description": "实现这个路标的节点 id（curriculum.yaml 的 nodes[].id）",
-                "items": { "type": "string" }
-              },
-              "done": { "type": "boolean" }
-            }
-          }
-        }
+        "current": { "type": "string" }
       }
     }
   }

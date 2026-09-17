@@ -67,7 +67,7 @@ STATUS_TAG = {'进行中': ('active', 'blue'), '暂停': ('paused', 'yellow'), '
 
 MISSION = '独立完成一个可部署的全栈 Web API——从 HTTP 基础一路做到认证、测试与部署。'
 PROJECT = '''<div class="learn-project__card">
-  <span class="learn-project__label">当前项目里程碑</span>
+  <span class="learn-project__label">在做的项目</span>
   <p class="learn-project__current">订单 API 的鉴权与限流</p>
   <div class="learn-project__lists">
     <div>
@@ -81,7 +81,7 @@ PROJECT = '''<div class="learn-project__card">
   </div>
 </div>'''
 PROJECT_NONE = ('<p class="learn-project__none">还没有挂项目。告诉 agent 你想做什么，'
-                '它会把里程碑挂到这条路线图上。</p>')
+                '它会把项目排进路线图，并把里程碑插成实验课。</p>')
 
 # 节点 → 课件（一个节点挂多篇是有意为之：验证补充课件的子树分叉）
 LESSONS = [

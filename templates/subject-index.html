@@ -113,7 +113,7 @@
 .learn-overview__item--review   .learn-overview__dot { background: var(--learn-review); }
 .learn-overview__item--verified .learn-overview__dot { background: var(--learn-verified); }
 
-/* ── 项目里程碑 ── */
+/* ── 在做的项目 ── */
 .learn-project { margin-top: var(--syo-space-6); }
 
 .learn-project__card {
@@ -241,6 +241,16 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
   font-size: .625rem;
   color: var(--syo-accent);
   border: 1px solid var(--learn-line-accent);
+  border-radius: 999px;
+}
+
+/* 课型徽标：kind 为「实验」的节点（里程碑验收课）在标题行标出来 */
+.learn-node__kind {
+  flex: none;
+  padding: 1px 6px;
+  font-size: .625rem;
+  color: var(--syo-fg-muted);
+  border: 1px solid var(--syo-border);
   border-radius: 999px;
 }
 
@@ -541,8 +551,9 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
 
 <main class="syo-container learn-main" id="learn-content">
 
-  <!-- 项目里程碑：gen_home.py 用 progress.yaml 的 project 渲染 -->
-  <section class="learn-project" aria-label="项目里程碑">
+  <!-- 在做的项目：gen_home.py 用 progress.yaml 的 project.current 渲染
+       （里程碑是路线图里 `kind: 实验` 的节点，不在这张卡片里） -->
+  <section class="learn-project" aria-label="在做的项目">
     <!-- @LEARN:PROJECT -->
   </section>
 
@@ -645,6 +656,9 @@ summary.learn-node:focus-visible { outline: 2px solid var(--syo-accent); outline
       · 卡片内的元素都用 <span>（summary 的内容模型是 phrasing content，
         不要用 <div>/<p>）；objective 与 foot 用 display:block / flex 控制版式
       · learn-node__now 只出现在状态为“学习中”的节点上
+      · 课型徽标：curriculum.yaml 里 `kind: 实验` 的节点（里程碑验收课），在标题行 title 之后
+        加 <span class="learn-node__kind">实验</span>；`概念` 与 `实操` 不加徽标
+        （有课件时，实验课的说明页也按普通子卡片列在 learn-node__children 里）
       · 前置标签用 prerequisites 里每个 id 对应的节点 title；
         没有前置时写 <span class="learn-node__chip learn-node__chip--none">无</span>
       · 掌握度：i 的 width 用 mastery × 100；没有 mastery 时按 0 处理

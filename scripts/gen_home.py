@@ -79,7 +79,7 @@ NOT_STARTED_TEXT = '还没开始'
 
 # 模板注释里写死的两段提示文案
 PROJECT_NONE_HTML = ('<p class="learn-project__none">还没有挂项目。告诉 agent 你想做什么，'
-                     '它会把里程碑挂到这条路线图上。</p>')
+                     '它会把项目排进路线图，并把里程碑插成实验课。</p>')
 ATTACH_EMPTY_HTML = ('<p class="learn-attachments__empty">还没有附件。速查文档、术语表、'
                      '学习记录都会出现在这里。</p>')
 
@@ -144,7 +144,7 @@ LEVEL_TEMPLATE = '''  <div class="learn-level">
   </div>'''
 
 PROJECT_CARD_TEMPLATE = '''<div class="learn-project__card">
-  <span class="learn-project__label">当前项目里程碑</span>
+  <span class="learn-project__label">在做的项目</span>
   <p class="learn-project__current">{current}</p>
   <div class="learn-project__lists">
 {lists}
@@ -409,6 +409,7 @@ def curriculum_nodes(cur, prog, slug=None):
         nodes.append({
             'id': node_id,
             'title': str(raw.get('title') or node_id),
+            'kind': str(raw.get('kind') or ''),
             'objective': str(raw.get('objective') or ''),
             'prerequisites': [str(p) for p in (raw.get('prerequisites') or [])],
             'status': status,
@@ -562,7 +563,7 @@ def mission_excerpt(slug, ws):
 
 
 def milestone_text(item):
-    """里程碑条目 → 文案。新结构是 {text, nodes, done}；旧结构（纯字符串）兼容读。"""
+    """旧结构里里程碑条目 → 文案（纯字符串或 {text, nodes, done}）；新模型已经没有里程碑条目。"""
     if isinstance(item, dict):
         return str(item.get('text') or '').strip()
     return str(item or '').strip()
@@ -574,10 +575,10 @@ def milestone_done(item):
 
 
 def render_project_html(prog):
-    """项目里程碑卡片（progress.yaml 的 project）；没有项目时输出 .learn-project__none 提示。
+    """「在做的项目」卡片（progress.yaml 的 `project.current`）；没有项目时输出 .learn-project__none 提示。
 
-    `project.milestones` 是新结构 `[{text, nodes, done}]`；旧的 `project.done`（字符串数组）
-    仍然兼容读，便于工作区数据迁移期间页面不空。
+    里程碑**不在这里**——它们是 curriculum.yaml 里 `kind: 实验` 的节点，由路线图渲染（带「实验」徽标）。
+    旧结构（`project.milestones` / `project.done` 字符串数组）仍然兼容读，便于工作区数据迁移期间页面不空。
     """
     project = (prog or {}).get('project')
     if not isinstance(project, dict) or not str(project.get('current') or '').strip():
@@ -606,7 +607,7 @@ def render_project_html(prog):
         lists.append(PROJECT_LIST_TEMPLATE.format(label=esc(label), items=lis))
     if not lists:
         return ('<div class="learn-project__card">\n'
-                '  <span class="learn-project__label">当前项目里程碑</span>\n'
+                '  <span class="learn-project__label">在做的项目</span>\n'
                 f'  <p class="learn-project__current">{esc(str(project["current"]).strip())}</p>\n'
                 '</div>')
     return PROJECT_CARD_TEMPLATE.format(current=esc(str(project['current']).strip()),
@@ -709,6 +710,8 @@ def render_node_html(node, nodes, lessons):
     kind = NODE_STATUS_CLASS.get(status, 'todo')
     pct = f'{round(node["mastery"] * 100)}%'
     now = '<span class="learn-node__now">当前</span>' if status == CURRENT_STATUS else ''
+    badge = ('<span class="learn-node__kind">实验</span>'
+             if str(node.get('kind') or '').strip() == '实验' else '')
     objective = (f'<span class="learn-node__objective">{esc(node["objective"])}</span>'
                  if node['objective'] else '')
     foot = ('<span class="learn-node__foot">'
@@ -720,6 +723,7 @@ def render_node_html(node, nodes, lessons):
         row = ('<span class="learn-node__row">'
                '<span class="learn-node__dot"></span>'
                f'<span class="learn-node__title">{esc(node["title"])}</span>'
+               f'{badge}'
                f'{now}'
                f'<span class="learn-node__status">{esc(status)}</span>'
                '<span class="learn-node__caret" aria-hidden="true"></span>'
@@ -732,6 +736,7 @@ def render_node_html(node, nodes, lessons):
     row = ('<span class="learn-node__row">'
            '<span class="learn-node__dot"></span>'
            f'<span class="learn-node__title">{esc(node["title"])}</span>'
+           f'{badge}'
            f'{now}'
            '<span class="learn-node__nolesson">课件待生成</span>'
            '</span>')
