@@ -218,9 +218,11 @@ workspace/.learning/subjects/<slug>/assets/{style.css, quiz.js, lesson-toc.js}  
 
 `templates/assets/style.css`：
 
-1. `.quiz__opt:hover` / `.quiz button:hover`：底色改成 **中性提升**
-   `color-mix(in srgb, var(--syo-bg-base) 92%, var(--syo-fg-default))`，不再用 `--learn-soft-green`。
-   理由不只是"暗色难看"：绿色在这个组件里已经表示**答对了**（`.is-correct`/`.feedback.correct`），
+1. `.quiz__opt:hover` / `.quiz button:hover`：**完全不动底色**，可点改用三件事表达——accent 边框、
+   文字加深、上浮 1px（`:active` 的 `translateY(1px)` 与它配成一按一抬）。
+   理由：底色是暖米色，往上盖任何半透明色都会变成脏滤镜——盖绿的发绿（原 `--learn-soft-green`）、
+   盖灰的发灰（中途试过 `color-mix` 中性提升，用户第二次实测反馈"米色底被盖上很难看"），
+   两个主题各脏一边；而且绿色在这个组件里已经表示**答对了**（`.is-correct`/`.feedback.correct`），
    拿它当 hover 会把「可点」和「正确」混成同一个信号。
 2. `.quiz` 阴影改用 `var(--learn-shadow-card)`。
 3. `.doc-sidebar a.active` 底色改用 `var(--learn-soft-accent)`（不再写死 Primer 紫的 rgba）。

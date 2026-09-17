@@ -556,12 +556,12 @@
   cursor: pointer;
   transition: border-color 140ms var(--syo-ease-out), background-color 140ms var(--syo-ease-out), color 140ms var(--syo-ease-out), transform 80ms var(--syo-ease-out);
 }
-/* hover 底色用**中性提升**，不用语义色：绿色在本组件里已经表示「答对了」，
-   拿它当 hover 会把「可点」和「正确」混成同一个信号（亮色下两者本来就都是绿的）。
-   color-mix 让底色跟着主题走（亮色压暗一点、暗色提亮一点），且不引入第二个色相，
-   暗色下就不会再出现「紫边框 + 绿底」的打架。 */
+/* hover **不动底色**：底色是暖米色（--syo-bg-base），往上面盖任何一层半透明色都会变成脏滤镜
+   ——盖绿的发绿、盖灰的发灰，两个主题各脏一边（用户两次实测反馈都是这个）。可点改用三件事表达：
+   accent 边框 + 文字加深 + 上浮 1px（上浮是科目页节点卡已经在用的手法，:active 的
+   translateY(1px) 正好与它配成一按一抬）。语义绿只留给「答对了」，不再兼职 hover。 */
 .quiz button:hover,
-.quiz__opt:hover { border-color: var(--syo-accent); color: var(--syo-fg-default); background: color-mix(in srgb, var(--syo-bg-base) 92%, var(--syo-fg-default)); }
+.quiz__opt:hover { border-color: var(--syo-accent); color: var(--syo-fg-default); transform: translateY(-1px); }
 .quiz button:active,
 .quiz__opt:active { transform: translateY(1px); }
 .quiz button:focus-visible,
