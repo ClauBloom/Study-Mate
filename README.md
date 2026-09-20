@@ -63,7 +63,7 @@ dsh web
 
 ## 它是什么
 
-StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套技能。你只跟一个人对话——**主教练**（`learning-system` 总控，会话的调度中枢，也是唯一能问你问题的角色）；它背后按需调度课程设计、讲解、练习评估三个子角色，你不需要知道它们的分工。
+StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套技能。你只跟一个人对话——**主教练**（`learning-system` 总控，会话的调度中枢，也是唯一能问你问题的角色）；它背后按需调度收集资料、采图、课程设计、讲解、练习评估五个子角色，你不需要知道它们的分工。
 
 - **长期陪读，会话不背历史**：同时带多门科目，每门一份大纲——知识点按前置依赖排成路线图，每个知识点标课的类型（只讲解的概念课 / 讲练结合的实操课 / 验收阶段成果的实验课）与过关标准。学习进度落在文件里，每次开场只恢复「当前学到哪」。
 - **一份跨科目共享记忆**：记住你的现有水平、哪种讲法有效、常见卡点，下一门课不用重新自我介绍。
@@ -105,20 +105,21 @@ StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套�
 ## 配置与维护
 
 <details>
-<summary><b>脚本：主页生成 + 三道校验</b></summary>
+<summary><b>脚本：主页生成 + 四道校验</b></summary>
 
 ```bash
 python3 scripts/gen_home.py                    # 生成根主页 + 全部科目主页（默认读配置里的 workspace）
 python3 scripts/preview_templates.py --open    # 用假数据渲染主页模板到 .preview/，只看样式与交互
 python3 scripts/check_curriculum.py examples/.learning/subjects/typescript-web-api/curriculum.yaml
 python3 scripts/check_lesson.py workspace/.learning/subjects/cpp-competitive-programming/lessons/0001-hello.first.html --subject workspace/.learning/subjects/cpp-competitive-programming --node hello.first
+python3 scripts/check_pool.py workspace/.learning/subjects/cpp-competitive-programming    # 图片池：索引 pool.md 与 assets/img/pool/ 对不对得上
 python3 scripts/check_skill.py .dsh/skills/*    # 技能 frontmatter（改过技能就跑一次）
 bash scripts/tests/run_tests.sh                # 回归测试：闸门/题目属性/命名指针/提示词规则/DOM（改引擎就跑一次）
 
 # 换成你自己的科目：--subject 给科目目录，--node 给该课件对应的节点 id；大纲校验可一次传多个 curriculum.yaml
 ```
 
-`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示。退出码：`check_lesson.py` / `check_curriculum.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
+`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤300 KB。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
 
 `scripts/tests/run_tests.sh` 不需要浏览器（`--browser` 才加真实 Chrome 的高亮那套）；测试自己造临时科目，不碰 `workspace/`。改了闸门、`templates/assets/` 或 `.dsh/skills/` 之后跑一次，见 `scripts/tests/README.md`。
 
@@ -129,8 +130,10 @@ bash scripts/tests/run_tests.sh                # 回归测试：闸门/题目属
 ```text
 StudyMate/                     ← 本仓库：系统源码（引擎），学习时只读
 ├── install.sh                 # 装预设 + 建学习工作区，幂等
-├── .dsh/skills/               # 9 个技能：总控 learning-system + 3 个角色 + 5 个规范
+├── .dsh/skills/               # 11 个技能：总控 learning-system + 5 个角色 + 5 个规范
 │   ├── learning-system/       #   总控（主教练）：开场、盘问、调度、档案
+│   ├── resource-scout/        #   角色：收集资料（权威教材与官方文档 → 资源清单）
+│   ├── image-scout/           #   角色：采图（抓网页现成的图 → 科目池子与索引）
 │   ├── curriculum-designer/   #   角色：课程设计（大纲 / 实验课节点）
 │   ├── learning-coach/        #   角色：讲解（写课件正文）
 │   ├── practice-evaluator/    #   角色：出题与评估（题目唯一 owner）
@@ -142,7 +145,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 ├── preset/learning/           # 「学习模式」预设源（install.sh 装到 ~/.dsh/）
 ├── schemas/                   # 5 份数据结构：大纲 / 进度 / 评估 / 会话摘要 / 科目
 ├── templates/                 # 页面骨架（主页、科目页、课件）与前端资源 assets/
-├── scripts/                   # 主页生成 + 三道校验闸门（用法见上）+ tests/ 回归测试
+├── scripts/                   # 主页生成 + 四道校验闸门（用法见上）+ tests/ 回归测试
 ├── examples/                  # 示例学习工作区：两门示例科目，可拿来跑生成器看效果
 ├── docs/                      # 使用说明、设计方案、实施计划、docs/images/ 截图
 └── workspace/                 # 你的学习数据（默认位置，可配置；也被 .gitignore 忽略）
