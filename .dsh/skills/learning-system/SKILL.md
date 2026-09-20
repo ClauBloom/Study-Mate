@@ -125,8 +125,8 @@ argument-hint: "你想学什么？或继续上次的科目"
 
 ### 怎么派
 
-- prompt 必须含：角色名、该角色 SKILL.md 的核心做法（**内联**——角色设了 `disable-model-invocation`，加载不了自己）、**要它加载的协议名**（如"先加载 `lesson-design`"／"先加载 `layered-practice` 与 `evidence-check`"）、输入数据、`subject_path`、`<root>`、返回格式要求、**三条边界**（不派子 agent／不用 `ask_user_question`／不建改环境）
-- **角色一律用全新上下文的 `subagent` 派，不要用 `subagent_fork`**：fork 会把**你已完成的回合**整段注进子 agent（建科目、写元数据、装环境全在里面），角色会误以为自己是总控。学习模式下 fork 工具已在预设里关掉（`preset/learning/agent.cordis.yml` 的 `tool-subagent-fork` 行 `disabled: true`），`subagent` 的 `maxDepth: 1` 兜住"角色再派角色"
+- prompt 必须含：角色名、该角色 SKILL.md 的核心做法（**内联**——角色设了 `disable-model-invocation`，加载不了自己）、**要它加载的协议名**（如"先加载 `lesson-design`"／"先加载 `layered-practice` 与 `evidence-check`"）、输入数据、`subject_path`、`<root>`、返回格式要求、**三条边界**
+- **角色一律用全新上下文的 `subagent` 派，不要用 `subagent_fork`**：fork 会把**你已完成的回合**整段注进子 agent，角色会误以为自己是总控。预设里 fork 工具已关掉（`disabled: true`），`subagent` 的 `maxDepth: 1` 兜住"角色再派角色"
 - **角色只干活，不调度**：派工 prompt 里写死三条边界——**不派任何子 agent**（要别的角色就写进报告由你派）、**不调用 `ask_user_question`**（用户通道只有你有）、**不建也不改环境**（`.venv`／`pyproject.toml`／`.python-version` 都是你的活）
 - **角色不写 `<root>`**：引擎项目只由你维护；派发时明说"临时脚本与中间产物写 `/tmp`，学习产物写 `subject_path`"。事后发现 `<root>` 里有陌生文件 → 查来路，有用就复核后收编并说明，没用就删
 - **长产出走暂存目录**：成套文件（lab、实验说明页）让角色先落盘到 `/tmp/<角色>-<节点id>/deliver/`、正文只给文件清单（口径在 `practice-evaluator` 的「交付格式」），你按清单读盘写正式位置——**别指望回复正文传文件内容，长正文会被压缩掉**；草稿路径一律在 prompt 里写死 `/tmp/<角色>-<节点id或slug>/`，**不许给 `/tmp/<科目名>` 这类共用固定路径**（后写的会盖掉先写的）
