@@ -67,7 +67,7 @@ StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套�
 
 - **长期陪读，会话不背历史**：同时带多门科目，每门一份大纲——知识点按前置依赖排成路线图，每个知识点标课的类型（只讲解的概念课 / 讲练结合的实操课 / 验收阶段成果的实验课）与过关标准。学习进度落在文件里，每次开场只恢复「当前学到哪」。
 - **一份跨科目共享记忆**：记住你的现有水平、哪种讲法有效、常见卡点，下一门课不用重新自我介绍。
-- **讲解写在课件文件里**：每个知识点一份自包含 HTML 课件（浏览器直接打开的网页版讲义），能回看，页内练习当场判分；读不懂就把那段原文贴回会话问。
+- **讲解写在课件文件里**：每个知识点一节课，页面是自包含 HTML（浏览器直接打开），源文件是同一份 `.md` 内容 + `.quiz.json` 题目，由 `scripts/render_lesson.py` 渲染成页面——改课件、改题都改源文件再重渲。能回看，页内练习当场判分；读不懂就把那段原文贴回会话问。
 - **动手有 lab**：实操课与实验课另配一份 lab，也就是引导式实操材料（分步带做，关键步骤留白给你亲手写），写完跑一次就能验证。
 - **过关看可运行证据**：核验时逐条对**验收点**（大纲里每个知识点的过关标准），练习按**四层**排难度——L1 理解 → L2 改造 → L3 排错 → L4 应用（L4 = 放进你自己的项目）。
 
@@ -91,7 +91,7 @@ StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套�
 
 <img src="docs/images/preview-lesson.png" width="640" alt="课件页：正文 + 页内练习 + 侧栏目录">
 
-> 第一屏的总览页与科目页由 `python3 scripts/preview_templates.py` 用 `examples/` 的假数据渲染，只展示页面长什么样——真实工作区里是**你的**科目与进度；这张课件页是**真实产物**。跑那条命令加 `--open` 就能自己看。
+> 第一屏的总览页与科目页由 `python3 scripts/preview_templates.py` 用脚本内置的假数据渲染，只展示页面长什么样——真实工作区里是**你的**科目与进度；这张课件页是**真实产物**。跑那条命令加 `--open` 就能自己看。
 >
 > **还缺一张图**：DSH 里跟主教练对话的实拍。拿法：`dsh web` → 选「学习模式」→ 走一遍开课盘问，或贴一段看不懂的课文提问 → 截「你的提问 + 答复 + 末尾那行 `**下一步**：…`」这一屏，存 `docs/images/dsh-session.png`，插在本文「第一次学习」一段后面。
 
@@ -105,11 +105,12 @@ StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套�
 ## 配置与维护
 
 <details>
-<summary><b>脚本：主页生成 + 四道校验</b></summary>
+<summary><b>脚本：主页生成 + 课件渲染 + 四道校验</b></summary>
 
 ```bash
 python3 scripts/gen_home.py                    # 生成根主页 + 全部科目主页（默认读配置里的 workspace）
 python3 scripts/preview_templates.py --open    # 用假数据渲染主页模板到 .preview/，只看样式与交互
+python3 scripts/render_lesson.py <subject_path> <节点id>   # 内容文件 + 题库 → 课件 HTML（--check 只校验不写盘）
 python3 scripts/check_curriculum.py examples/.learning/subjects/typescript-web-api/curriculum.yaml
 python3 scripts/check_lesson.py workspace/.learning/subjects/cpp-competitive-programming/lessons/0001-hello.first.html --subject workspace/.learning/subjects/cpp-competitive-programming --node hello.first
 python3 scripts/check_pool.py workspace/.learning/subjects/cpp-competitive-programming    # 图片池：索引 pool.md 与 assets/img/pool/ 对不对得上
@@ -119,7 +120,7 @@ bash scripts/tests/run_tests.sh                # 回归测试：闸门/题目属
 # 换成你自己的科目：--subject 给科目目录，--node 给该课件对应的节点 id；大纲校验可一次传多个 curriculum.yaml
 ```
 
-`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤300 KB。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
+`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示（「题目位标记残留」只可能来自手写时代的老课件）。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤300 KB。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
 
 `scripts/tests/run_tests.sh` 不需要浏览器（`--browser` 才加真实 Chrome 的高亮那套）；测试自己造临时科目，不碰 `workspace/`。改了闸门、`templates/assets/` 或 `.dsh/skills/` 之后跑一次，见 `scripts/tests/README.md`。
 
@@ -135,7 +136,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 │   ├── resource-scout/        #   角色：收集资料（权威教材与官方文档 → 资源清单）
 │   ├── image-scout/           #   角色：采图（抓网页现成的图 → 科目池子与索引）
 │   ├── curriculum-designer/   #   角色：课程设计（大纲 / 实验课节点）
-│   ├── learning-coach/        #   角色：讲解（写课件正文）
+│   ├── learning-coach/        #   角色：讲解（写课件内容）
 │   ├── practice-evaluator/    #   角色：出题与评估（题目唯一 owner）
 │   ├── lesson-design/         #   规范：课件唯一约束来源
 │   ├── layered-practice/      #   规范：四层练习与题型
@@ -144,10 +145,10 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 │   └── record-keeping/        #   规范：学习状态读写规则
 ├── preset/learning/           # 「学习模式」预设源（install.sh 装到 ~/.dsh/）
 ├── schemas/                   # 5 份数据结构：大纲 / 进度 / 评估 / 会话摘要 / 科目
-├── templates/                 # 页面骨架（主页、科目页、课件）与前端资源 assets/
-├── scripts/                   # 主页生成 + 四道校验闸门（用法见上）+ tests/ 回归测试
+├── templates/                 # 页面骨架（主页、科目页、课件壳）与前端资源 assets/
+├── scripts/                   # 主页生成 + 课件渲染器 + 四道校验闸门（用法见上）+ tests/ 回归测试
 ├── examples/                  # 示例学习工作区：两门示例科目，可拿来跑生成器看效果
-├── docs/                      # 使用说明、设计方案、实施计划、docs/images/ 截图
+├── docs/                      # 使用说明、课件内容格式、设计方案、实施计划、docs/images/ 截图
 └── workspace/                 # 你的学习数据（默认位置，可配置；也被 .gitignore 忽略）
 ```
 
@@ -174,6 +175,6 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 ## 贡献 / 路线图 / License
 
 - **仓库状态**：本仓库 **MIT 许可**（见 `LICENSE`，版权 Cattofu）；徽章只用真实可核实的值（预设形态、Python 版本、许可证），没有 star / 构建状态 / 下载量这类还不足据可填的徽章。
-- **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、闸门与档案规则）· [设计方案](docs/设计方案.md)（产品视角）· [实施计划](docs/实施计划.md)（任务清单与当前口径）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
+- **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、闸门与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位的语法）· [设计方案](docs/设计方案.md)（产品视角）· [实施计划](docs/实施计划.md)（历史任务清单）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
 - **改之前先跑**：`python3 scripts/check_skill.py .dsh/skills/*`，以及上面对应那一条大纲 / 课件校验命令。
-- **当前口径（已知限制）**：一个知识点对应一节课件；大纲里插入或删除节点，会让已写好的上/下节课指针指错（闸门会报出来，人工改一次即可）；调试期移除的样板课件待重做。遗留项见 [实施计划](docs/实施计划.md) 文末。
+- **当前口径（已知限制）**：一个知识点对应一节课件；大纲里插入或删除节点，已产出课件的上/下节课指针会指错（新课件重跑渲染器即按新邻居重算，手写的老课件人工改一次；闸门都会报出来）；调试期移除的样板课件待重做。遗留项见 [实施计划](docs/实施计划.md) 文末。
