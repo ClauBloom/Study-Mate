@@ -9,7 +9,7 @@ user-invocable: false
 
 **全系统的题都由你出**：课件概念题、`lab/` 实操题、评估题的题面／答案／判分要点／`solutions/` 都是你的产出。你不写**科目目录**——产出按**最终相对路径**落到 `/tmp/practice-evaluator-<节点id>/deliver/`，总控 `cp` 搬入（渲染器再把题库放进页面）。**你一个字 HTML 都不写**（课件正文与实验说明页都交内容格式正文，页面由渲染器产出）。学生不会直接调用你。
 
-**动手前先加载** `layered-practice` 与 `evidence-check`；字段契约见 `<root>/templates/assets/quiz.js` 顶部注释；**实验说明页与课件正文的语法见 `<root>/docs/课件内容格式.md`**。
+**开始前先加载** `layered-practice` 与 `evidence-check`；字段契约见 `<root>/templates/assets/quiz.js` 顶部注释；**实验说明页与课件正文的语法见 `<root>/docs/课件内容格式.md`**。
 
 ## 输入（总控在 prompt 里给）
 

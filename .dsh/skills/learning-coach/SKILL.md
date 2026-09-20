@@ -1,6 +1,6 @@
 ---
 name: learning-coach
-description: 讲解角色：把一个节点写成「课件内容」（讲解、动手引入、配图与题目位置），产出内容文件，HTML 由渲染器产出。不出题、不产 lab。只能由 learning-system 总控加载。
+description: 讲解角色：把一个节点写成「课件内容」（讲解、练习引入、配图与题目位置），产出内容文件，HTML 由渲染器产出。不出题、不产 lab。只能由 learning-system 总控加载。
 disable-model-invocation: true
 user-invocable: false
 ---
@@ -9,7 +9,7 @@ user-invocable: false
 
 把当前节点讲成一节课。学生不会直接调用你。题目不归你——题面、答案、判分要点、`lab/` 全由 `practice-evaluator` 出（规范见 `layered-practice`），你只写内容、留题目位置，**lab 的内容不抄进课件、课件只指向它**。
 
-**动手前先加载 `lesson-design`**——课件的唯一约束来源，本文件只写职责与流程；块的写法见 `<root>/docs/课件内容格式.md`。
+**开始写前先加载 `lesson-design`**——课件的唯一约束来源，本文件只写职责与流程；块的写法见 `<root>/docs/课件内容格式.md`。
 
 ## 输入（总控在 prompt 里给）
 
@@ -32,10 +32,14 @@ user-invocable: false
 
 ## 配图（写正文前先挑图）
 
-1. **先读 `<subject_path>/assets/img/pool.md`**（唯一检索入口，不翻目录），按主题标签找本章要讲的点；没有对应标签就别硬凑
+1. **先读 `<subject_path>/assets/img/pool.md`**，按主题标签找本章要讲的点；没有对应标签就别硬凑
 2. **挑到就用**：图片路径逐字写 `../assets/img/pool/<文件>`；渲染器按 `pool.md` 那一行自动补上来源与许可
-3. **挑不到 → 先想能不能自己产**（跑库样例 / matplotlib，见上一条）；纯示意手写内联 `<svg>`（`::: svg` 块，那是唯一允许写标签的地方）；再不行就**纯文字讲清**，别为配图拖住正文
-4. **自己能产的图就自己产**（路线见 `lesson-design` 的「配图从哪来」）：跑库样例出对照图、matplotlib 画图表——图落 `assets/img/pool/`、脚本落 `assets/img/gen/<同名>.py`、`pool.md` **追加**一行（只加自己那行，不改别人的）；**环境归总控**：缺库就在报告里要它补 venv，**你不建 venv、不装包**。真实照片/界面这类只能采集的，要总控派 `image-scout`；图片库空着（或 `## Gaps` 里写了缺）照写课件，配图不齐不拦正文
+3. **挑不到 → 按 `lesson-design` 的「配图从哪来」选路线**（自己产 / 手写 `::: svg` / 纯文字），别为配图拖住正文
+4. **自己产的图要留三样东西**：图落 `assets/img/pool/`、脚本落 `assets/img/gen/<同名>.py`、`pool.md` **追加**一行（只加自己那行，不改别人的）——这一行 `来源 URL` 写「本机生成（`assets/img/gen/<名字>.py`）」、`许可` 写「本项目自产」、`抓取日期` 写生成当天；索引的列与文件命名格式见 `image-scout`
+5. **环境归总控**：缺库就在报告里要它补 venv，**你不建 venv、不装包**
+6. 图片库空着（或 `## Gaps` 里写了缺）照写课件，配图不齐不拦正文
+
+配图的硬约束与四条路线的判据都以 `lesson-design` 为准：**硬约束见第三节「复用与骨架」的块表，路线判据见「配图从哪来」那张表**——本文件不复述。
 
 ## 改课件
 
