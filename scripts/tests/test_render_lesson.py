@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，14 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，17 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -8,7 +8,8 @@
   壳与接线（共享层 4 引用 + 科目组件 2 引用 + 主题开关 + 三个 script）· `&<>` 转义与代码原文
   逐字 · 表格/列表/围栏/行内标记 · 题目按锚点合入且 `data-quiz` 属性值转义正确（单引号包裹、
   值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason` · 配图存在性与题注来源 · 导航
-  与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门。
+  与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
+  **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示）。
 
 每个场景自造一个临时科目（`fixtures.write_subject` + `write_content` + `write_quiz`），
 **不读也不写任何工作区**。用法：python3 scripts/tests/test_render_lesson.py
@@ -22,7 +23,9 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import fixtures  # noqa: E402
+import render_lesson  # noqa: E402  只用来直接验 render_block 的兜底（其余用例都起真子进程）
 
 TMP = tempfile.mkdtemp(prefix='smtest-render-')
 _SUBJECT_SEQ = [0]
@@ -163,6 +166,10 @@ def _(a):
           '把看不懂的段落（或报错）原样复制回会话',
           'StudyMate · 0002 编译并跑通 · 本地学习工作区')
     a.has(text, '<h2>一笔取款走过几条路</h2>', '<p>程序拿金额去比两个数，比完决定怎么处理。</p>')
+    a.ok('交付页面从 <!DOCTYPE html> 起（模板说明注释不随页面出厂）',
+         text.startswith('<!DOCTYPE html>\n<html'), repr(text[:60]))
+    a.hasnt(text, '课件骨架', '闸门会拦', '不要手工拷贝', '写给维护者', '渲染器只从',
+            label='产物里没有写给维护者的说明注释')
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -480,6 +487,25 @@ def _(a):
     a.ok('svg 带参数非零退出', code != 0, f'exit={code}')
     a.has(out, f'{md}:{line_of(md, opener)}', label='svg 带参数报错带行号')
 
+    # 表格分隔行：格子里不是 --- 语法
+    subject = new_subject()
+    separator = '| --- | |'
+    md = fixtures.write_content(subject, 1, 'overview-map',
+                                body=f'## 表格\n\n| a | b |\n{separator}\n| 1 | 2 |\n')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('分隔行语法不对时非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, separator)}', label='分隔行语法报错带行号')
+
+    # 表格分隔行：格子数与表头不一致
+    subject = new_subject()
+    separator = '| --- |'
+    md = fixtures.write_content(subject, 1, 'overview-map',
+                                body=f'## 表格\n\n| a | b |\n{separator}\n| 1 | 2 |\n')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('分隔行格子数不符时非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, separator)}', label='分隔行格子数报错带行号')
+    a.has(out, '表头是 2 格', label='报错说清表头有几格')
+
 
 # ══════════════════════════════════════════════════════════════════
 # ⑨ --check：只解析校验、不写盘
@@ -604,7 +630,7 @@ def _(a):
 # ⑬ 内联 SVG：原样透传
 # ══════════════════════════════════════════════════════════════════
 
-@case('内联 SVG：figure--inline + 块内 SVG 原样透传')
+@case('内联 SVG：figure--inline + 块内 SVG 原样透传（缺 </svg> 报错）')
 def _(a):
     subject = new_subject()
     svg = ('<svg viewBox="0 0 40 20" role="img" aria-hidden="true">'
@@ -625,6 +651,16 @@ caption: 图 1 · 收拢过程
           svg,
           '<figcaption>图 1 · 收拢过程</figcaption>')
     a.ok('SVG 逐字在产物里', text.count(svg) == 1)
+
+    # 缺 </svg>：原样透传会把页面结构从这里断掉，必须报错而不是照发
+    subject2 = new_subject()
+    broken = '<svg viewBox="0 0 40 20"><path d="M2 10h36"/>'
+    md = fixtures.write_content(subject2, 1, 'overview-map',
+                                body=f'## 画一张\n\n::: svg\n{broken}\n:::\n')
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.ok('缺 </svg> 非零退出', code2 != 0, f'exit={code2}')
+    a.has(out2, f'{md}:{line_of(md, "::: svg")}', label='缺 </svg> 报错指到指令那一行')
+    a.has(out2, '</svg>', label='报错说清缺什么')
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -658,6 +694,107 @@ def _(a):
     a.has(gate_out, f'OK   {path}', label='闸门回 OK')
 
 
+# ══════════════════════════════════════════════════════════════════
+# ⑮ 一级标题不许静默消失（`# 标题` 与行首 `#include` 都要报错）
+# ══════════════════════════════════════════════════════════════════
+
+@case('一级标题与行首 #include 都报错带行号（内容不会静默消失）')
+def _(a):
+    subject = new_subject()
+    heading = '# 这一行连同标题会整块消失'
+    include = '#include <cstdio>'
+    md = fixtures.write_content(subject, 1, 'overview-map', body=f'''## 正文
+
+这一段还在。
+
+{heading}
+
+再写一行：
+{include}
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('一级标题非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, heading)}', label='一级标题报错带行号')
+    a.has(out, f'{md}:{line_of(md, include)}', label='行首 #include 报错带行号')
+    a.has(out, '## 与 ###', '围栏', label='报错给出改法（只有 ##/###，代码放围栏）')
+    a.ok('报错时不写盘', not os.path.exists(path))
+
+    # 放进围栏就正常：同一段代码不该再被当成标题
+    fixtures.write_content(subject, 1, 'overview-map', body=f'''## 正文
+
+```cpp
+{include}
+```
+''')
+    code2, out2, text2, path2 = render(subject, 1, 'overview-map')
+    a.equal('围栏里的 #include 放行', code2, 0)
+    a.has(text2, '<pre data-lang="cpp"><code>#include &lt;cstdio&gt;</code></pre>')
+
+    # 兜底：渲染器遇到不认识的块要报错，不能安静地丢
+    problems = render_lesson.Problems()
+    renderer = render_lesson.Renderer('x.md', problems, '.', None, 'x.quiz.json', {})
+    output = renderer.render_block({'kind': 'h1', 'text': '一级标题', 'line': 7}, '  ')
+    a.equal('不认识的块不产出内容', output, '')
+    a.ok('不认识的块记了一条问题', bool(problems) and problems.items[0][1] == 7,
+         f'problems={problems.items}')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⑯ 段落中间的 HTML 标签要拦；运算符 < > 与 code span 照常
+# ══════════════════════════════════════════════════════════════════
+
+@case('段落中间的 HTML 标签报错；a < b / x > 0 / `vector<int>` 照常')
+def _(a):
+    subject = new_subject()
+    inline_html = '这段里手写了 <b>粗</b> 标签。'
+    md = fixtures.write_content(subject, 1, 'overview-map',
+                                body=f'## 正文\n\n{inline_html}\n')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('段落内标签非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, inline_html)}', label='段落内标签报错带行号')
+    a.has(out, '<b>', '**…**', label='报错给出改法（粗体写 **…**）')
+    a.ok('报错时不写盘', not os.path.exists(path))
+
+    # 运算符与 code span 不是标签，必须原样放行
+    subject2 = new_subject()
+    operators = '比较写成 a < b && c > d、2 < n，泛型写 `vector<int>` 就没问题。'
+    fixtures.write_content(subject2, 1, 'overview-map', body=f'## 运算符\n\n{operators}\n')
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.equal('运算符与 code span 放行', code2, 0)
+    a.has(text2, '<p>比较写成 a &lt; b &amp;&amp; c &gt; d、2 &lt; n，'
+                 '泛型写 <code>vector&lt;int&gt;</code> 就没问题。</p>')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⑰ 指令体里的代码围栏不被当成指令边界
+# ══════════════════════════════════════════════════════════════════
+
+@case('指令体里的围栏：里面的 ::: 是代码文本，不当指令边界')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map', body='''## 写法示例
+
+::: tip 题目位的写法
+题目位在正文里长这样：
+
+```markdown
+::: quiz 理解 锚点：某个锚点
+:::
+```
+
+锚点要和题库的键逐字一致。
+:::
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.ok('没有误报「指令块不能嵌套」', '不能嵌套' not in out, out)
+    a.has(text,
+          '<div class="lesson-tip">',
+          '<b>题目位的写法</b>',
+          '<pre data-lang="markdown"><code>::: quiz 理解 锚点：某个锚点\n:::</code></pre>',
+          '<p>锚点要和题库的键逐字一致。</p>')
+
+
 def main():
     failures = 0
     for label, fn in CASES:
@@ -672,7 +809,6 @@ def main():
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(TMP, ignore_errors=True)
     return 1 if failures else 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

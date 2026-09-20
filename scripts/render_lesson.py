@@ -15,10 +15,15 @@
 
 退出码：0 通过；1 有问题（逐条打印 `<文件>:<行> <问题>` 到 stderr）；用法错误 2。
 
-一条铁律：**认不出就报错**。未知指令、认不出的块语法、手写 HTML、锚点在题库里没有题又没写
-`empty_reason:`、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或丢内容。
-渲染器自己产出模型不该写的部分：head 与共享层引用、顶栏与主题开关、页头 eyebrow（`序号 · 标题`）、
-提问提示、按 curriculum.yaml 算的上/下节课指针、页脚、三个 `<script>` 与 `LearnTheme.wire(...)`。
+**成功（退出码 0）时 stderr 上仍可能有 `提示:` 开头的行**（标题超过 16 字、锚点按 `empty_reason`
+跳过这类软提醒）——它们不代表失败，退出码只看有没有 `<文件>:<行>` 的问题行。
+
+一条铁律：**认不出就报错**。未知指令、认不出的块语法、手写 HTML（含段落中间的标签形状）、锚点在
+题库里没有题又没写 `empty_reason:`、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
+丢内容。渲染器自己产出模型不该写的部分：head 与共享层引用、顶栏与主题开关、页头 eyebrow
+（`序号 · 标题`）、提问提示、按 curriculum.yaml 算的上/下节课指针、页脚、三个 `<script>` 与
+`LearnTheme.wire(...)`。交付页面从 `<!DOCTYPE html>` 开始：模板里给维护者看的说明注释留在
+`<!DOCTYPE` 之前，不进产物。
 
 内容格式的完整语法表、反例与「什么不该写」见 docs/课件内容格式.md（本文件的错误信息与之对应）。
 依赖：标准库 + pyyaml（与 check_lesson.py / gen_home.py 同口径，不引第三方新依赖）。
@@ -60,9 +65,13 @@ PLAIN_ITEM_RE = re.compile(r'^-\s*([^|]+?)\s*(?:\|\s*(.*))?$')
 LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]*)\)')
 HEADING_RE = re.compile(r'^(#{1,6})\s*(.*)$')
 HTML_TAG_RE = re.compile(r'^</?([a-zA-Z][a-zA-Z0-9]*)\b')
+# 段落中间的标签形状 HTML（`<b>粗</b>`、`</div>`、`<img src=…>`）：散文里出现就报错。
+# 只认「标签形状」，`<` 后面必须紧跟字母，所以 `a < b`、`x > 0`、`2 < n` 这类运算符不受影响。
+TAG_SHAPE_RE = re.compile(r'</?([a-zA-Z][a-zA-Z0-9-]*)(?:\s[^<>]*)?/?>')
 SEPARATOR_CELL_RE = re.compile(r'^:?-{3,}:?$')
 SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 TITLE_SOFT_LIMIT = 16                                  # 节点标题建议 ≤16 字（超了只提示）
+HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.S)      # 模板注释（定位 DOCTYPE 时要先遮掉）
 # 段内换行要不要补空格：两侧都是中日韩文字与全角标点就直接相接（中文不用空格分词）
 CJK_RE = re.compile(r'[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]')
 
@@ -75,13 +84,18 @@ HTML_BLOCK_TAGS = frozenset('''
 
 
 class Problems:
-    """收集问题：每条都是 `文件:行 问题`，一次跑完把所有问题都报出来。"""
+    """收集问题：每条都是 `文件:行 问题`，一次跑完把所有问题都报出来（同样的一条只报一次）。"""
 
     def __init__(self):
         self.items = []
+        self._seen = set()
 
     def add(self, path, line, message):
-        self.items.append((path, max(int(line or 1), 1), message))
+        item = (path, max(int(line or 1), 1), message)
+        if item in self._seen:                          # 同一处在不同层级被查到时不重复报
+            return
+        self._seen.add(item)
+        self.items.append(item)
 
     def __bool__(self):
         return bool(self.items)
@@ -231,10 +245,17 @@ def parse_front_matter(path, lines, problems):
     return fields, end + 1, field_lines
 
 
-def is_html_block(stripped):
-    """块级 HTML 标签开头（内容文件里出现就是「模型在写 HTML」）。"""
+def html_block_tag(stripped):
+    """行首是块级 HTML 标签时返回标签名，否则 None（「不许写 HTML」的唯一判定处）。"""
     tag = HTML_TAG_RE.match(stripped)
-    return bool(tag and tag.group(1).lower() in HTML_BLOCK_TAGS)
+    if tag and tag.group(1).lower() in HTML_BLOCK_TAGS:
+        return tag.group(1)
+    return None
+
+
+def is_html_block(stripped):
+    """行首是块级 HTML 标签（内容文件里出现就是「模型在写 HTML」）。"""
+    return html_block_tag(stripped) is not None
 
 
 def is_block_start(stripped):
@@ -297,7 +318,14 @@ def parse_blocks(path, lines, start, end, problems):
         heading = HEADING_RE.match(stripped)
         if heading:
             level = len(heading.group(1))
-            if level > 3:
+            if level < 2:
+                # 一级标题没有对应组件；重点是把「行首 # 就是标题」这件事说清楚——
+                # 竞赛正文里 `#include <cstdio>`、`#define N 100` 出现在行首太常见了
+                problems.add(path, line_no,
+                             f'这一行被当成一级标题（{stripped[:24]}…）：内容格式只有 ## 与 ###。'
+                             '如果这是代码（#include / #define 这类），请放进 ``` 围栏；'
+                             '要分节就写 ## 标题')
+            elif level > 3:
                 problems.add(path, line_no, '标题只支持 ## 与 ###（四级及以下没有组件）')
             elif not heading.group(2).strip():
                 problems.add(path, line_no, f'{"#" * level} 后面要写标题文字')
@@ -339,9 +367,9 @@ def parse_blocks(path, lines, start, end, problems):
             index += 1
             continue
 
-        tag = HTML_TAG_RE.match(stripped)
-        if tag and tag.group(1).lower() in HTML_BLOCK_TAGS:
-            problems.add(path, line_no, f'内容文件不写 HTML（读到 <{tag.group(1)}>）：'
+        tag = html_block_tag(stripped)
+        if tag:
+            problems.add(path, line_no, f'内容文件不写 HTML（读到 <{tag}>）：'
                                         '用内容格式的块与行内语法，HTML 由渲染器产出')
             index += 1
             continue
@@ -410,17 +438,29 @@ def parse_list(path, lines, index, end, problems, indent=0):
 
 
 def parse_table(path, lines, index, end, problems):
-    """管道表：第二行必须是分隔行；各行列数必须与表头一致。"""
+    """管道表：第二行必须是分隔行（格子数与表头一致、每格都是 `---` 形状）；各行列数也要一致。"""
     rows, cursor = [], index
     while cursor < end and lines[cursor].strip().startswith('|'):
         rows.append(lines[cursor])
         cursor += 1
     line_no = index + 1
-    if len(rows) < 2 or not all(SEPARATOR_CELL_RE.match(cell)
-                                for cell in split_cells(rows[1]) if cell != ''):
+    if len(rows) < 2:
         problems.add(path, line_no, '表格第二行必须是分隔行（| --- | --- |），第一行是表头')
         return None, cursor
     header = split_cells(rows[0])
+    separator = split_cells(rows[1])
+    if len(separator) != len(header):
+        problems.add(path, line_no + 1,
+                     f'表格分隔行有 {len(separator)} 格，表头是 {len(header)} 格——'
+                     '两行的格子数必须一样（如 `| --- | --- |`）')
+        return None, cursor
+    bad = [cell for cell in separator if not SEPARATOR_CELL_RE.match(cell)]
+    if bad:
+        shown = '、'.join('空的一格' if cell == '' else repr(cell) for cell in bad)
+        problems.add(path, line_no + 1,
+                     f'表格分隔行的每一格都要写成 ---（现在是 {shown}）——'
+                     '这一行只标明哪几列，不写内容')
+        return None, cursor
     body = []
     for offset, row in enumerate(rows[2:], start=2):
         cells = split_cells(row)
@@ -452,11 +492,20 @@ def parse_directive(path, lines, index, end, problems):
 
     cursor = index + 1
     nested = False
-    while cursor < end and lines[cursor].strip() != ':::':
-        if not nested and DIRECTIVE_RE.match(lines[cursor].strip()):
-            problems.add(path, cursor + 1, f'指令块不能嵌套（::: {name} 里又开了一个指令）——'
-                                           '把一个块拆成两个平级的块')
-            nested = True
+    in_fence = False                                    # 围栏里的 ::: 是代码文本，不是指令边界
+    while cursor < end:
+        text = lines[cursor].strip()
+        if text.startswith('```'):
+            in_fence = not in_fence
+            cursor += 1
+            continue
+        if not in_fence:
+            if text == ':::':
+                break
+            if not nested and DIRECTIVE_RE.match(text):
+                problems.add(path, cursor + 1, f'指令块不能嵌套（::: {name} 里又开了一个指令）——'
+                                               '把一个块拆成两个平级的块')
+                nested = True
         cursor += 1
     if cursor >= end:
         problems.add(path, line_no, f'指令 ::: {name} 没有闭合（块尾补一行 :::）')
@@ -562,6 +611,9 @@ def build_svg(path, args, lines, start, end, line_no, problems):
         raw.append(raw_line)
     if not any(line.strip().startswith('<svg') for line in raw):
         problems.add(path, line_no, '::: svg 块里没有 <svg>…</svg> 原文（内联图直接贴进来）')
+    elif not any(line.strip().endswith('</svg>') for line in raw):
+        problems.add(path, line_no, '::: svg 块里的 <svg> 没有 </svg> 收尾（原样透传前先补全，'
+                                    '否则页面结构会从这里断掉）')
     return {'kind': 'directive', 'name': 'svg', 'alt': fields.get('alt', ''),
             'caption': fields.get('caption', ''), 'raw': '\n'.join(raw), 'line': line_no}
 
@@ -628,13 +680,37 @@ class Renderer:
 
     # ── 行内 ──────────────────────────────────────────────────────
 
-    def inline(self, text, line):
+    def check_inline_html(self, text, line):
+        """行内文本里出现**标签形状**的 HTML 就报错（code span 里除外：那是要原样显示的代码）。
+
+        `a < b`、`x > 0`、`2 < n` 这些运算符不匹配标签形状（`<` 后面紧跟字母才算），
+        所以照常是普通文字；`<b>粗</b>`、`</div>`、`<img src=…>` 一律拦下并给出改法。
+        一段文字只报第一处（带总数），不刷屏。
+        """
+        backticks, hits = 0, []
+        for index, char in enumerate(text):
+            if char == '`':
+                backticks += 1
+            elif char == '<' and backticks % 2 == 0:
+                match = TAG_SHAPE_RE.match(text, index)
+                if match:
+                    hits.append(match.group(0))
+        if hits:
+            more = f'（这一段还有 {len(hits) - 1} 处）' if len(hits) > 1 else ''
+            self.problems.add(self.path, line,
+                              f'不写 HTML：正文里读到 {hits[0]!r}{more}——'
+                              f'粗体写 `**…**`、代码或泛型这类字面量用反引号包起来'
+                              f'（如 `` `{hits[0]}` ``），HTML 由渲染器产出')
+
+    def inline(self, text, line, check_html=True):
         """行内语法：`code`、**粗**、*斜*、[文字](href)、^x^、~x~；其余按文字转义。
 
         落单的标记（没有配对的 `*`、`^`、`~`）当普通字符——竞赛正文里 `10 ~ 20`、`a ^ b`
         这类写法很常见，不能因为落单就报错。代码 span 里的 `*`/`**` 是字面量，但 `^x^`/`~x~`
         仍然解析（语料 0002 有 3 处把 <sup> 写在 <code> 里面，整条算式当代码）。
         """
+        if check_html:                                  # 只在最外层查一次（递归时整段已查过）
+            self.check_inline_html(text, line)
         out, index, length = [], 0, len(text)
         while index < length:
             char = text[index]
@@ -647,13 +723,13 @@ class Renderer:
             elif text.startswith('**', index):
                 close = text.find('**', index + 2)
                 if close > index + 2:
-                    out.append('<b>' + self.inline(text[index + 2:close], line) + '</b>')
+                    out.append('<b>' + self.inline(text[index + 2:close], line, False) + '</b>')
                     index = close + 2
                     continue
             elif char == '*':
                 close = text.find('*', index + 1)
                 if close > index + 1 and not text[index + 1].isspace() and not text[close - 1].isspace():
-                    out.append('<em>' + self.inline(text[index + 1:close], line) + '</em>')
+                    out.append('<em>' + self.inline(text[index + 1:close], line, False) + '</em>')
                     index = close + 1
                     continue
             elif char in '^~':
@@ -661,14 +737,14 @@ class Renderer:
                 inner = text[index + 1:close] if close > index + 1 else ''
                 if inner and char not in inner and not re.search(r'\s', inner):
                     tag = 'sup' if char == '^' else 'sub'
-                    out.append(f'<{tag}>' + self.inline(inner, line) + f'</{tag}>')
+                    out.append(f'<{tag}>' + self.inline(inner, line, False) + f'</{tag}>')
                     index = close + 1
                     continue
             elif char == '[':
                 link = LINK_RE.match(text, index)
                 if link:
                     href = gen_home.esc(link.group(2), attr=True)
-                    out.append(f'<a href="{href}">{self.inline(link.group(1), line)}</a>')
+                    out.append(f'<a href="{href}">{self.inline(link.group(1), line, False)}</a>')
                     index = link.end()
                     continue
             out.append(gen_home.esc(char))
@@ -718,6 +794,10 @@ class Renderer:
             return self.render_table(block, indent)
         if kind == 'directive':
             return self.render_directive(block, indent)
+        # 兜底：认不出的块**报错**而不是安静地丢——静默丢内容正是这次改造要消灭的东西
+        self.problems.add(self.path, block.get('line', 1),
+                          f'渲染器不认识这种块（kind={kind!r}）——这是渲染器的 bug，'
+                          '请把这一条连同内容文件报到引擎维护者')
         return ''
 
     def render_list(self, block, indent):
@@ -906,10 +986,21 @@ def load_pool(subject_dir, problems):
 
 
 def load_template(path, problems):
-    """模板壳：占位符必须齐全，且不许剩下没替换的（缺了就报错，防止静默出残缺页面）。"""
+    """模板壳：占位符必须齐全，且不许剩下没替换的（缺了就报错，防止静默出残缺页面）。
+
+    只取 `<!DOCTYPE` 起的内容：模板开头给维护者看的说明注释留在仓库里，不随每个页面出厂
+    （学生查看源码时不该读到写给模型的说明）。定位 DOCTYPE 前先把注释**遮掉**——说明注释里
+    自己会提到 `<!DOCTYPE`，直接 find 会切在注释中间、把半截说明漏进页面。
+    """
     raw = read_text(path, problems, '课件模板')
     if raw is None:
         return None
+    masked = HTML_COMMENT_RE.sub(lambda match: ' ' * len(match.group(0)), raw)  # 等长遮罩，下标不变
+    start = masked.find('<!DOCTYPE')
+    if start < 0:
+        problems.add(path, 1, '模板里找不到 <!DOCTYPE（课件页必须是一份完整 HTML）')
+        return None
+    raw = raw[start:]
     for name, count in TEMPLATE_PLACEHOLDERS.items():
         placeholder = PLACEHOLDER.format(name)
         found = raw.count(placeholder)
@@ -926,10 +1017,10 @@ def load_template(path, problems):
 def render_nav(outline, index):
     """上/下节课指针按 curriculum.yaml 的 nodes 顺序算：第一课无 --prev、最后一课无 --next。"""
     lines = ['  <nav class="lesson-nav" aria-label="上一课 / 下一课">']
-    for direction, number in (('prev', index - 1), ('next', index + 1)):
-        neighbor = outline.ids[number - 1] if 1 <= number <= len(outline.ids) else None
+    for direction, neighbor in zip(('prev', 'next'), outline.neighbors(index)):
         if not neighbor:
             continue
+        number = outline.index_of(neighbor)
         label = '上节课' if direction == 'prev' else '下节课'
         lines += [f'    <a class="lesson-nav__link lesson-nav__link--{direction}"'
                   f' href="{number:04d}-{neighbor}.html">',
