@@ -42,7 +42,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 | 文件 | 谁写 | 里面是什么 |
 |---|---|---|
-| `.md`（内容） | 课件正文归 `learning-coach`（它直接写科目目录）；**`kind: 实验` 的说明页由你 `cp` 原样搬入** | 讲解、动手的引入、配图、题目位（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你照抄一行 |
+| `.md`（内容） | 课件正文归 `learning-coach`（它直接写科目目录）；**`kind: 实验` 的说明页由你 `cp` 原样搬入** | 讲解、动手的引入、配图、题目位（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你跑 `scripts/apply_empty_reasons.py` 打进去 |
 | `.quiz.json`（题库） | `practice-evaluator` 出题落 `deliver/`、你 `cp` 搬入（**题面与答案一个字都不改**） | `{"锚点文本": [题, …]}`，键与内容文件的锚点逐字对应 |
 | `.html`（渲染产物） | `python3 <root>/scripts/render_lesson.py <subject_path> <节点id>` | 学生看的页面；谁也不手改 |
 
@@ -56,7 +56,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 评估记录（assessments/）
 
-`practice-evaluator` 交回题面、作答与结论，**由你写盘**：
+`practice-evaluator` 把评估记录落成 `deliver/assessments/NNNN-<节点id>.md`，**你 `cp` 搬入**（正文含题面与作答原文）：
 
 1. 命名 `NNNN-<节点id>.md`（编号递增），存 `subjects/<slug>/assessments/`
 2. `.md` 文件，**YAML frontmatter 承载 `assessment.schema.json` 的字段**（日期加引号），正文写题面与作答原文

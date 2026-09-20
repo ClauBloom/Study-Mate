@@ -11,7 +11,7 @@ user-invocable: false
 
 ## 输入（总控在 prompt 里给）
 
-`subject_path`、`<LEARN_WORKSPACE>`、`<root>`、**要抓的链接清单**（总控从科目 `RESOURCES.md` 里挑好、在 prompt 里给全；**没给就报缺，别自己去找清单外的链接**，站内下钻见「怎么做」第 1 条）、科目 `GLOSSARY.md`（命名里的主题词必须对齐它的术语；这份文件还没有就问总控要术语，别自造词）、池子目录 `<subject_path>/assets/img/pool/` 与索引 `<subject_path>/assets/img/pool.md`。
+`subject_path`、`<LEARN_WORKSPACE>`、`<root>`、**要抓哪些条目**（总控点名科目 `RESOURCES.md` 里的哪几条/哪几节 + 该文件的绝对路径——**URL 你自己从文件里读，别让总控抄一遍**；没点名就问总控，点名之外的条目与站点一律不碰，站内下钻见「怎么做」第 1 条）、科目 `GLOSSARY.md`（命名里的主题词必须对齐它的术语；这份文件还没有就问总控要术语，别自造词）、池子目录 `<subject_path>/assets/img/pool/` 与索引 `<subject_path>/assets/img/pool.md`。
 
 ## 怎么做
 
