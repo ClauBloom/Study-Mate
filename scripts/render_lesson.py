@@ -85,10 +85,30 @@ CJK_RE = re.compile(r'[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff0
 # 约定：**名单一律小写**；查表前把捕获到的名字 `.lower()`（HTML 标签名本来就不区分大小写）。
 # 扩展词汇（例如以后加 `syo-editor` 之类的新组件标签）时，**必须同步往这里加名字**，
 # 否则那个标签会被当普通文字放行——docs/课件内容格式.md §2 列的是同一份名单。
+#
+# 范围（**完整**，不是「常用」子集——子集的承诺是假的：模型随手写一个 `<iframe>` 就会
+# 当字面量出厂）：标准 HTML 元素全表（HTML living standard 的每一个元素，含 aside/video/form
+# 这类正文元素与 center/font/marquee 这类旧式、表现型、已废弃元素）+ SVG 元素名。
+# 多词驼峰的 SVG 名字（clipPath、linearGradient、feGaussianBlur…）按小写收：查表前 `.lower()`，
+# 所以 `<clipPath>` 会被判成 `clippath` 命中。
+# 判据只在这个名单 + `tag_shape_at` 的两条形状规则上，`<T>`、`n<m`、`std::vector<int>` 照常放行。
 HTML_TAG_NAMES = frozenset('''
-    a b i em strong sup sub span div p br hr img figure figcaption code pre svg path
-    table thead tbody tr th td ul ol li nav section article header footer
-    h1 h2 h3 h4 h5 h6 script style link meta input label
+    a abbr acronym address animate animatemotion animatetransform applet area article aside audio b
+    base basefont bdi bdo bgsound big blink blockquote body br button canvas caption center circle
+    cite clippath code col colgroup content data datalist dd defs del desc details dfn dialog dir
+    div dl dt ellipse em embed feblend fecolormatrix fecomponenttransfer fecomposite
+    feconvolvematrix fediffuselighting fedisplacementmap fedistantlight fedropshadow feflood fefunca
+    fefuncb fefuncg fefuncr fegaussianblur feimage femerge femergenode femorphology fencedframe
+    feoffset fepointlight fespecularlighting fespotlight fetile feturbulence fieldset figcaption
+    figure filter font footer foreignobject form frame frameset g geolocation h1 h2 h3 h4 h5 h6 head
+    header hgroup hr html i iframe image img input ins isindex kbd keygen label legend li line
+    lineargradient link listing main map mark marker marquee mask math menu menuitem meta metadata
+    meter mpath multicol nav nextid nobr noembed noframes noscript object ol optgroup option output
+    p param path pattern picture plaintext polygon polyline pre progress q radialgradient rb rect rp
+    rt rtc ruby s samp script search section select selectedcontent set shadow slot small source
+    spacer span stop strike strong style sub summary sup svg switch symbol table tbody td template
+    text textarea textpath tfoot th thead time title tr track tspan tt u ul use var video view wbr
+    xmp
 '''.split())
 
 
@@ -611,7 +631,7 @@ def build_figure(path, args, lines, start, end, line_no, problems):
     if not args:
         problems.add(path, line_no, '写法是 ::: figure <相对路径>（图从科目池子 assets/img/pool/ 挑）')
         return None
-    fields = {}
+    fields, field_lines = {}, {}
     for offset in range(start, end):
         text = lines[offset].strip()
         if not text:
@@ -621,10 +641,13 @@ def build_figure(path, args, lines, start, end, line_no, problems):
             problems.add(path, offset + 1, '::: figure 的块里只写 alt: 与 caption: 两行')
             continue
         fields[field.group(1)] = field.group(2).strip()
+        field_lines[field.group(1)] = offset + 1
     if not fields.get('alt'):
         problems.add(path, line_no, '::: figure 缺 alt:（裂图时读屏软件与学生都只剩空白）')
     return {'kind': 'directive', 'name': 'figure', 'src': args, 'alt': fields.get('alt', ''),
-            'caption': fields.get('caption', ''), 'line': line_no}
+            'caption': fields.get('caption', ''), 'line': line_no,
+            'alt_line': field_lines.get('alt', line_no),
+            'caption_line': field_lines.get('caption', line_no)}
 
 
 def build_svg(path, args, lines, start, end, line_no, problems):
@@ -632,6 +655,7 @@ def build_svg(path, args, lines, start, end, line_no, problems):
     if args:
         problems.add(path, line_no, '::: svg 不带参数：说明写在块里的 alt: / caption: 两行')
     fields, raw = {}, []
+    field_lines = {}
     for offset in range(start, end):
         raw_line = lines[offset]
         text = raw_line.strip()
@@ -641,13 +665,16 @@ def build_svg(path, args, lines, start, end, line_no, problems):
             field = FIELD_RE.match(text)
             if field and field.group(1) in ('alt', 'caption'):
                 fields[field.group(1)] = field.group(2).strip()
+                field_lines[field.group(1)] = offset + 1
                 continue
             if not text.startswith('<'):
                 problems.add(path, offset + 1,
                              '::: svg 的块里先写 alt:/caption:，接着是 <svg>…</svg> 原文（这一行都不是）')
                 continue
         raw.append(raw_line)
-    inline_svg = ''.join(raw)
+    # 按**行**拼（保留换行）：拼成一行的话，`</sv` + `g>` 这种拆成两行的收尾也会被当成
+    # 合法收尾放行，而页面结构照样断。多行开标签、多行自闭合 `<svg …\n/>` 保留换行也照样过。
+    inline_svg = '\n'.join(raw)
     masked = mask_comments(inline_svg)                  # 注释里写的 </svg> 不算收尾
     if not re.search(r'<svg(?=[\s/>])', masked):
         problems.add(path, line_no, '::: svg 块里没有 <svg>…</svg> 原文（内联图直接贴进来）')
@@ -655,7 +682,9 @@ def build_svg(path, args, lines, start, end, line_no, problems):
         problems.add(path, line_no, '::: svg 块里的 <svg> 没有 </svg> 收尾（原样透传前先补全，'
                                     '否则页面结构会从这里断掉；自闭合的 <svg/> 也算收尾）')
     return {'kind': 'directive', 'name': 'svg', 'alt': fields.get('alt', ''),
-            'caption': fields.get('caption', ''), 'raw': '\n'.join(raw), 'line': line_no}
+            'caption': fields.get('caption', ''), 'raw': '\n'.join(raw), 'line': line_no,
+            'alt_line': field_lines.get('alt', line_no),
+            'caption_line': field_lines.get('caption', line_no)}
 
 
 def build_links(path, name, lines, start, end, line_no, problems):
@@ -950,25 +979,33 @@ class Renderer:
                 self.problems.add(self.path, line,
                                   f'图片文件不存在：{src}（解析到 {target}）——'
                                   '从科目池子 assets/img/pool/ 挑一张，或先采图')
+        alt = block['alt']
+        # alt: 是属性值（纯文本，不解析行内标记），但和 caption: 一样**不许真标签**：文档把
+        # alt: 列进了「会报错的位置」，代码就得真查（`<b>`/`<script>` 曾经静默进属性出厂）。
+        self.check_inline_html(alt, block.get('alt_line', line), '::: figure 的 alt:')
         caption = block['caption']
         if '来源：' not in caption:                    # 作者自己写了来源就不重复补
             caption += self.pool_source(src)
         lines = [f'{indent}<figure class="lesson-figure">',
                  f'{indent}  <img src="{gen_home.esc(src, attr=True)}" '
-                 f'alt="{gen_home.esc(block["alt"], attr=True)}">']
+                 f'alt="{gen_home.esc(alt, attr=True)}">']
         if caption:
-            lines.append(f'{indent}  <figcaption>{self.inline(caption, line)}</figcaption>')
+            lines.append(f'{indent}  <figcaption>'
+                         f'{self.inline(caption, block.get("caption_line", line))}</figcaption>')
         lines.append(f'{indent}</figure>')
         return '\n'.join(lines)
 
     def render_svg(self, block, indent):
         attr = ''
         if block['alt']:
+            self.check_inline_html(block['alt'], block.get('alt_line', block['line']),
+                                   '::: svg 的 alt:')
             attr = f' role="img" aria-label="{gen_home.esc(block["alt"], attr=True)}"'
         lines = [f'{indent}<figure class="lesson-figure lesson-figure--inline"{attr}>',
                  block['raw']]
         if block['caption']:
-            lines.append(f'{indent}  <figcaption>{self.inline(block["caption"], block["line"])}'
+            lines.append(f'{indent}  <figcaption>'
+                         f'{self.inline(block["caption"], block.get("caption_line", block["line"]))}'
                          f'</figcaption>')
         lines.append(f'{indent}</figure>')
         return '\n'.join(lines)

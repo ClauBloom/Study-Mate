@@ -11,7 +11,9 @@
   与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
   **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示；
   真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀；
-  白名单本身钉死成「裁定集合 = 格式文档那份」，`script`/`style`/`link`/`meta` 一个都不能漏）。
+  白名单是**完整**的 HTML 元素表 + SVG 名，`iframe`/`video`/`form`/`main`/`button`/`canvas`
+  与 11 个 SVG 名字一个都不能漏，且「代码 = 格式文档 = 测试里写死的集合」三份逐字一致；
+  `alt:` 与 `caption:` 同一条检查、`::: svg` 的收尾按保留换行的文本判）。
 
 每个场景自造一个临时科目（`fixtures.write_subject` + `write_content` + `write_quiz`），
 **不读也不写任何工作区**。用法：python3 scripts/tests/test_render_lesson.py
@@ -390,6 +392,35 @@ caption: 图 1 · 数组在内存里挨着放
           '<figcaption>图 1 · 数组在内存里挨着放（来源：'
           'https://en.cppreference.com/w/cpp/language/array，许可：CC BY-SA 4.0）</figcaption>')
 
+    # alt: 是属性值（纯文本），但和 caption: 一样不许真标签——格式文档把它列进「会报错的位置」
+    subject3 = new_subject()
+    write_pool(subject3)
+    bad_alt = 'alt: <b>内存</b>里挨着放'
+    md3 = fixtures.write_content(subject3, 1, 'overview-map', body=f'''## 配图
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+{bad_alt}
+:::
+''')
+    code3, out3, text3, path3 = render(subject3, 1, 'overview-map')
+    a.ok('alt: 里的真标签非零退出', code3 != 0, f'exit={code3}')
+    a.has(out3, f'{md3}:{line_of(md3, bad_alt)}', label='报错指到 alt: 那一行（不是指令那一行）')
+    a.has(out3, '<b>', label='报错说清读到哪个标签')
+    a.ok('alt: 报错时不写盘', not os.path.exists(path3))
+
+    # 没有标签的 alt: 照常出厂，属性转义口径不变（& 仍然转成 &amp;）
+    subject4 = new_subject()
+    write_pool(subject4)
+    fixtures.write_content(subject4, 1, 'overview-map', body=f'''## 配图
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 连续存储 & 下标
+:::
+''')
+    code4, out4, text4, path4 = render(subject4, 1, 'overview-map')
+    a.equal('正常 alt: 放行', code4, 0)
+    a.has(text4, 'alt="连续存储 &amp; 下标">')
+
 
 # ══════════════════════════════════════════════════════════════════
 # ⑦ 导航与序号：按 curriculum.yaml 的 nodes 顺序算
@@ -700,6 +731,44 @@ caption: 图 1 · 收拢过程
     a.equal('多行 SVG 放行', code6, 0)
     a.has(text6, multi)
 
+    # 收尾被拆成两行（`</sv` + `g>`）：拼接判据一旦不留换行，这种断掉的收尾也会算数
+    subject7 = new_subject()
+    split = '<svg viewBox="0 0 40 20" role="img">\n<path d="M2 10h36"/>\n</sv\ng>'
+    md7 = fixtures.write_content(subject7, 1, 'overview-map',
+                                 body=f'## 画一张\n\n::: svg\n{split}\n:::\n')
+    code7, out7, text7, path7 = render(subject7, 1, 'overview-map')
+    a.ok('收尾拆成两行非零退出', code7 != 0, f'exit={code7}')
+    a.has(out7, f'{md7}:{line_of(md7, "::: svg")}', label='拆分收尾报错指到指令那一行')
+    a.has(out7, '</svg>', label='报错说清缺什么')
+
+    # 开标签跨行、自闭合根跨行都是合法写法（保留换行不能把它们误杀）
+    subject8 = new_subject()
+    wrapped = ('<svg\n  viewBox="0 0 40 20"\n  role="img">\n'
+               '<path d="M2 10h36" stroke="currentColor"/>\n</svg>')
+    fixtures.write_content(subject8, 1, 'overview-map',
+                           body=f'## 画一张\n\n::: svg\n{wrapped}\n:::\n')
+    code8, out8, text8, path8 = render(subject8, 1, 'overview-map')
+    a.equal('开标签跨行放行', code8, 0)
+    a.has(text8, wrapped)
+
+    subject9 = new_subject()
+    folded = '<svg\n  viewBox="0 0 4 2"\n/>'
+    fixtures.write_content(subject9, 1, 'overview-map',
+                           body=f'## 画一张\n\n::: svg\n{folded}\n:::\n')
+    code9, out9, text9, path9 = render(subject9, 1, 'overview-map')
+    a.equal('自闭合根跨行放行', code9, 0)
+    a.has(text9, folded)
+
+    # alt: 同 figure：属性值是纯文本，但真标签要拦，行号指到 alt: 那一行
+    subject10 = new_subject()
+    bad_alt = 'alt: <script>alert(1)</script>'
+    md10 = fixtures.write_content(subject10, 1, 'overview-map',
+                                  body=f'## 画一张\n\n::: svg\n{bad_alt}\n{svg}\n:::\n')
+    code10, out10, text10, path10 = render(subject10, 1, 'overview-map')
+    a.ok('svg 的 alt: 里的真标签非零退出', code10 != 0, f'exit={code10}')
+    a.has(out10, f'{md10}:{line_of(md10, bad_alt)}', label='报错指到 alt: 那一行')
+    a.ok('svg 的 alt: 报错时不写盘', not os.path.exists(path10))
+
 
 # ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过闸门（check_lesson.py）
@@ -902,15 +971,36 @@ def _(a):
 
 
 # ══════════════════════════════════════════════════════════════════
-# ⑲ 真标签名单：script/style/link/meta 也拦，且名单与格式文档逐字一致
+# ⑲ 真标签名单：完整 HTML 元素表 + SVG 名（script/iframe/video… 都拦），名单与格式文档逐字一致
 # ══════════════════════════════════════════════════════════════════
 
-# 控制器裁定的真标签集合（行首与行内检查都用它；名单之外的写法一律当普通文字）
+# 完整标准 HTML 元素表（HTML living standard 的每一个元素，含旧式、表现型与已废弃的那些）
+# + SVG 元素名，全小写。这是**写死的第二份**：代码、本节、docs/课件内容格式.md §2 三份必须
+# 逐字一致——名单曾经收窄成 45 个名字，于是 <iframe>/<video>/<form>/<main> 与 11 个 SVG 名字
+# 静默当字面量出厂（exit 0）。
 RULED_TAG_NAMES = frozenset('''
-    a b i em strong sup sub span div p br hr img figure figcaption code pre svg path
-    table thead tbody tr th td ul ol li nav section article header footer
-    h1 h2 h3 h4 h5 h6 script style link meta input label
+    a abbr acronym address animate animatemotion animatetransform applet area article aside audio b
+    base basefont bdi bdo bgsound big blink blockquote body br button canvas caption center circle
+    cite clippath code col colgroup content data datalist dd defs del desc details dfn dialog dir
+    div dl dt ellipse em embed feblend fecolormatrix fecomponenttransfer fecomposite
+    feconvolvematrix fediffuselighting fedisplacementmap fedistantlight fedropshadow feflood fefunca
+    fefuncb fefuncg fefuncr fegaussianblur feimage femerge femergenode femorphology fencedframe
+    feoffset fepointlight fespecularlighting fespotlight fetile feturbulence fieldset figcaption
+    figure filter font footer foreignobject form frame frameset g geolocation h1 h2 h3 h4 h5 h6 head
+    header hgroup hr html i iframe image img input ins isindex kbd keygen label legend li line
+    lineargradient link listing main map mark marker marquee mask math menu menuitem meta metadata
+    meter mpath multicol nav nextid nobr noembed noframes noscript object ol optgroup option output
+    p param path pattern picture plaintext polygon polyline pre progress q radialgradient rb rect rp
+    rt rtc ruby s samp script search section select selectedcontent set shadow slot small source
+    spacer span stop strike strong style sub summary sup svg switch symbol table tbody td template
+    text textarea textpath tfoot th thead time title tr track tspan tt u ul use var video view wbr
+    xmp
 '''.split())
+
+# 上一轮收窄后静默放行、本轮必须重新拦下的名字：16 个正文/旧式（复评逐条探过）+ 11 个 SVG。
+REGRESSED_TAG_NAMES = (
+    'aside blockquote button canvas caption dd details dl dt form iframe main small summary '
+    'tfoot video circle rect line polygon polyline g text use tspan marker defs').split()
 
 
 def doc_tag_names():
@@ -925,12 +1015,20 @@ def doc_tag_names():
     return {token for token in re.findall(r'[a-z][a-z0-9]*', listed)}
 
 
-@case('真标签名单：script/style/link/meta 都拦；名单 = 裁定集合 = 格式文档')
+@case('真标签名单：完整 HTML 元素表 + SVG 名都拦；名单 = 写死集合 = 格式文档')
 def _(a):
-    a.equal('名单 = 控制器裁定的集合', render_lesson.HTML_TAG_NAMES, RULED_TAG_NAMES)
-    a.equal('名单 = docs/课件内容格式.md 里列的那一份', render_lesson.HTML_TAG_NAMES, doc_tag_names())
+    a.ok('名单 = 测试里写死的完整集合（多一个少一个都不行）',
+         render_lesson.HTML_TAG_NAMES == RULED_TAG_NAMES,
+         f'代码多 {sorted(render_lesson.HTML_TAG_NAMES - RULED_TAG_NAMES)}，'
+         f'代码少 {sorted(RULED_TAG_NAMES - render_lesson.HTML_TAG_NAMES)}')
+    a.ok('名单 = docs/课件内容格式.md 里列的那一份（多一个少一个都不行）',
+         render_lesson.HTML_TAG_NAMES == doc_tag_names(),
+         f'代码多 {sorted(render_lesson.HTML_TAG_NAMES - doc_tag_names())}，'
+         f'代码少 {sorted(doc_tag_names() - render_lesson.HTML_TAG_NAMES)}')
     a.ok('名单全是小写（查表前 lower()，大小写约定一致）',
          all(name == name.lower() for name in render_lesson.HTML_TAG_NAMES))
+    a.ok('被收窄掉的 27 个名字都在名单里', set(REGRESSED_TAG_NAMES) <= RULED_TAG_NAMES,
+         f'缺：{sorted(set(REGRESSED_TAG_NAMES) - RULED_TAG_NAMES)}')
 
     # 四个 head 标签：段落中间与行首都要拦（曾经漏在名单外，静默当字面量出厂）
     for name, sample in (('script', '<script>alert(1)</script>'),
@@ -953,17 +1051,28 @@ def _(a):
         a.ok(f'行首 <{name}> 非零退出', code2 != 0, f'exit={code2}')
         a.has(out2, f'{md2}:{line_of(md2, sample)}', label=f'行首 <{name}> 报错带行号')
 
-    # 名单里的名字一个个试：段落中间出现就必须失败（防止名单被悄悄删条目）
-    missing = []
-    for name in sorted(RULED_TAG_NAMES):
+    # 复评探过的那 27 个名字（iframe/video/form/main/button/canvas… 与 circle/rect/g/text/defs…）：
+    # 段落中间出现就要 exit≠0 + 报错带行号 + 不写盘（re-review 的原始形状，逐个单独渲染）
+    for name in REGRESSED_TAG_NAMES:
         subject3 = new_subject()
-        sample = f'<{name}>x</{name}>'
-        fixtures.write_content(subject3, 1, 'overview-map',
-                               body=f'## 正文\n\n这段里写了 {sample} 标签。\n')
+        inline3 = f'这段里写了 <{name}>x</{name}> 标签。'
+        md3 = fixtures.write_content(subject3, 1, 'overview-map', body=f'## 正文\n\n{inline3}\n')
         code3, out3, text3, path3 = render(subject3, 1, 'overview-map')
-        if code3 == 0:
-            missing.append(name)
+        a.ok(f'段落中间的 <{name}> 非零退出', code3 != 0, f'exit={code3}')
+        a.has(out3, f'{md3}:{line_of(md3, inline3)}', label=f'<{name}> 报错带行号')
+        a.ok(f'<{name}> 报错时不写盘', not os.path.exists(path3))
+
+    # 名单里每个名字都真的会拦（防止将来再悄悄删条目）：一次渲染里给每个名字一段，
+    # 每段都该报出自己那一行——206 段一次跑完，比「一个名字起一次子进程」快一个量级。
+    subject4 = new_subject()
+    paragraphs = [f'这段里写了 <{name}>x</{name}> 标签。' for name in sorted(RULED_TAG_NAMES)]
+    fixtures.write_content(subject4, 1, 'overview-map',
+                           body='## 正文\n\n' + '\n\n'.join(paragraphs) + '\n')
+    code4, out4, text4, path4 = render(subject4, 1, 'overview-map')
+    a.ok('名单里出现任意一个都要非零退出', code4 != 0, f'exit={code4}')
+    missing = [name for name in sorted(RULED_TAG_NAMES) if f"读到 '<{name}>'" not in out4]
     a.ok('名单里每个名字都真的会拦', not missing, f'这些名字没拦住：{missing}')
+    a.ok('名单全拦截时不写盘', not os.path.exists(path4))
 
 
 def main():
