@@ -47,7 +47,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 | `.html`（渲染产物） | `python3 <root>/scripts/render_lesson.py <subject_path> <节点id>` | 学生看的页面；谁也不手改 |
 
 - **改课件＝改源文件，再重渲**：内容改 `.md`、题目改 `.quiz.json`，然后重跑渲染器；直接改 `.html` 会在下次渲染时被冲掉，两份文件还会对不上
-- **旧的手写课件并存**：`lessons/` 里已交付的 `.html` 不重渲、不搬家，闸门照旧判它们（含题目位残留那条）；新建的节点一律走三件
+- **旧的手写课件并存**：`lessons/` 里已交付的 `.html` 不重渲、不搬家，闸门照旧判它们（含题目位残留那条）；新建的节点一律走三件——**`kind: 实验` 的说明页不出题，没有 `.quiz.json`，就是 `.md` + `.html` 两件**
 - 渲染报 `<文件>:<行>` 的按归属打回：内容 → `learning-coach`，题库与锚点 → `practice-evaluator`
 
 ## 学习记录（learning-records/）
