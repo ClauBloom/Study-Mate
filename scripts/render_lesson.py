@@ -20,7 +20,8 @@
 
 一条铁律：**认不出就报错**。未知指令、认不出的块语法、手写 HTML（含段落中间的标签形状）、锚点在
 题库里没有题又没写 `empty_reason:`、题库里多出来的锚点（没有题目位置引用它）、没有题目位置却留着题库
-文件、同一个锚点被两个题目位置引用、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
+文件、同一个锚点被两个题目位置引用、front matter 的 `title` 与 `curriculum.yaml` 里该节点的 `title`
+不一致、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
 丢内容。渲染器自己产出模型不该写的部分：head 与共享层引用、顶栏与主题开关、页头 eyebrow
 （`序号 · 标题`）、提问提示、按 curriculum.yaml 算的上/下节课指针、页脚、三个 `<script>` 与
 `LearnTheme.wire(...)`。交付页面从 `<!DOCTYPE html>` 开始：模板里给维护者看的说明注释留在
@@ -282,6 +283,23 @@ def parse_front_matter(path, lines, problems):
         note(f'{path}:{field_lines["title"]} 标题 {len(fields["title"])} 字 > {TITLE_SOFT_LIMIT}'
              '（页头与 <title> 都用它，长了会换行）')
     return fields, end + 1, field_lines
+
+
+def check_title_match(path, node_id, front, front_lines, outline, problems):
+    """这节课叫什么只有一个答案：front matter 的 `title` = `curriculum.yaml` 该节点的 `title`（逐字）。
+
+    页面 `<title>`／`<h1>`／eyebrow 用 front matter 的，主页卡片与路线图用大纲的——不一致就是同一节课
+    挂了两个名字。行号指向 front matter 的 title 行（规则见 docs/课件内容格式.md 第 1 节）。
+    """
+    title = front.get('title')
+    if not title:                                  # 缺 title 由 parse_front_matter 报过，这里不再重复
+        return
+    outline_title = outline.title_of(node_id)
+    if title != outline_title:
+        problems.add(path, front_lines.get('title', 1),
+                     f'front matter 的 title「{title}」与 curriculum.yaml 里节点 {node_id} 的 '
+                     f'title「{outline_title}」不一致——两处必须逐字一致（改这里或改大纲，'
+                     '见 docs/课件内容格式.md 第 1 节）')
 
 
 def html_block_tag(stripped):
@@ -1263,6 +1281,7 @@ def main(argv):
 
     lines = raw.split('\n')
     front, body_start, front_lines = parse_front_matter(md_path, lines, problems)
+    check_title_match(md_path, node_id, front, front_lines, outline, problems)
     blocks = parse_blocks(md_path, lines, body_start, len(lines), problems)
 
     needs_quiz = any(block.get('name') == 'quiz' for block in blocks)

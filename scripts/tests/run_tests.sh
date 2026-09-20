@@ -28,9 +28,9 @@ step '题目里的代码围栏（检查，12 例）'     python3 scripts/tests/t
 step '课件配图（检查，5 例）'              python3 scripts/tests/test_lesson_figure.py
 step '命名与上下节课指针（检查，9 例）'    python3 scripts/tests/test_naming_nav.py
 step '图片库索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
-step '位次重排与 empty_reason（脚本，21 例）'  python3 scripts/tests/test_lesson_scripts.py
-step '课件渲染（渲染器，25 例）'           python3 scripts/tests/test_render_lesson.py
-step '提示词规则清单（390 条）'            python3 scripts/tests/test_skill_rules.py
+step '位次重排与 empty_reason（脚本，22 例）'  python3 scripts/tests/test_lesson_scripts.py
+step '课件渲染（渲染器，26 例）'           python3 scripts/tests/test_render_lesson.py
+step '提示词规则清单（401 条）'            python3 scripts/tests/test_skill_rules.py
 
 if command -v node >/dev/null 2>&1; then
   step 'quiz.js 渲染（26 项）'             node scripts/tests/quiz_dom_test.js

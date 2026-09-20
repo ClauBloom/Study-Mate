@@ -41,5 +41,5 @@ user-invocable: false
 - **不设计 DAG**：节点顺序、深度、`kind` 与实验课归 `curriculum-designer`，你只给依据
 - **不写课件**：页面内容归 `learning-coach`
 - **不抓图**：图片采集是 `image-scout` 的活（它吃的就是你这份清单里的链接）
-- **不写科目目录、不改档案**：草稿只写你自己的 `deliver/`，`RESOURCES.md` 由总控 `cp` 落位、四份元数据归总控
+- **不写科目目录、不改档案**：草稿只写你自己的 `deliver/`，落位与后续维护归总控（四份元数据的归属见 `record-keeping`）
 - **不盘问用户**：需要确认的信息交总控去问，你只接收结果

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，25 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，26 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -8,7 +8,8 @@
   壳与接线（共享层 4 引用 + 科目组件 2 引用 + 主题开关 + 三个 script）· `&<>` 转义与代码原文
   逐字 · 表格/列表/围栏/行内标记 · 题目按锚点合入且 `data-quiz` 属性值转义正确（单引号包裹、
   值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason`（且**只准**出现在 `::: quiz`——
-  写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）· 配图存在性与题注来源 · 导航
+  写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）· 配图存在性与题注来源 ·
+  front matter 的 `title` 与 `curriculum.yaml` 该节点的 `title` 逐字一致（不一致按行号报错、不写盘）· 导航
   与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过检查 ·
   锚点**双向**对账（题库缺题要 `empty_reason`；题库里多出来的孤儿键、同一个锚点被两个题目位置引用，
   都带行号报错）· 用法错误退 2 与坏题库三种形态（非 JSON／非对象／值是空数组）·
@@ -187,6 +188,32 @@ def _(a):
          text.startswith('<!DOCTYPE html>\n<html'), repr(text[:60]))
     a.hasnt(text, '课件骨架', '检查会拦', '不要手工拷贝', '写给维护者', '渲染器只从',
             label='产物里没有写给维护者的说明注释')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ①′ 这节课叫什么只有一个答案：front matter 的 title = 大纲节点的 title（逐字）
+# ══════════════════════════════════════════════════════════════════
+
+@case('title 一致性：与 curriculum.yaml 不一致时带行号报错、不写盘；逐字一致才放行')
+def _(a):
+    subject = new_subject()
+    bad_title = '编译并跑通（改坏了）'
+    md = fixtures.write_content(subject, 2, 'first-program', title=bad_title)
+    code, out, text, path = render(subject, 2, 'first-program')
+    a.ok('不一致时非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, f"title: {bad_title}")}',
+          label='报错指到 front matter 的 title 行（不是别的行）')
+    a.has(out, f'title「{bad_title}」', 'title「编译并跑通」',
+          label='报错说清两个名字各是什么')
+    a.has(out, '第 1 节', label='报错指向格式文档的规则出处')
+    a.ok('不一致时不写盘', not os.path.exists(path))
+
+    # 逐字对上（fixtures 默认取大纲里的节点标题）→ 照常出厂
+    fixtures.write_content(subject, 2, 'first-program')
+    code2, out2, text2, path2 = render(subject, 2, 'first-program')
+    a.equal('一致时放行', code2, 0)
+    a.has(text2, '<title>编译并跑通 · 测试科目</title>', '<h1>编译并跑通</h1>',
+          label='页面两处都用 front matter 的名字')
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -35,7 +35,7 @@
     "project": {
       "type": "object",
       "required": ["current"],
-      "description": "在做的项目。里程碑不在这里——它们是 curriculum.yaml 里 kind: 实验 的节点（进度即节点进度）。",
+      "description": "在做的项目。里程碑与置位规则见 `record-keeping` 的「项目与实验课」（里程碑就是 curriculum.yaml 里 kind: 实验 的节点）。",
       "properties": {
         "current": { "type": "string" }
       }

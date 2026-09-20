@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Assessment",
-  "description": "一次评估的记录：practice-evaluator 出的题、学生的作答、逐题结论，以及结论指向的过关标准。存 <科目>/assessments/NNNN-节点.md 的 YAML frontmatter（日期加引号），正文写题面与作答原文。",
+  "description": "一次评估的记录：practice-evaluator 出的题、学生的作答、逐题结论，以及结论指向的过关标准。YAML frontmatter 承载本 schema 的字段（日期加引号），正文写题面与作答原文；落盘、命名与搬运规则见 `record-keeping` 的「评估记录」。",
   "type": "object",
   "required": ["node", "date", "questions", "verdict"],
   "properties": {
@@ -9,7 +9,7 @@
     "date": { "type": "string", "description": "评估日期 YYYY-MM-DD；YAML 里必须加引号" },
     "layer": {
       "enum": ["L1", "L2", "L3", "L4"],
-      "description": "本次出题的目标层级（L4 只在实操课出现）"
+      "description": "本次出题的目标层级（`kind: 实操` 与 `kind: 实验` 都可到 L4，见 `layered-practice` 第一节）"
     },
     "questions": {
       "type": "array",
@@ -25,7 +25,7 @@
           "过关标准": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "这条结论指向的过关标准（curriculum.yaml 节点里的「过关标准」条目），必须逐字对得上"
+            "description": "这条结论指向的过关标准（`curriculum.yaml` 节点里的「过关标准」条目）；逐字对齐规则见 `record-keeping` 的「评估记录」"
           },
           "note": { "type": "string", "description": "缺哪一条、差一步怎么过（部分通过/不通过时必写）" }
         }
@@ -34,13 +34,13 @@
     "mastery": { "type": "number", "minimum": 0, "maximum": 1, "description": "本次评估建议的掌握度" },
     "verdict": {
       "enum": ["通过", "部分通过", "不通过"],
-      "description": "整个节点的结论；与逐题结论一致（部分通过=列出缺哪条）"
+      "description": "整个节点的结论；三档口径见 `layered-practice` 第五节"
     },
     "next": { "type": "string", "description": "下一步建议：升级/回退到哪一层、复习、或进入下一节点" },
     "misconceptions": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "本次暴露的误解 topic；正文由总控同步写进 misconceptions.yaml 与 progress.yaml"
+      "description": "本次暴露的误解 topic；双落点写入规则见 `record-keeping` 的「评估记录」"
     }
   }
 }

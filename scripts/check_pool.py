@@ -17,7 +17,7 @@
      `[0-9A-Za-z\\u4e00-\\u9fa5-]`、无空格）且总长 ≤60 字符
   ④ `来源 URL`、`许可` 与 `抓取日期` 都非空（页面没标注也要写「未标注」；抓取日期写
      `YYYY-MM-DD`，与 `image-scout` 第 6 步一致，否则课件写不出 figcaption）
-  ⑤ 单张 ≤300 KB——按**磁盘上的文件字节**判；`尺寸` 列是「宽×高」（像素），
+  ⑤ 单张 ≤200 KB——按**磁盘上的文件字节**判；`尺寸` 列是「宽×高」（像素），
      与体积无关，不参与判定
 
 输出：每条问题一行 `<索引路径>:<行号> <问题>`（行号 0 = 索引整体的问题）；
@@ -48,8 +48,8 @@ POOL_NAME_RE = re.compile(
 POOL_NAME_MAX = 60                            # 总长（字符）
 POOL_NAME_SHAPE = '<主题>-<子主题>-<要点>-<来源缩写>-<NN>.<ext>'
 
-# ⑤ 单张体积上限（字节）
-MAX_BYTES = 300 * 1024
+# ⑤ 单张体积上限（字节）：与 lesson-design 的课件硬约束（单张 ≤200 KB）同一个数
+MAX_BYTES = 200 * 1024
 
 # 表头下的 Markdown 分隔行：|---|---|、| :--- | ---: |
 SEPARATOR_RE = re.compile(r'^:?-{2,}:?$')
@@ -112,7 +112,7 @@ def check_row(cells, index, pool_dir, number):
     if exists:
         size = os.path.getsize(target)
         if size > MAX_BYTES:
-            # 只报字节：四舍五入成 KB 时 307201 B 会印成「300 KB > 300 KB」，自相矛盾
+            # 只报字节：四舍五入成 KB 时 204801 B 会印成「200 KB > 200 KB」，自相矛盾
             problems.append((number, f'超体积：{name} {size} B > {MAX_BYTES} B'
                                      f'（{MAX_BYTES // 1024} KB 上限；不缩放、超了就放弃）'))
     return problems

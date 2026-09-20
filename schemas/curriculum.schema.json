@@ -14,7 +14,7 @@
           "title": { "type": "string" },
           "kind": {
             "enum": ["概念", "实操", "实验"],
-            "description": "节点类型。概念=轻量练习+概念题（不配 lab，题目止于 L3）；实操=普通课带自己的小 lab；实验=里程碑验收课（插在大纲里与普通课同级，prerequisites 列出它验收的节点，产出实验说明页 + 实操任务，通过后被验收节点置「已通过项目验证」）。"
+            "description": "节点类型；三种课型的含义、产出与题目上限见 `layered-practice` 第四节，通过后的置位规则见 `record-keeping` 的「项目与实验课」。"
           },
           "objective": { "type": "string" },
           "problem": { "type": "string" },

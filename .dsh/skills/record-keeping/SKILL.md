@@ -43,7 +43,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 | 文件 | 谁写 | 里面是什么 |
 |---|---|---|
 | `.md`（内容） | 课件正文归 `learning-coach`（它直接写科目目录）；**`kind: 实验` 的说明页由你 `cp` 原样搬入** | 讲解、练习的引入、配图、题目位置（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你跑 `scripts/apply_empty_reasons.py` 打进去 |
-| `.quiz.json`（题库） | `practice-evaluator` 出题落 `deliver/`、你 `cp` 搬入（**题面与答案一个字都不改**） | `{"锚点文本": [题, …]}`，键与内容文件的锚点逐字对应 |
+| `.quiz.json`（题库） | `practice-evaluator` 出题落 `deliver/`、你 `cp` 搬入（**题面与答案一个字都不改**） | 键与内容文件的锚点逐字对应、对不上渲染器报错（结构见 `docs/课件内容格式.md` 第 4 节） |
 | `.html`（渲染产物） | `python3 <root>/scripts/render_lesson.py <subject_path> <节点id>` | 学生看的页面；谁也不手改 |
 
 - **改课件＝改源文件，再重渲**：内容改 `.md`、题目改 `.quiz.json`，然后重跑渲染器；直接改 `.html` 会在下次渲染时被冲掉，两份文件还会对不上
