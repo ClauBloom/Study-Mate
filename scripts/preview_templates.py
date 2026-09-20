@@ -15,10 +15,14 @@
     .preview/.learning/assets/…                          共享层（sayo + learn-theme.css）
     .preview/.learning/subjects/typescript-web-api/index.html        科目主页（12 节点 / 7 篇课件）
     .preview/.learning/subjects/typescript-web-api/empty.html        科目主页空状态
-    .preview/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html   骨架空壳页（原样渲染 templates/lesson.html，只为验证模板可渲染）
+    .preview/.learning/subjects/typescript-web-api/lessons/0001-http-basics.html   课件页
+        （示例内容文件 `0001-http-basics.md` + 题库 `.quiz.json` 由本脚本写进 .preview/，
+          再交给 `scripts/render_lesson.py` 渲染——与真实课件的产出路径是同一条）
 
-注意：这里渲染用的是**假数据**，只为了看样式与交互；真实生成器是 Task 13 的 scripts/gen_home.py。
+注意：这里渲染用的是**假数据**，只为了看样式与交互；真实生成器是 `scripts/gen_home.py`（主页）
+与 `scripts/render_lesson.py`（课件页）。示例内容文件不是仓库文件，改它没有意义。
 """
+import json
 import os
 import shutil
 import subprocess
@@ -280,9 +284,84 @@ def render_subject(template, slug='typescript-web-api', empty=False):
 
 
 # ══════════════════════════════════════════════════════════════════
-# 课件页：预览渲染的是骨架空壳页（templates/lesson.html 原样拷贝），只验证模板可渲染。
-# 课件层的组件示例（Sayo 编辑区 + 练习 + 提示块 + 资源 + 提问提示）在骨架注释里，不在预览页上。
+# 课件页：预览渲染的是一份**示例内容**（内容格式 → scripts/render_lesson.py → 课件 HTML）
 # ══════════════════════════════════════════════════════════════════
+
+# 预览用的示例科目：节点 id 就是课件文件名里的那一段（渲染器按 curriculum.yaml 算序号与指针）
+PREVIEW_NODES = [(slug, title) for _, slug, title, _ in LESSONS]
+
+# 示例内容文件（.preview/ 是生成物、不进仓库，所以示例正文写在这里）
+SAMPLE_CONTENT = '''---
+title: HTTP 基础：请求、响应与状态码
+goal: 能看懂一次请求/响应的报文结构，并说出 2xx、3xx、4xx、5xx 各代表什么。
+---
+
+## 一次请求都带了什么
+
+浏览器把一次访问拆成一份**请求报文**：请求行（方法、路径、版本）、若干请求头、可选的消息体。
+服务端回过来的**响应报文**结构对称：状态行、响应头、响应体——页面内容就在体里。
+
+```http
+GET /orders/42 HTTP/1.1
+Host: api.example.com
+Accept: application/json
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"id": 42, "status": "paid"}
+```
+
+状态码的第一位决定「这次算哪一类结果」，后两位是这一类里的具体原因：
+
+| 首位 | 含义 | 什么时候见到 |
+| --- | --- | --- |
+| 2xx | 成功 | `200 OK`、`201 Created` |
+| 4xx | 客户端的问题 | `404 Not Found`、`422 Unprocessable Entity` |
+| 5xx | 服务端的问题 | `500 Internal Server Error` |
+
+::: tip 状态码是给程序看的
+浏览器只把 4xx/5xx 当「失败」渲染，具体是哪一个码要靠前端代码读 `response.status`；接口文档里写的
+「404 = 资源不存在」是对**你这门 API** 的约定，不是 HTTP 的硬规定。
+:::
+
+::: practice 跟做 | 第 1 步 · 用 curl 看一次真实报文
+先跑一遍，把两段报文各抄一行下来：
+
+```sh
+curl -i https://api.github.com/users/octocat
+```
+
+`-i` 会把响应头一起打出来，第一行就是状态行——先只读这一行，说出它是哪一类。
+:::
+
+这里先停一下：2xx 与 4xx 的区别，只靠上面那张表能不能判？
+
+::: quiz 理解 锚点：状态码分类
+:::
+
+::: resources
+- [MDN · HTTP 响应状态码](https://developer.mozilla.org/docs/Web/HTTP/Status) | 官方文档 · 每个状态码的含义与使用场景
+- [RFC 9110 · HTTP 语义](https://www.rfc-editor.org/rfc/rfc9110) | 规范原文 · 方法与状态码的定义
+:::
+'''
+
+SAMPLE_QUIZ = {
+    '状态码分类': [{
+        'q': '客户端请求了一个不存在的资源，服务端返回 404。\n'
+             '这个状态码属于哪一类，该由谁去改？',
+        'opts': [
+            '2xx：请求成功，等页面渲染',
+            '4xx：请求方改地址或参数',
+            '5xx：服务端查日志修 bug',
+            '3xx：跟着 Location 再请求一次',
+        ],
+        'ans': 1,
+        'why': '状态码首位是 4，说明问题出在请求这一侧：\n'
+               '地址错了、参数不合法、没有权限，都是这一类。\n'
+               '首位是 5 才是服务端自己的问题。',
+    }],
+}
 
 # ══════════════════════════════════════════════════════════════════
 # 主流程
@@ -315,8 +394,20 @@ def main():
 
     home = open(os.path.join(ROOT, 'templates', 'home-index.html'), encoding='utf-8').read()
     subj = open(os.path.join(ROOT, 'templates', 'subject-index.html'), encoding='utf-8').read()
-    # 课件页直接从骨架拷过来（原样渲染）：预览里看到的是空壳，组件示例在骨架的注释里
-    lesson = open(os.path.join(ROOT, 'templates', 'lesson.html'), encoding='utf-8').read()
+
+    # 课件页走真链路：写一份示例内容文件（+ 题库 + 大纲），交给 scripts/render_lesson.py 渲染。
+    # 这样预览里看到的正文、题目块、提示卡、上下节课指针都跟真实产出同一条代码路径。
+    lessons_dir = os.path.join(subject, 'lessons')
+    with open(os.path.join(subject, 'curriculum.yaml'), 'w', encoding='utf-8') as handle:
+        handle.write('nodes:\n' + ''.join(f'- id: {slug}\n  title: {title}\n  kind: 概念\n'
+                                          for slug, title in PREVIEW_NODES))
+    with open(os.path.join(subject, 'subject.yaml'), 'w', encoding='utf-8') as handle:
+        handle.write('name: "TypeScript Web API"\nslug: "typescript-web-api"\nstatus: 进行中\n')
+    sample_md = os.path.join(lessons_dir, '0001-http-basics.md')
+    with open(sample_md, 'w', encoding='utf-8') as handle:
+        handle.write(SAMPLE_CONTENT)
+    with open(os.path.join(lessons_dir, '0001-http-basics.quiz.json'), 'w', encoding='utf-8') as handle:
+        json.dump(SAMPLE_QUIZ, handle, ensure_ascii=False, indent=2)
 
     outputs = {
         os.path.join(OUT, 'index.html'): home.replace('<!-- @LEARN:SUBJECT_CARDS -->', render_cards(), 1),
@@ -324,14 +415,16 @@ def main():
             '<!-- @LEARN:SUBJECT_CARDS -->', '<div class="learn-subject-list"></div>', 1),
         os.path.join(subject, 'index.html'): render_subject(subj),
         os.path.join(subject, 'empty.html'): render_subject(subj, empty=True),
-        os.path.join(subject, 'lessons', '0001-http-basics.html'): lesson,
     }
     for path, content in outputs.items():
         with open(path, 'w', encoding='utf-8') as f:
             f.write(content)
 
+    lesson_page = render_lesson_page(subject, 'http-basics')
+    printed = list(outputs) + [lesson_page] if lesson_page else list(outputs)
+
     print('预览已生成（.preview/ 不进仓库）：')
-    for path in outputs:
+    for path in printed:
         print('  ', path)
     print()
     print('打开方式：')
@@ -344,6 +437,21 @@ def main():
             subprocess.run([opener, os.path.join(OUT, 'index.html')], check=False)
         except FileNotFoundError:
             print('（找不到 %s，请手动打开上面的文件）' % opener)
+
+    if not lesson_page:                       # 课件页没渲出来 = 预览不完整，别静默退 0
+        raise SystemExit(1)
+
+
+def render_lesson_page(subject, node_id):
+    """用渲染器渲染预览课件页；失败就把渲染器的报错原样打出来（预览不该静默空白）。"""
+    renderer = os.path.join(ROOT, 'scripts', 'render_lesson.py')
+    proc = subprocess.run([sys.executable, renderer, subject, node_id],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(proc.stdout + proc.stderr, file=sys.stderr)
+        print('课件页预览渲染失败（上面是 scripts/render_lesson.py 的报错）', file=sys.stderr)
+        return None
+    return proc.stdout.strip().split('   ', 1)[-1] if proc.stdout.strip() else None
 
 
 if __name__ == '__main__':

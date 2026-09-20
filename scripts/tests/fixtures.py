@@ -5,11 +5,18 @@
 命名与上下节课指针），所以 fixture 得是一份**能过闸门**的最小课件——测试再往里注入
 自己那一处偏差，断言才不会被无关的 FAIL 污染。
 
+内容格式那条链路（`scripts/render_lesson.py`）另有一套 fixture：`write_content()` 写内容文件，
+`write_quiz()` 写按锚点组织的题库，`run_render()` 跑渲染器——渲染产物再交给 `run_gate()` 判。
+
 用法：
     subject = fixtures.write_subject(tmp)                 # 造科目（5 个概念节点）
     path = fixtures.write_lesson(subject, 2, 'first-program')   # 造第 2 份课件（指针自动填对）
     code, out = fixtures.run_gate(path, subject, 'first-program')
+
+    md = fixtures.write_content(subject, 2, 'first-program')    # 内容文件（默认一份最小正文）
+    code, out = fixtures.run_render(subject, 'first-program')   # 渲染成 .html
 """
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -18,6 +25,7 @@ TESTS_DIR = Path(__file__).resolve().parent
 REPO = TESTS_DIR.parents[1]
 GATE = REPO / 'scripts' / 'check_lesson.py'
 POOL_CHECK = REPO / 'scripts' / 'check_pool.py'
+RENDER = REPO / 'scripts' / 'render_lesson.py'
 
 # 默认大纲：全是「概念」课——概念课不要求 lab，fixture 就不用造 lab 产物
 DEFAULT_NODES = [
@@ -89,8 +97,11 @@ LESSON_TEMPLATE = '''<!DOCTYPE html>
 '''
 
 
-def write_subject(root, nodes=None):
-    """在 root 下造一个科目目录（curriculum.yaml + lessons/），返回科目路径。"""
+def write_subject(root, nodes=None, name=None):
+    """在 root 下造一个科目目录（curriculum.yaml + lessons/），返回科目路径。
+
+    `name` 给了才写 subject.yaml——渲染器读它的 `name` 填顶栏与 `<title>`（缺文件时退回目录名）。
+    """
     nodes = nodes or DEFAULT_NODES
     subject = os.path.join(str(root), 'subject')
     os.makedirs(os.path.join(subject, 'lessons'), exist_ok=True)
@@ -99,6 +110,9 @@ def write_subject(root, nodes=None):
         lines += [f'- id: {node_id}', f'  title: {title}', f'  kind: {kind}']
     with open(os.path.join(subject, 'curriculum.yaml'), 'w', encoding='utf-8') as handle:
         handle.write('\n'.join(lines) + '\n')
+    if name:
+        with open(os.path.join(subject, 'subject.yaml'), 'w', encoding='utf-8') as handle:
+            handle.write(f'name: "{name}"\nslug: "test-subject"\nstatus: 进行中\n')
     return subject
 
 
@@ -174,6 +188,62 @@ def write_lesson(subject, number, node_id, quiz=None, nav='auto', title=None, ex
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(html)
     return path
+
+
+# 内容格式的最小正文：front matter（title/goal 必填）+ 一个小节 + 一段话。
+# 段落里不带 `` ` `` / `**` / `[` 这些行内标记，用例要什么自己往 body 里写。
+CONTENT_TEMPLATE = '''---
+title: {title}
+goal: {goal}
+---
+
+## 正文
+
+这一节只是让渲染器有东西可看。
+'''
+
+
+def write_content(subject, number, node_id, body=None, title=None, goal='能把这一节的目标说清楚。'):
+    """写一份内容格式的正文（`lessons/<NNNN>-<节点id>.md`），返回路径。
+
+    number / node_id —— 编号与节点 id（编号 = 节点在 curriculum.yaml 里的位次）
+    body             —— `## 正文` 之后的块；不给就用一句话的最小正文
+    title / goal     —— front matter 的两个必填字段；title 不给就取大纲里的节点标题
+    """
+    titles = {nid: node_title for nid, _, node_title in read_nodes(subject)}
+    text = CONTENT_TEMPLATE.format(title=title or titles.get(node_id, node_id), goal=goal)
+    if body is not None:
+        text = text.split('## 正文', 1)[0] + body.lstrip('\n') + (
+            '' if body.endswith('\n') else '\n')
+    path = os.path.join(subject, 'lessons', f'{number:04d}-{node_id}.md')
+    with open(path, 'w', encoding='utf-8') as handle:
+        handle.write(text)
+    return path
+
+
+def write_quiz(subject, number, node_id, mapping):
+    """写按锚点组织的题库（`lessons/<NNNN>-<节点id>.quiz.json`），返回路径。"""
+    path = os.path.join(subject, 'lessons', f'{number:04d}-{node_id}.quiz.json')
+    with open(path, 'w', encoding='utf-8') as handle:
+        json.dump(mapping, handle, ensure_ascii=False, indent=2)
+    return path
+
+
+def run_render(subject, node_id, *args):
+    """跑渲染器（`scripts/render_lesson.py`），返回 (exit_code, 输出)。"""
+    proc = subprocess.run(['python3', str(RENDER), str(subject), node_id, *args],
+                          capture_output=True, text=True)
+    return proc.returncode, proc.stdout + proc.stderr
+
+
+def lesson_html(subject, number, node_id):
+    """渲染器写出的课件路径（`lessons/<NNNN>-<节点id>.html`）。"""
+    return os.path.join(subject, 'lessons', f'{number:04d}-{node_id}.html')
+
+
+def lesson_md(subject, number, node_id):
+    """内容文件路径（`lessons/<NNNN>-<节点id>.md`）。"""
+    return os.path.join(subject, 'lessons', f'{number:04d}-{node_id}.md')
 
 
 def run_gate(path, subject, node):

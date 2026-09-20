@@ -1,31 +1,34 @@
 <!DOCTYPE html>
 <!-- ═══════════════════════════════════════════════════════════════
-     课件骨架（learning-coach 写课件时从这里开始）
+     课件壳（占位符模板）：**不要手工拷贝这个文件**，正文也不写在这里。
      ═══════════════════════════════════════════════════════════════
-     用法：整份拷到 <subject>/lessons/<NNNN>-<节点id>.html，再按这一课的内容写正文。
-      文件名是**硬规则**：NNNN = 本节点在 curriculum.yaml `nodes:` 里的序号（4 位），后半段就是节点 id。
-      上一课的「下节课」指针按这条规则预写，名字一错、链接就断——闸门会拦。
-     本文件只给工程外壳与组件示例——正文分几节、小节标题怎么写、用什么组件，都由你按内容决定。
+     产出课件的那条命令（讲解角色写内容、出题角色写题库，HTML 由渲染器产出）：
+       python3 <root>/scripts/render_lesson.py <科目目录> <节点id>
+     写出的 <科目>/lessons/<序号>-<节点id>.html 才是课件；内容格式见 docs/课件内容格式.md。
 
-     必须保留（工程件，改丢会被闸门判 FAIL）：
-       · 顶部三条样式引用与底部三条脚本引用的路径（共享层 ../../../assets/、科目内组件 ../assets/）
-       · .lesson-bar 里的主题开关（id="lesson-theme-checkbox"）与底部的 LearnTheme.wire(...) 接线
-       · 底部的提问提示块 .lesson-ask（告诉学生：看不懂就把那段贴回会话问）
-       · 文件名 <NNNN>-<节点id>.html（序号取自 curriculum.yaml，见上）
-       · .lesson-nav 里的上/下节课指针（第一课不写 --prev、最后一课不写 --next）
+     渲染器从大纲（<科目>/curriculum.yaml）算出的部分：文件名序号、上/下节课指针、页头 eyebrow。
+     本文件只给工程外壳：共享层与科目组件的引用、顶栏与主题开关、提问提示、页脚、三个 script。
 
-     要填的占位：<title>、.lesson-bar 的科目名与编号、.lesson-header 的 eyebrow（编号 + 节点标题，如 `0001 · 第一份能提交的代码`——这是给学生看的可读文字）/ 标题 / 本节目标。
-      **归属只认文件名**：这份课件属于哪个节点、在主页路线图的哪个位置，只看文件名（页头怎么写都不影响）——所以页头不必写节点 id。
-
-     提交前跑一次闸门：python3 <root>/scripts/check_lesson.py <课件路径> --subject <科目目录> --node <节点id>
-       FAIL = 工程/结构缺项（文件名与大纲位次不符、两类引用——共享层四条 + 科目组件两条、.quiz[data-quiz]、指向 lab/ 的实操引用、主题开关），必须修；
-       WARN = 只是提示（例如选项长度差、下节课还没产出的悬空指针），不阻断。
-      ═══════════════════════════════════════════════════════════════ -->
+     占位符（约定与 gen_home.py 一致：写成 HTML 注释里的 @LEARN:NAME；缺一个就报错，
+     不许静默残缺。注释里不能嵌套注释，所以这一行不写完整写法）：
+       TITLE    <title> 与 <h1>（出现两次）
+       SUBJECT  <title> 与顶栏（出现两次）
+       NUMBER   顶栏编号（0005）
+       EYEBROW  页头那行 `序号 · 节点标题`
+       GOAL     .lesson-goal 里「本节目标：」后面那句话
+       BODY     正文（渲染器按内容文件产出）
+       NAV      上/下节课指针（第一课无 --prev、最后一课无 --next）
+       FOOTER   页脚那行
+     必须保留（改丢会被闸门判 FAIL）：顶部三条样式引用（共享层 ../../../assets/ + 科目 ../assets/）、
+     底部三条脚本引用、主题开关 id="lesson-theme-checkbox" 与 LearnTheme.wire(...) 接线、.lesson-ask。
+     产出的课件提交前跑一次闸门：
+       python3 <root>/scripts/check_lesson.py <课件路径> --subject <科目目录> --node <节点id>
+     ═══════════════════════════════════════════════════════════════ -->
 <html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>本节标题 · 科目名</title>
+<title><!-- @LEARN:TITLE --> · <!-- @LEARN:SUBJECT --></title>
 
 <!-- 共享层在 .learning/assets/，课件在 .learning/subjects/<slug>/lessons/ 下，所以是 ../../../assets/ -->
 <link rel="stylesheet" href="../../../assets/sayo/sayo.css">
@@ -41,8 +44,8 @@
 
 <nav class="lesson-bar">
   <a href="../index.html">← 返回课程</a>
-  <span><!-- 科目名 --></span>
-  <span class="lesson-bar__no"><!-- 编号 --></span>
+  <span><!-- @LEARN:SUBJECT --></span>
+  <span class="lesson-bar__no"><!-- @LEARN:NUMBER --></span>
   <!-- 课件页自带主题开关：学生从文件管理器直接打开课件时也能切暗色 -->
   <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
     <input type="checkbox" id="lesson-theme-checkbox" checked>
@@ -57,47 +60,14 @@
 <article class="lesson">
 
   <header class="lesson-header">
-    <span class="lesson-header__eyebrow"><!-- 编号 · 节点标题（如 0001 · 第一份能提交的代码） --></span>
-    <h1><!-- 本节标题 --></h1>
-    <p class="lesson-goal"><b>本节目标：</b><!-- 学生读完能做到什么 --></p>
+    <span class="lesson-header__eyebrow"><!-- @LEARN:EYEBROW --></span>
+    <h1><!-- @LEARN:TITLE --></h1>
+    <p class="lesson-goal"><b>本节目标：</b><!-- @LEARN:GOAL --></p>
   </header>
 
-  <!-- ── 正文从这里写起：下面只是可用组件的示例，用不用、怎么排、分不分节都由你按内容决定 ──
+  <!-- ── 正文：渲染器按内容文件（lessons/<序号>-<节点id>.md）产出，块词汇见 docs/课件内容格式.md ── -->
 
-       讲解段落：普通 h2/p/ul/table 即可
-       代码块（Sayo 编辑器外观；要简单就直接 <pre><code>）——**自动上色**，照抄原文即可，
-         指定语言就在 <pre> 上写 data-lang="cpp|sh|term|html|js|json"（text = 不上色）：
-         <div class="syo-editor">
-           <div class="syo-editor-titlebar">
-             <span class="syo-editor-dots"><span class="syo-editor-dot syo-editor-dot--red"></span><span class="syo-editor-dot syo-editor-dot--yellow"></span><span class="syo-editor-dot syo-editor-dot--green"></span></span>
-             <span class="syo-editor-filename">写文件名，或这段是什么</span>
-           </div>
-           <div class="syo-editor-body">
-             <div class="syo-editor-gutter"><span>1</span><span>2</span></div>
-             <div class="syo-editor-code">
-               <span class="line">第一行</span>
-               <span class="line">const total = 2;</span>
-             </div>
-           </div>
-         </div>
-         （行号槽里的 <span> 个数与代码行数对齐；要突出某个词时才手写 .syn-keyword 等类——
-           写了高亮类的块整块不再自动上色）
-       配图（从科目池子挑，索引 assets/img/pool.md 是唯一检索入口，见 lesson-design 第四节）：
-         <figure class="lesson-figure">
-           <img src="../assets/img/pool/数组-内存布局-连续存储-cppreference-01.png" alt="左右指针向中间收拢">
-           <figcaption>图 1 · 双指针怎么收拢（来源：…）</figcaption>
-         </figure>
-         每张图必须有 alt；值得指认的再配 figcaption（引用池子里的图要写明来源与许可）
-         内联 SVG 用 class="lesson-figure lesson-figure--inline"（线条写 currentColor，跟着主题走）
-       提示卡 .lesson-tip / 误区卡 .lesson-warn / 资源列表 .lesson-resources / 相关链接 .lesson-related
-       题目块 <div class="quiz" data-quiz='[{...}]'></div>：选择题 {q,opts,ans,why}、开放题 {q,answer,criteria}；
-         字段契约见 assets/quiz.js 顶部注释
-       动手块 .lesson-practice：标题写中文阶段名（如「第 3 步 · 改造」）
-       题目位标记：回合一在放题或动手块的位置留一行注释，以「题目位：」开头（例：题目位：L1 概念题 ×2）；
-         回合二整行换成真块——交付的课件里不许残留（闸门会拦）
-       侧边目录与上/下节课指针都不用你排版：lesson-toc.js 按本页 <h2> 生成目录、并把正文末尾的
-         .lesson-nav 搬到侧栏底部，你只按 lesson-design 第四节填 href 与标题
-       （着眼点与呈现要求见 lesson-design；学生偏好见 MEMORY.md） -->
+<!-- @LEARN:BODY -->
 
   <!-- ── 提问提示：固定写法，别删 ── -->
 
@@ -106,22 +76,12 @@
     把看不懂的段落（或报错）原样复制回会话，说一句哪里不懂就行，我只解释这一段，不打断你的进度。
   </div>
 
-  <!-- ── 上/下节课指针（lesson-toc.js 会把它搬到侧栏目录下面；写法见文件头的组件说明） ──
-       把 0000-节点id / 节点标题 换成真实值；第一课删掉 --prev 那条，最后一课删掉 --next 那条 -->
+  <!-- ── 上/下节课指针由渲染器按 curriculum.yaml 的 nodes 顺序算（第一课无 --prev、最后一课无 --next） ── -->
 
-  <nav class="lesson-nav" aria-label="上一课 / 下一课">
-    <a class="lesson-nav__link lesson-nav__link--prev" href="0000-节点id.html">
-      <span class="lesson-nav__dir">上节课</span>
-      <span class="lesson-nav__title">节点标题</span>
-    </a>
-    <a class="lesson-nav__link lesson-nav__link--next" href="0000-节点id.html">
-      <span class="lesson-nav__dir">下节课</span>
-      <span class="lesson-nav__title">节点标题</span>
-    </a>
-  </nav>
+<!-- @LEARN:NAV -->
 
   <footer class="lesson-footer">
-    StudyMate · <!-- 编号 + 课名 --> · 本地学习工作区
+    <!-- @LEARN:FOOTER -->
   </footer>
 
 </article>
