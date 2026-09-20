@@ -9,10 +9,10 @@
   逐字 · 表格/列表/围栏/行内标记 · 题目按锚点合入且 `data-quiz` 属性值转义正确（单引号包裹、
   值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason`（且**只准**出现在 `::: quiz`——
   写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）· 配图存在性与题注来源 · 导航
-  与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
-  锚点**双向**对账（题库缺题要 `empty_reason`；题库里多出来的孤儿键、同一个锚点被两个题目位引用，
+  与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过检查 ·
+  锚点**双向**对账（题库缺题要 `empty_reason`；题库里多出来的孤儿键、同一个锚点被两个题目位置引用，
   都带行号报错）· 用法错误退 2 与坏题库三种形态（非 JSON／非对象／值是空数组）·
-  `kind: 实验` 的说明页没有题库也能渲染并过闸门（R12）· 名单里每个名字都必须被形状正则捕获
+  `kind: 实验` 的说明页没有题库也能渲染并过检查（R12）· 名单里每个名字都必须被形状正则捕获
   （连字符名 `<syo-editor>` 捕不到——它只能做成 `:::` 指令，不能靠加名单）·
   **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示；
   真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀；
@@ -40,7 +40,7 @@ import render_lesson  # noqa: E402  只用来直接验 render_block 的兜底（
 TMP = tempfile.mkdtemp(prefix='smtest-render-')
 _SUBJECT_SEQ = [0]
 
-# 池子索引的表头与一行数据（列序见 check_pool.py：文件/主题标签/说明/来源 URL/许可/尺寸/抓取日期）
+# 图片库索引的表头与一行数据（列序见 check_pool.py：文件/主题标签/说明/来源 URL/许可/尺寸/抓取日期）
 POOL_HEADER = '| 文件 | 主题标签 | 一句话说明 | 来源 URL | 许可 | 尺寸 | 抓取日期 |'
 POOL_SEP = '| --- | --- | --- | --- | --- | --- | --- |'
 POOL_IMAGE = '数组-内存布局-连续存储-cppreference-01.png'
@@ -75,7 +75,7 @@ def new_subject(nodes=None, name='测试科目'):
 
 
 def write_pool(subject, files=(POOL_IMAGE,)):
-    """造一个图片池子：`assets/img/pool/` 下的文件 + 兄弟索引 pool.md。"""
+    """造一个图片库：`assets/img/pool/` 下的文件 + 兄弟索引 pool.md。"""
     pool = os.path.join(subject, 'assets', 'img', 'pool')
     os.makedirs(pool, exist_ok=True)
     for name in files:
@@ -185,7 +185,7 @@ def _(a):
     a.has(text, '<h2>一笔取款走过几条路</h2>', '<p>程序拿金额去比两个数，比完决定怎么处理。</p>')
     a.ok('交付页面从 <!DOCTYPE html> 起（模板说明注释不随页面出厂）',
          text.startswith('<!DOCTYPE html>\n<html'), repr(text[:60]))
-    a.hasnt(text, '课件骨架', '闸门会拦', '不要手工拷贝', '写给维护者', '渲染器只从',
+    a.hasnt(text, '课件骨架', '检查会拦', '不要手工拷贝', '写给维护者', '渲染器只从',
             label='产物里没有写给维护者的说明注释')
 
 
@@ -338,7 +338,7 @@ def _(a):
 @case('锚点无题：缺 empty_reason 报错带行号；有则跳过不报')
 def _(a):
     subject = new_subject()
-    # 题库是空对象：这份内容里的题目位全靠 empty_reason 交代，没有一道题——
+    # 题库是空对象：这份内容里的题目位置全靠 empty_reason 交代，没有一道题——
     # 写别的键会变成「没人引用的孤儿锚点」，那是另一条错（见 ㉑）
     fixtures.write_quiz(subject, 2, 'first-program', {})
     directive = '::: quiz 理解 锚点：不存在的锚点'
@@ -372,10 +372,10 @@ empty_reason: 该锚点本轮没有出题
 
 
 # ══════════════════════════════════════════════════════════════════
-# ⑥ 配图：缺文件报错；池子里的图自动补来源与许可
+# ⑥ 配图：缺文件报错；图片库里的图自动补来源与许可
 # ══════════════════════════════════════════════════════════════════
 
-@case('配图：缺文件报错带行号；池子里的图题注自动补来源与许可')
+@case('配图：缺文件报错带行号；图片库里的图题注自动补来源与许可')
 def _(a):
     subject = new_subject()
     missing = '::: figure ../assets/img/pool/不存在的图.png'
@@ -400,7 +400,7 @@ caption: 图 1 · 数组在内存里挨着放
 :::
 ''')
     code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
-    a.equal('池子里的图放行', code2, 0)
+    a.equal('图片库里的图放行', code2, 0)
     a.has(text2,
           '<figure class="lesson-figure">',
           f'<img src="../assets/img/pool/{POOL_IMAGE}" alt="连续存储">',
@@ -786,13 +786,13 @@ caption: 图 1 · 收拢过程
 
 
 # ══════════════════════════════════════════════════════════════════
-# ⑭ 端到端：渲染产物过闸门（check_lesson.py）
+# ⑭ 端到端：渲染产物过检查（check_lesson.py）
 # ══════════════════════════════════════════════════════════════════
 
-@case('渲染产物过闸门：check_lesson.py 报 OK')
+@case('渲染产物过检查：check_lesson.py 报 OK')
 def _(a):
     subject = new_subject()
-    # 闸门按同目录编号判「不能跳号」：把邻居也渲染出来，0002 才是目录里的中间编号
+    # 检查按同目录编号判「不能跳号」：把邻居也渲染出来，0002 才是目录里的中间编号
     for number, node in ((1, 'overview-map'), (3, 'io-and-vars')):
         fixtures.write_content(subject, number, node, body='## 正文\n\n一段话。\n',
                                goal='说清这一节要能做到什么。')
@@ -812,8 +812,8 @@ def _(a):
     code, out, text, path = render(subject, 2, 'first-program')
     a.equal('渲染退出码 0', code, 0)
     gate_code, gate_out = fixtures.run_gate(path, subject, 'first-program')
-    a.equal('闸门退出码 0', gate_code, 0)
-    a.has(gate_out, f'OK   {path}', label='闸门回 OK')
+    a.equal('检查退出码 0', gate_code, 0)
+    a.has(gate_out, f'OK   {path}', label='检查回 OK')
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -895,9 +895,9 @@ def _(a):
     a.has(out, f'{md}:{line_of(md, masked)}', label='落单反引号那一段报错带行号')
     a.has(out, '<b>')
 
-    # 段落中间的 HTML 注释也要拦（手写时代留「题目位」的写法）
+    # 段落中间的 HTML 注释也要拦（手写时代留「题目位置」的写法）
     subject = new_subject()
-    comment = '前面 <!-- 题目位：L1 ×2 --> 后面。'
+    comment = '前面 <!-- 题目位置：L1 ×2 --> 后面。'
     md = fixtures.write_content(subject, 1, 'overview-map',
                                 body=f'## 正文\n\n{comment}\n')
     code, out, text, path = render(subject, 1, 'overview-map')
@@ -934,8 +934,8 @@ def _(a):
     subject = new_subject()
     fixtures.write_content(subject, 1, 'overview-map', body='''## 写法示例
 
-::: tip 题目位的写法
-题目位在正文里长这样：
+::: tip 题目位置的写法
+题目位置在正文里长这样：
 
 ```markdown
 ::: quiz 理解 锚点：某个锚点
@@ -950,7 +950,7 @@ def _(a):
     a.ok('没有误报「指令块不能嵌套」', '不能嵌套' not in out, out)
     a.has(text,
           '<div class="lesson-tip">',
-          '<b>题目位的写法</b>',
+          '<b>题目位置的写法</b>',
           '<pre data-lang="markdown"><code>::: quiz 理解 锚点：某个锚点\n:::</code></pre>',
           '<p>锚点要和题库的键逐字一致。</p>')
 
@@ -1096,15 +1096,15 @@ def _(a):
 
 @case('empty_reason 只准出现在 ::: quiz：practice/tip 里写了报错带行号，删掉就放行')
 def _(a):
-    stray = 'empty_reason: 该锚点的验收点在 lab 里验'
+    stray = 'empty_reason: 该锚点的过关标准在 lab 里验'
     head = '## 跑三遍\n\n把命令换三个输入各跑一次。\n\n'
 
     subject = new_subject()
     md = fixtures.write_content(
         subject, 2, 'first-program',
-        body=head + '::: practice 跟做 | 第 1 步 · 三条路各跑一次\n\n' + stray + '\n\n:::\n')
+        body=head + '::: practice 练习 | 第 1 步 · 三条路各跑一次\n\n' + stray + '\n\n:::\n')
     code, out, text, path = render(subject, 2, 'first-program')
-    a.ok('动手段落里写了 empty_reason 时非零退出', code != 0, f'exit={code}')
+    a.ok('练习段落里写了 empty_reason 时非零退出', code != 0, f'exit={code}')
     a.has(out, f'{md}:{line_of(md, stray)}', label='报错指到 empty_reason 那一行')
     a.has(out, '::: quiz', label='报错说清它只属于 ::: quiz')
     a.ok('报错时没有写盘', not os.path.exists(path))
@@ -1112,10 +1112,10 @@ def _(a):
     subject2 = new_subject()
     fixtures.write_content(
         subject2, 2, 'first-program',
-        body=head + '::: practice 跟做 | 第 1 步 · 三条路各跑一次\n\n三条输入各跑一次。\n\n:::\n')
+        body=head + '::: practice 练习 | 第 1 步 · 三条路各跑一次\n\n三条输入各跑一次。\n\n:::\n')
     code2, _, text2, path2 = render(subject2, 2, 'first-program')
     a.equal('把那一行删掉就放行', code2, 0)
-    a.has(text2, 'lesson-practice__level', label='动手段落照常产出')
+    a.has(text2, 'lesson-practice__level', label='练习段落照常产出')
 
     subject3 = new_subject()
     md3 = fixtures.write_content(subject3, 2, 'first-program',
@@ -1127,10 +1127,10 @@ def _(a):
 
 
 # ══════════════════════════════════════════════════════════════════
-# ㉑ 锚点对账（反方向）：题库里多出来的键没有任何题目位引用，那些题一道都不会上页面
+# ㉑ 锚点对账（反方向）：题库里多出来的键没有任何题目位置引用，那些题一道都不会上页面
 # ══════════════════════════════════════════════════════════════════
 
-@case('题库里的孤儿锚点：没有题目位引用它 → 报错带行号；删掉那个键就放行')
+@case('题库里的孤儿锚点：没有题目位置引用它 → 报错带行号；删掉那个键就放行')
 def _(a):
     subject = new_subject()
     fixtures.write_content(subject, 1, 'overview-map', body='''## 边界
@@ -1145,7 +1145,7 @@ def _(a):
     a.ok('孤儿键非零退出', code != 0, f'exit={code}')
     a.has(out, f'{quiz_path}:', label='报错指到题库文件（不是内容文件）')
     a.has(out, '孤儿锚点', label='报错点名那个没人引用的键')
-    a.has(out, '任何 ::: quiz 题目位引用', label='报错说清方向：没有任何题目位引用它')
+    a.has(out, '任何 ::: quiz 题目位置引用', label='报错说清方向：没有任何题目位置引用它')
     a.ok('孤儿键报错时不写盘', not os.path.exists(path))
 
     # 正方向没被误伤：删掉孤儿键，被引用的那道题照常渲染
@@ -1154,26 +1154,26 @@ def _(a):
     a.equal('删掉孤儿键后渲染成功', code2, 0)
     a.has(text2, '<div class="quiz" data-quiz=', label='被引用的题照常产出')
 
-    # 同一类漏法的另一头：内容里一个题目位都没有，题库文件却还在（整份交付没人用）
+    # 同一类漏法的另一头：内容里一个题目位置都没有，题库文件却还在（整份交付没人用）
     subject2 = new_subject()
     fixtures.write_content(subject2, 1, 'overview-map', body='## 正文\n\n一段话。\n')
     stale = fixtures.write_quiz(subject2, 1, 'overview-map', {'锚点A': QUIZ_BOUNDARY})
     code3, out3, text3, path3 = render(subject2, 1, 'overview-map')
-    a.ok('没有题目位却留着题库文件：非零退出', code3 != 0, f'exit={code3}')
-    a.has(out3, f'{stale}:1', '没有任何 ::: quiz 题目位', label='报错指到题库文件并说清原因')
+    a.ok('没有题目位置却留着题库文件：非零退出', code3 != 0, f'exit={code3}')
+    a.has(out3, f'{stale}:1', '没有任何 ::: quiz 题目位置', label='报错指到题库文件并说清原因')
     a.ok('这条报错时也不写盘', not os.path.exists(path3))
 
     os.remove(stale)                                   # 说明页那种「本来就不交题库」的状态
     code4, _, text4, path4 = render(subject2, 1, 'overview-map')
-    a.equal('把题库文件删掉就放行（没有题目位不要求题库）', code4, 0)
+    a.equal('把题库文件删掉就放行（没有题目位置不要求题库）', code4, 0)
     a.hasnt(text4, 'data-quiz', label='页面上没有题目块')
 
 
 # ══════════════════════════════════════════════════════════════════
-# ㉒ 锚点对账（同向重复）：两个题目位用同一个锚点，同一批题会渲染两遍
+# ㉒ 锚点对账（同向重复）：两个题目位置用同一个锚点，同一批题会渲染两遍
 # ══════════════════════════════════════════════════════════════════
 
-@case('重复锚点：两个题目位用同一个锚点 → 报错指到第二个题目位；不写盘')
+@case('重复锚点：两个题目位置用同一个锚点 → 报错指到第二个题目位置；不写盘')
 def _(a):
     subject = new_subject()
     second = '::: quiz 应用 锚点：锚点A'
@@ -1189,11 +1189,11 @@ def _(a):
     fixtures.write_quiz(subject, 1, 'overview-map', {'锚点A': QUIZ_BOUNDARY})
     code, out, text, path = render(subject, 1, 'overview-map')
     a.ok('重复锚点非零退出', code != 0, f'exit={code}')
-    a.has(out, f'{md}:{line_of(md, second)}', label='报错指到第二个题目位那一行')
+    a.has(out, f'{md}:{line_of(md, second)}', label='报错指到第二个题目位置那一行')
     a.has(out, '锚点A', '重复', label='报错说清是同一个锚点被用了两次')
     a.ok('重复锚点报错时不写盘', not os.path.exists(path))
 
-    # 两个题目位各用各的锚点就放行：两块都要在页面上（每块一份自己的题）
+    # 两个题目位置各用各的锚点就放行：两块都要在页面上（每块一份自己的题）
     subject2 = new_subject()
     fixtures.write_content(subject2, 1, 'overview-map', body='''## 边界
 
@@ -1253,14 +1253,14 @@ def _(a):
 
 
 # ══════════════════════════════════════════════════════════════════
-# ㉔ R12：`kind: 实验` 的说明页（任务书、不出题、没有 .quiz.json）也走渲染器并过闸门
+# ㉔ R12：`kind: 实验` 的说明页（任务书、不出题、没有 .quiz.json）也走渲染器并过检查
 # ══════════════════════════════════════════════════════════════════
 
-@case('kind: 实验 说明页：没有题库文件也渲染，且过闸门 OK（R12 路径）')
+@case('kind: 实验 说明页：没有题库文件也渲染，且过检查 OK（R12 路径）')
 def _(a):
     subject = new_subject(nodes=[('overview-map', '概念', '全景地图'),
                                  ('first-lab', '实验', '第一个实验')])
-    # 闸门对 `kind: 实验` 的课要求 lab 产物齐全：lab/<编号>-*/ 有任务文件 + lab/solutions/ 非空
+    # 检查对 `kind: 实验` 的课要求 lab 产物齐全：lab/<编号>-*/ 有任务文件 + lab/solutions/ 非空
     lab_dir = os.path.join(subject, 'lab', '0002-first-lab')
     os.makedirs(lab_dir, exist_ok=True)
     with open(os.path.join(lab_dir, 'README.md'), 'w', encoding='utf-8') as handle:
@@ -1271,7 +1271,7 @@ def _(a):
         handle.write('int main() { return 0; }\n')
 
     fixtures.write_content(subject, 1, 'overview-map', body='## 正文\n\n一段话。\n')
-    render(subject, 1, 'overview-map')                 # 闸门按同目录编号判跳号，0001 要在
+    render(subject, 1, 'overview-map')                 # 检查按同目录编号判跳号，0001 要在
     md = fixtures.write_content(subject, 2, 'first-lab', body='''## 任务书
 
 先读 [实验任务书](../lab/0002-first-lab/README.md)，按里面的三步做。
@@ -1281,7 +1281,7 @@ def _(a):
 :::
 ''')
     quiz_path = os.path.splitext(md)[0] + '.quiz.json'
-    a.ok('实验说明页没有题目位（不出题）',
+    a.ok('实验说明页没有题目位置（不出题）',
          '::: quiz' not in open(md, encoding='utf-8').read())
     code, out, text, path = render(subject, 2, 'first-lab')
     a.equal('没有 .quiz.json 也渲染成功', code, 0)
@@ -1291,8 +1291,8 @@ def _(a):
           '<div class="lesson-tip">', label='说明页渲染出正文与 lab 链接')
     a.hasnt(text, 'class="quiz"', label='说明页里没有题目块')
     gate_code, gate_out = fixtures.run_gate(path, subject, 'first-lab')
-    a.equal('实验说明页过闸门', gate_code, 0)
-    a.has(gate_out, f'OK   {path}', label='闸门回 OK')
+    a.equal('实验说明页过检查', gate_code, 0)
+    a.has(gate_out, f'OK   {path}', label='检查回 OK')
 
 
 # ══════════════════════════════════════════════════════════════════

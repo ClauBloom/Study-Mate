@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""课件配图：闸门判定（存在 / 缺文件 / 外链 / 缺 alt）。
+"""课件配图：检查判定（存在 / 缺文件 / 外链 / 缺 alt）。
 
-配图的来源是科目的图片池子 `assets/img/pool/`（索引 `assets/img/pool.md`，见 `image-scout`
-与 `lesson-design` 第四节）。**闸门这道是必须的**：`gen_home` 的链接自检只扫它自己写出的
+配图的来源是科目的图片库 `assets/img/pool/`（索引 `assets/img/pool.md`，见 `image-scout`
+与 `lesson-design` 第四节）。**检查这道是必须的**：`gen_home` 的链接自检只扫它自己写出的
 主页（根主页 + 科目主页），课件页明确不在它的范围内——没有这道，学生就会看到裂图。
 
 判定按「学生会不会看到坏东西」分：
@@ -24,7 +24,7 @@ import fixtures  # noqa: E402
 SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">'
        '<rect width="40" height="20" fill="currentColor"/></svg>')
 
-# 池子里的图片文件：闸门只判「文件在不在」，不解码内容，所以占位字节就够。
+# 图片库里的图片文件：检查只判「文件在不在」，不解码内容，所以占位字节就够。
 POOL_FILE = '数组-内存布局-连续存储-cppreference-01.png'
 POOL_SRC = f'../assets/img/pool/{POOL_FILE}'
 PNG_STUB = b'\x89PNG\r\n\x1a\n' + b'\x00' * 24
@@ -37,7 +37,7 @@ def figure(src, alt='左右指针向中间收拢', caption='图 1 · 双指针�
     return (f'  <figure class="{cls}">\n    <img src="{src}"{alt_attr}>{cap}\n  </figure>\n')
 
 
-# (说明, 池子里的文件（None = 不写文件）, 课件里的 figure HTML, 该不该拦, 提示里要含)
+# (说明, 图片库里的文件（None = 不写文件）, 课件里的 figure HTML, 该不该拦, 提示里要含)
 CASES = [
     ('本地图存在（放行）', POOL_FILE, figure(POOL_SRC), False, None),
     ('本地图不存在（拦）', None,
@@ -67,7 +67,7 @@ def main():
         code, out = fixtures.run_gate(path, subject, 'solo-node')
         ok = (code != 0) == want_fail and (not must or must in out)
         failures += not ok
-        fixtures.check(label, ok, out if not ok else f'闸门={"FAIL" if code else "OK"}')
+        fixtures.check(label, ok, out if not ok else f'检查={"FAIL" if code else "OK"}')
     total = len(CASES)
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)

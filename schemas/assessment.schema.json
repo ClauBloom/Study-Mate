@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Assessment",
-  "description": "一次评估的记录：practice-evaluator 出的题、学生的作答、逐题结论，以及结论指向的验收点。存 <科目>/assessments/NNNN-节点.md 的 YAML frontmatter（日期加引号），正文写题面与作答原文。",
+  "description": "一次评估的记录：practice-evaluator 出的题、学生的作答、逐题结论，以及结论指向的过关标准。存 <科目>/assessments/NNNN-节点.md 的 YAML frontmatter（日期加引号），正文写题面与作答原文。",
   "type": "object",
   "required": ["node", "date", "questions", "verdict"],
   "properties": {
@@ -22,10 +22,10 @@
           "kind": { "enum": ["概念", "实操", "证据核验"] },
           "answer": { "type": "string", "description": "学生作答原文（或交付物路径）" },
           "verdict": { "enum": ["通过", "部分通过", "不通过"] },
-          "验收点": {
+          "过关标准": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "这条结论指向的验收点（curriculum.yaml 节点里的「验收点」条目），必须逐字对得上"
+            "description": "这条结论指向的过关标准（curriculum.yaml 节点里的「过关标准」条目），必须逐字对得上"
           },
           "note": { "type": "string", "description": "缺哪一条、差一步怎么过（部分通过/不通过时必写）" }
         }

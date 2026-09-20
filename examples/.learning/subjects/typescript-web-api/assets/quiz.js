@@ -5,11 +5,11 @@
 
      <div class="quiz" data-quiz='[
        {"q":"选择题题干","opts":["选项A","选项B","选项C"],"ans":1,"why":"一句解释"},
-       {"q":"开放题题干","answer":"参考答案","criteria":"算过标准（学生据此自评）"}
+       {"q":"开放题题干","answer":"参考答案","criteria":"判分要点（学生据此自评）"}
      ]'></div>
      <script src="../assets/quiz.js" defer></script>
 
-   属性值的引号（**必读**；写错闸门会拦，浏览器里题目块直接退化成「题目数据解析失败」）：
+   属性值的引号（**必读**；写错检查会拦，浏览器里题目块直接退化成「题目数据解析失败」）：
      两道关都要过——① HTML 禁止属性值里出现**同种**引号，浏览器就在那里把属性截断；
      ② 浏览器把实体**解码后**才交给 JSON.parse，所以解码后的文本必须是合法 JSON：
      JSON 字符串的分隔符是 "，字符串内部的引号只能靠 JSON 自己的 \" 来转义。
@@ -21,7 +21,7 @@
        {"q":"报错 expected &#39;;&#39; before &#39;return&#39; 怎么读？"}
        {"q":"printf(\"x\") 和 puts(\"x\") 有什么区别？"}
 
-     为什么 `<` `>` 也要写实体：页面本身容忍裸 `>`（浏览器照常渲染 `x > 0`），但闸门取
+     为什么 `<` `>` 也要写实体：页面本身容忍裸 `>`（浏览器照常渲染 `x > 0`），但检查取
      data-quiz 值时到第一个 `>` 就断了——它会报「题目块在，但值取不出来」。所以题面里的
      比较（`x > 0`）、箭头（`->`）一律写 &gt; / -&gt;。
 
@@ -34,12 +34,12 @@
      q     题干（字符串，必填，两种题型都要）
      opts  选项数组（必填，≥2 项）
      ans   正确选项下标，从 0 开始（必填，必须落在 opts 范围内）
-     why   答完显示的一句解释（必填：闸门会拦，见 scripts/check_lesson.py）
+     why   答完显示的一句解释（必填：检查会拦，见 scripts/check_lesson.py）
 
    题型二 · 开放题（学生自评，不贴回会话）
      q         题干（字符串，必填）
      answer    参考答案（必填）
-     criteria  算过标准：凭什么算答对了（必填；学生点开对照时看到的就是这两段）
+     criteria  判分要点：凭什么算答对了（必填；学生点开对照时看到的就是这两段）
 
    题面里的代码（`q` / `answer` / `criteria` / `why` 四个字段都适用）：
      多行代码写进**围栏**——起止各占一整行，中间照原样写（**缩进与空格全保留**）：
@@ -52,28 +52,28 @@
      **多行代码不进围栏就会掉缩进**：没有围栏的多行文本按纯文本渲染，只保留换行，
      浏览器会把行首空格折叠掉——靠缩进提问的题（`else` 对齐、嵌套层次）就废了。
      行内的单个反引号是普通字符，不做解析（shell 题面里合法）。
-     围栏没闭合闸门会拦（`scripts/check_lesson.py`）。
+     围栏没闭合检查会拦（`scripts/check_lesson.py`）。
 
    渲染约定（字段进页面长什么样——**写的是纯文本，不是 Markdown**）：
      - 四个字段都是纯文本，渲染器只认两样排版：`\n` 换行、``` 围栏代码块。
        **Markdown 与 HTML 标记一律原样显示**：`**加粗**` 会出现星号、`- 列表`/`# 标题`
        不变成列表或标题、行内 `` `code` `` 带反引号、`<b>` 露出尖括号。要强调就用短句
-       与空行；要代码就用围栏。闸门对这类标记给 WARN（`check_lesson.py`）。
+       与空行；要代码就用围栏。检查对这类标记给 WARN（`check_lesson.py`）。
      - 每个字段落在哪：`q` 是题干（一组里多道题时自动加「1. 」序号）；`opts` 按数组顺序
        变成可点按钮；`why` 接在「✓ 对／✗ 再想想」后面同一行；`answer` 与 `criteria` 收在
-       「想好了，看参考答案」按钮后面，各带「参考答案」「算过标准」小标题。
+       「想好了，看参考答案」按钮后面，各带「参考答案」「判分要点」小标题。
      - 空行就是空行；围栏前后的空行会被去掉（间距由样式给，别用它凑留白）。
 
    行为：
    - 选择题：点选项立刻给反馈（对/错 + why）；选错的标红、正确的标绿；允许改选，计分只算第一次；
      一组里的选择题全部答完后显示"答对 N / M"，并用 Sayo toast 提示一次（M 只数选择题）
-   - 开放题：先只显示题干和"想好了，看参考答案"按钮；点开显示参考答案 + 算过标准；再点一次收起
+   - 开放题：先只显示题干和"想好了，看参考答案"按钮；点开显示参考答案 + 判分要点；再点一次收起
      （方便隔一会儿重答一遍）。开放题不计分、不判定——它是自测
    - 课件没加载 sayo.js 时自动降级为纯内联反馈（不依赖 Sayo）
    - 题目数据不完整时页面显示提示，不静默吞掉
 
    出题与判分规范在 <root>/.dsh/skills/layered-practice（题目唯一规范）；
-   闸门 scripts/check_lesson.py 按上面这套字段做结构校验。
+   检查 scripts/check_lesson.py 按上面这套字段做结构校验。
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -133,7 +133,7 @@
       }
       (code ? code.lines : prose).push(line);
     });
-    if (code) flushCode();          /* 围栏没闭合：照代码块渲染到结尾（闸门会拦这种写法） */
+    if (code) flushCode();          /* 围栏没闭合：照代码块渲染到结尾（检查会拦这种写法） */
     else flushProse();
   }
 
@@ -213,7 +213,7 @@
     block.appendChild(feedback);
   }
 
-  /* ── 开放题：自己先答，点开对照参考答案与算过标准（不贴回会话）── */
+  /* ── 开放题：自己先答，点开对照参考答案与判分要点（不贴回会话）── */
   function buildOpen(block, item, index, total) {
     var question = richBlock('quiz__q', questionText(item, index, total));
     block.appendChild(question);
@@ -237,7 +237,7 @@
 
     var criteriaLabel = document.createElement('p');
     criteriaLabel.className = 'quiz__answer-label';
-    criteriaLabel.textContent = '算过标准';
+    criteriaLabel.textContent = '判分要点';
     var criteriaText = richBlock('quiz__criteria', item.criteria || '');
 
     answer.appendChild(answerLabel);
@@ -266,7 +266,7 @@
     block.appendChild(hint);
   }
 
-  /* ── 题型判定（与闸门、分层规范一致：两组字段只能二选一）──────── */
+  /* ── 题型判定（与检查、分层规范一致：两组字段只能二选一）──────── */
   function isChoiceItem(item) {
     return !!item && typeof item === 'object' && !Array.isArray(item) &&
            Array.isArray(item.opts) && typeof item.ans === 'number';

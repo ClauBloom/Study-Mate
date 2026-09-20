@@ -19,8 +19,8 @@
 跳过这类软提醒）——它们不代表失败，退出码只看有没有 `<文件>:<行>` 的问题行。
 
 一条铁律：**认不出就报错**。未知指令、认不出的块语法、手写 HTML（含段落中间的标签形状）、锚点在
-题库里没有题又没写 `empty_reason:`、题库里多出来的锚点（没有题目位引用它）、没有题目位却留着题库
-文件、同一个锚点被两个题目位引用、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
+题库里没有题又没写 `empty_reason:`、题库里多出来的锚点（没有题目位置引用它）、没有题目位置却留着题库
+文件、同一个锚点被两个题目位置引用、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
 丢内容。渲染器自己产出模型不该写的部分：head 与共享层引用、顶栏与主题开关、页头 eyebrow
 （`序号 · 标题`）、提问提示、按 curriculum.yaml 算的上/下节课指针、页脚、三个 `<script>` 与
 `LearnTheme.wire(...)`。交付页面从 `<!DOCTYPE html>` 开始：模板里给维护者看的说明注释留在
@@ -620,7 +620,7 @@ def reject_stray_empty_reason(path, name, lines, start, end, problems):
         if field and field.group(1) == 'empty_reason':
             problems.add(path, offset + 1,
                          f'empty_reason: 只能出现在 ::: quiz 的块里（它给无题锚点用，'
-                         f'::: {name} 没有锚点）——删掉这一行；要留题目位就写 '
+                         f'::: {name} 没有锚点）——删掉这一行；要留题目位置就写 '
                          '::: quiz <层级> 锚点：<锚点文本>')
 
 
@@ -631,7 +631,7 @@ def build_practice(path, args, body, line_no, problems):
         return None
     level, title = (part.strip() for part in args.split('|'))
     if not level or not title:
-        problems.add(path, line_no, 'practice 的层级与标题都要写（如 ::: practice 跟做 | 第 1 步 · 跑三遍）')
+        problems.add(path, line_no, 'practice 的层级与标题都要写（如 ::: practice 练习 | 第 1 步 · 跑三遍）')
         return None
     return {'kind': 'directive', 'name': 'practice', 'level': level, 'title': title,
             'body': body, 'line': line_no}
@@ -665,7 +665,7 @@ def build_quiz(path, args, lines, start, end, line_no, problems):
 def build_figure(path, args, lines, start, end, line_no, problems):
     """`::: figure <相对路径>` + `alt:` + 可选 `caption:`。"""
     if not args:
-        problems.add(path, line_no, '写法是 ::: figure <相对路径>（图从科目池子 assets/img/pool/ 挑）')
+        problems.add(path, line_no, '写法是 ::: figure <相对路径>（图从科目图片库 assets/img/pool/ 挑）')
         return None
     fields, field_lines = {}, {}
     for offset in range(start, end):
@@ -811,8 +811,8 @@ class Renderer:
         if comment is not None:
             self.problems.add(self.path, line,
                               f'内容文件不写 HTML 注释（{where}，第 {comment + 1} 个字符处读到 '
-                              f'{HTML_COMMENT_OPEN}）——那是手写时代留「题目位」的写法，'
-                              '现在题目位写 `::: quiz <层级> 锚点：…`，说明写进正文')
+                              f'{HTML_COMMENT_OPEN}）——那是手写时代留「题目位置」的写法，'
+                              '现在题目位置写 `::: quiz <层级> 锚点：…`，说明写进正文')
         if hits:
             more = f'（这一段还有 {len(hits) - 1} 处）' if len(hits) > 1 else ''
             self.problems.add(self.path, line,
@@ -1008,13 +1008,13 @@ class Renderer:
         src, line = block['src'], block['line']
         if SCHEME_RE.match(src):
             self.problems.add(self.path, line, f'::: figure 只接受本地相对路径（现在是 {src}）——'
-                                               '图从科目池子 assets/img/pool/ 挑')
+                                               '图从科目图片库 assets/img/pool/ 挑')
         else:
             target = os.path.normpath(os.path.join(self.lessons_dir, src))
             if not os.path.exists(target):
                 self.problems.add(self.path, line,
                                   f'图片文件不存在：{src}（解析到 {target}）——'
-                                  '从科目池子 assets/img/pool/ 挑一张，或先采图')
+                                  '从科目图片库 assets/img/pool/ 挑一张，或先采图')
         alt = block['alt']
         # alt: 是属性值（纯文本，不解析行内标记），但和 caption: 一样**不许真标签**：文档把
         # alt: 列进了「会报错的位置」，代码就得真查（`<b>`/`<script>` 曾经静默进属性出厂）。
@@ -1066,7 +1066,7 @@ class Renderer:
         return '\n'.join(lines)
 
     def pool_source(self, src):
-        """池子里的图：题注自动补「（来源：…，许可：…）」（读 assets/img/pool.md 的索引行）。"""
+        """图片库里的图：题注自动补「（来源：…，许可：…）」（读 assets/img/pool.md 的索引行）。"""
         row = self.pool.get(os.path.basename(src))
         if not row:
             return ''
@@ -1076,7 +1076,7 @@ class Renderer:
 def load_quiz(path, problems, referenced=None):
     """题库：`{"锚点文本": [题, …]}`；结构不对就报错（渲染器不猜）。
 
-    `referenced` 给了就顺手做**反方向**的对账：题库里多出来的锚点（没有任何题目位引用）
+    `referenced` 给了就顺手做**反方向**的对账：题库里多出来的锚点（没有任何题目位置引用）
     一道题都不会出现在页面上，也要带行号报出来——出题角色的全部交付就是这份 JSON，
     这个方向的漂移同样不许静默。
     """
@@ -1103,13 +1103,13 @@ def load_quiz(path, problems, referenced=None):
             if anchor in referenced:
                 continue
             problems.add(path, line_of(raw, json.dumps(anchor, ensure_ascii=False)),
-                         f'题库里的锚点「{anchor}」没有任何 ::: quiz 题目位引用它——'
-                         '这些题不会出现在页面上（删掉这个键，或让讲解角色在正文里补题目位）')
+                         f'题库里的锚点「{anchor}」没有任何 ::: quiz 题目位置引用它——'
+                         '这些题不会出现在页面上（删掉这个键，或让讲解角色在正文里补题目位置）')
     return data
 
 
 def check_duplicate_anchors(md_path, blocks, problems):
-    """同一个锚点被两个题目位引用 → 同一批题会渲染两遍，按错拦下（锚点是一对一的接头）。"""
+    """同一个锚点被两个题目位置引用 → 同一批题会渲染两遍，按错拦下（锚点是一对一的接头）。"""
     first_line = {}
     for block in blocks:
         if block.get('name') != 'quiz':
@@ -1118,7 +1118,7 @@ def check_duplicate_anchors(md_path, blocks, problems):
         if anchor in first_line:
             problems.add(md_path, block['line'],
                          f'锚点「{anchor}」重复：第 {first_line[anchor]} 行已经用过同一个锚点——'
-                         '同一批题会被渲染两遍（一个锚点只留一个题目位）')
+                         '同一批题会被渲染两遍（一个锚点只留一个题目位置）')
         else:
             first_line[anchor] = block['line']
 
@@ -1273,11 +1273,11 @@ def main(argv):
     else:
         quiz = None
         if os.path.isfile(quiz_path):
-            # 内容里一个题目位都没有、题库文件却还在：出题角色的整份交付没人用（题目全丢）。
+            # 内容里一个题目位置都没有、题库文件却还在：出题角色的整份交付没人用（题目全丢）。
             # `kind: 实验` 的说明页本来就不交题库，所以只有「文件真的存在」时才查这一条。
             problems.add(quiz_path, 1,
-                         '内容文件里没有任何 ::: quiz 题目位，但题库文件还在——这些题一道也不会'
-                         '出现在页面上（删掉题库文件，或在正文里补上题目位）')
+                         '内容文件里没有任何 ::: quiz 题目位置，但题库文件还在——这些题一道也不会'
+                         '出现在页面上（删掉题库文件，或在正文里补上题目位置）')
     pool = load_pool(subject_dir, problems) if any(block.get('name') == 'figure' for block in blocks) else {}
 
     renderer = Renderer(md_path, problems, lessons_dir, quiz,

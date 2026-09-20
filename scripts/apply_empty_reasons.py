@@ -17,7 +17,7 @@
     同一个锚点被两个 `::: quiz` 块引用、那个块已经有 `empty_reason:`、TSV 里同一个锚点出现两次、
     锚点文本为空、理由为空（含理由列里再写 `empty_reason:` 前缀、TSV 行多出第三列）。
   · 锚点在两个文件之间**逐字**匹配（`锚点：` 与 `锚点:` 两种冒号都认，两侧空白不算），口径与
-    render_lesson.py 的 `build_quiz` 一致；围栏（```）里的 `::: quiz` 是代码原文，不算题目位。
+    render_lesson.py 的 `build_quiz` 一致；围栏（```）里的 `::: quiz` 是代码原文，不算题目位置。
   · 只在确实需要时写盘：校验全过、真有要插的行时一次性写回；UTF-8 与每行行尾逐字保持
     （CRLF 文件里插进去的那行也是 CRLF），末尾换行不动。
   · `--dry-run` 只打印将插入的行与位置，一个字都不动盘；输出每行前缀 `[dry-run] `。
@@ -140,7 +140,7 @@ def find_close(parts, start):
 
 
 def quiz_blocks(parts):
-    """文件里的 `::: quiz` 题目位：`{'line', 'anchor', 'indent', 'close'}`（行号 1 起、close 是下标）。
+    """文件里的 `::: quiz` 题目位置：`{'line', 'anchor', 'indent', 'close'}`（行号 1 起、close 是下标）。
 
     判定与 render_lesson.py 的 parse_blocks / parse_directive 同口径：`:::` 开头的行才是指令，
     围栏（```）里的 `:::` 是代码原文；收尾是**单独一行** `:::`。锚点按 `锚点：` / `锚点:` 取，
@@ -265,14 +265,14 @@ def main(argv):
         found = by_anchor.get(anchor) or []
         if not found:
             problems.add(tsv_path, row['tsv_line'],
-                         f'锚点「{anchor}」在内容文件里没有对应的 ::: quiz 题目位'
+                         f'锚点「{anchor}」在内容文件里没有对应的 ::: quiz 题目位置'
                          f'（锚点在两个文件之间逐字匹配）：{md_path}')
             continue
         if len(found) > 1:
             problems.add(md_path, found[1]['line'],
-                         f'锚点「{anchor}」被 {len(found)} 个 ::: quiz 题目位引用（第 '
+                         f'锚点「{anchor}」被 {len(found)} 个 ::: quiz 题目位置引用（第 '
                          + '、'.join(str(block['line']) for block in found)
-                         + ' 行）——一个锚点只留一个题目位')
+                         + ' 行）——一个锚点只留一个题目位置')
             continue
         block = found[0]
         if block['close'] is None:

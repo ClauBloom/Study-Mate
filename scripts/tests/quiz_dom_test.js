@@ -102,10 +102,10 @@ const answerBox = findAll(b1, 'quiz__answer')[0];
 check('开放题有展开按钮', !!reveal && reveal.textContent === '想好了，看参考答案');
 check('答案块初始收起', answerBox && answerBox.hidden === true);
 reveal.click();
-check('点开 → 显示参考答案与算过标准', answerBox.hidden === false &&
+check('点开 → 显示参考答案与判分要点', answerBox.hidden === false &&
   answerBox.children.some(c => c.textContent === '参考答案') &&
   answerBox.children.some(c => c.textContent === '它只说明这次想怎么看。') &&
-  answerBox.children.some(c => c.textContent === '算过标准') &&
+  answerBox.children.some(c => c.textContent === '判分要点') &&
   answerBox.children.some(c => c.textContent === '说出与资源身份的区别即算过'));
 check('点开 → 按钮变成收起', reveal.textContent === '收起，再自己答一遍');
 reveal.click();

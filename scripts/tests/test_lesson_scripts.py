@@ -3,7 +3,7 @@
 
 被测：
     scripts/renumber_lessons.py      大纲插/删节点以后，按 nodes: 顺序重排 lessons/ 的文件名序号
-    scripts/apply_empty_reasons.py   把出题角色的 `empty_reason` 打进 ::: quiz 题目位
+    scripts/apply_empty_reasons.py   把出题角色的 `empty_reason` 打进 ::: quiz 题目位置
 
 两个脚本都在改**别人的文件**（讲解角色的内容文件、交付课件的文件名），所以每个用例除了断言
 输出，都拿 md5 快照核对「报错时盘上一个字都没动」——`--dry-run` 同样要一字未动。凡是「该拦下」
@@ -302,7 +302,7 @@ def renumber_render_fail_keeps_renames(box, root):
     fixtures.write_content(subject, 1, 'hello.first')
     write(subject, '0002-cpp.types.md',
           '---\ntitle: 类型与变量\ngoal: 分清类型。\n---\n\n## 正文\n\n'
-          '::: quiz 理解 锚点：整型的范围\n:::\n')            # 有题目位却没交题库 → 渲染必失败
+          '::: quiz 理解 锚点：整型的范围\n:::\n')            # 有题目位置却没交题库 → 渲染必失败
     write(subject, '0002-cpp.types.html', '<html>旧产物</html>\n')
     outline(subject, [('cpp.branch', '概念', '分支与循环')] + NODES3[:2])   # 前面插一节，两个都后移
 
@@ -404,7 +404,7 @@ goal: 能把输入读进来、把答案打出去。
 这一段没有问题位。
 
 ::: quiz 理解 锚点：整型的范围
-empty_reason: 本轮不出题，验收点在 lab
+empty_reason: 本轮不出题，过关标准在 lab
 :::
 
 中间还隔着一段话。
@@ -419,12 +419,12 @@ empty_reason: 题量够了，下一轮补
 
 TWO_ROWS = ('# 出题角色这一轮的空题理由\n'
             '\n'
-            '整型的范围\t本轮不出题，验收点在 lab\n'
+            '整型的范围\t本轮不出题，过关标准在 lab\n'
             '分档数组版\t题量够了，下一轮补\n')
 
 
 def subject_with_source(root, nodes=NODES3, number=2, node='cpp.types'):
-    """造一个科目 + 一份两处题目位的内容文件，返回 (科目路径, TSV 路径)。"""
+    """造一个科目 + 一份两处题目位置的内容文件，返回 (科目路径, TSV 路径)。"""
     subject = fixtures.write_subject(root, nodes=nodes)
     write(subject, f'{number:04d}-{node}.md', SOURCE)
     return subject, write_tsv(root, TWO_ROWS)
@@ -471,7 +471,7 @@ def apply_anchor_missing(box, root):
 
     code, out, err = run(APPLY, subject, 'cpp.types', tsv)
     box.expect(code == 1, f'退出码应为 1，实际 {code}；stdout：\n{out}')
-    box.has(err, f'{tsv}:2', '锚点「没有这个锚点」在内容文件里没有对应的 ::: quiz 题目位')
+    box.has(err, f'{tsv}:2', '锚点「没有这个锚点」在内容文件里没有对应的 ::: quiz 题目位置')
     box.lacks(out, '插入了')                                  # 一处坏就一处都不写
     box.same(before, snapshot(root))
 
@@ -488,7 +488,7 @@ def apply_duplicate_anchor(box, root):
 
     code, out, err = run(APPLY, subject, 'cpp.types', tsv)
     box.expect(code == 1, f'退出码应为 1，实际 {code}；stdout：\n{out}')
-    box.has(err, '被 2 个 ::: quiz 题目位引用', '第 8、11 行')
+    box.has(err, '被 2 个 ::: quiz 题目位置引用', '第 8、11 行')
     box.same(before, snapshot(root))
 
 
@@ -543,7 +543,7 @@ def apply_bad_rows(box, root):
 
 @case
 def apply_fenced_anchor(box, root):
-    """18 围栏里的 ::: quiz 是代码原文：不算题目位，锚点照样找不到"""
+    """18 围栏里的 ::: quiz 是代码原文：不算题目位置，锚点照样找不到"""
     subject = fixtures.write_subject(root, nodes=NODES3)
     write(subject, '0002-cpp.types.md',
           '---\ntitle: 类型与变量\ngoal: 分清类型。\n---\n\n## 正文\n\n'
@@ -553,7 +553,7 @@ def apply_fenced_anchor(box, root):
 
     code, out, err = run(APPLY, subject, 'cpp.types', tsv)
     box.expect(code == 1, f'退出码应为 1，实际 {code}；stdout：\n{out}')
-    box.has(err, '锚点「整型的范围」在内容文件里没有对应的 ::: quiz 题目位')
+    box.has(err, '锚点「整型的范围」在内容文件里没有对应的 ::: quiz 题目位置')
     box.same(before, snapshot(root))
 
 
@@ -562,10 +562,10 @@ def apply_crlf(box, root):
     """19 CRLF 的内容文件：插进去的那行也用 CRLF，其余字节逐字不变"""
     subject = fixtures.write_subject(root, nodes=NODES3)
     md = write(subject, '0002-cpp.types.md', SOURCE, newline='\r\n')
-    tsv = write_tsv(root, '整型的范围\t本轮不出题，验收点在 lab\n')
+    tsv = write_tsv(root, '整型的范围\t本轮不出题，过关标准在 lab\n')
     want = SOURCE.replace('::: quiz 理解 锚点：整型的范围\n:::',         # 只在那一处插一行
                           '::: quiz 理解 锚点：整型的范围\n'
-                          'empty_reason: 本轮不出题，验收点在 lab\n:::').replace('\n', '\r\n')
+                          'empty_reason: 本轮不出题，过关标准在 lab\n:::').replace('\n', '\r\n')
 
     code, out, err = run(APPLY, subject, 'cpp.types', tsv)
     box.expect(code == 0, f'退出码应为 0，实际 {code}；stderr：\n{err}')
@@ -595,7 +595,7 @@ def apply_bom_tsv(box, root):
     """21 TSV 带 BOM（表格软件导出的那种）：锚点照常匹配，BOM 不算锚点的一部分"""
     subject = fixtures.write_subject(root, nodes=NODES3)
     write(subject, '0002-cpp.types.md', SOURCE)
-    tsv = write_tsv(root, '\ufeff整型的范围\t本轮不出题，验收点在 lab\n')
+    tsv = write_tsv(root, '\ufeff整型的范围\t本轮不出题，过关标准在 lab\n')
 
     code, out, err = run(APPLY, subject, 'cpp.types', tsv)
     box.expect(code == 0, f'退出码应为 0，实际 {code}；stderr：\n{err}')

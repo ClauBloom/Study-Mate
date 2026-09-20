@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""池子校验器 `scripts/check_pool.py` 的回归测试，6 个场景。
+"""图片库校验器 `scripts/check_pool.py` 的回归测试，6 个场景。
 
-池子的落点是硬口径（R15）：图片在 `<subject>/assets/img/pool/`、索引是池子目录的**兄弟**
+图片库的落点是硬口径（R15）：图片在 `<subject>/assets/img/pool/`、索引是图片库目录的**兄弟**
 `<subject>/assets/img/pool.md`、表头七列逐字固定。每个场景自造一个临时科目，只改该场景要测的
 那一处偏差（必要时分散在两行），断言「该拦的拦住、该放行的放行」——校验器是"命名必须能检索"
-的保险，坏池子必须过不去。
+的保险，坏图片库必须过不去。
 
 `尺寸` 列是「宽×高」像素，**不参与**体积判定（体积看磁盘上的文件字节）：合格场景给它一个
 很大的像素值、超体积场景给它一个很小的像素值，两边一起把这条口径钉住。
@@ -56,7 +56,7 @@ def scenario(label, text, files, want_fail, must=None, must_not=None):
 
 
 # 1 合格：分隔行要跳过（当成数据行就会报 文件名不合规）、`尺寸` 是大像素值而文件很小
-scenario('合格池子通过（含分隔行与 Gaps）',
+scenario('合格图片库通过（含分隔行与 Gaps）',
          index(row(IMG_A, size='4000×3000') + '\n' + row(IMG_B, size='800×600')),
          {IMG_A: 400, IMG_B: 900}, False, must=['OK', '（2 张）'],
          must_not=['文件名不合规', '文件缺失', '为空', '超体积'])
@@ -74,7 +74,7 @@ scenario('缺列拦（表头少「许可」）',
          {IMG_A: 400}, True, must=['索引缺列', '许可'],
          must_not=['文件名不合规', '文件缺失', '超体积'])
 
-# 4 文件缺失：索引里写了，池子里没有
+# 4 文件缺失：索引里写了，图片库里没有
 scenario('文件缺失拦',
          index(row(IMG_A)),
          {}, True, must=['文件缺失', IMG_A],
@@ -96,7 +96,7 @@ scenario('超体积拦',
 
 
 def build(subject, item):
-    """按场景重建池子与索引：清空目录、写图片文件、写 pool.md。"""
+    """按场景重建图片库与索引：清空目录、写图片文件、写 pool.md。"""
     pool = os.path.join(subject, 'assets', 'img', 'pool')
     index_path = os.path.join(subject, 'assets', 'img', 'pool.md')
     shutil.rmtree(pool, ignore_errors=True)

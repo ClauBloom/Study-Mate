@@ -325,7 +325,7 @@ Content-Type: application/json
 「404 = 资源不存在」是对**你这门 API** 的约定，不是 HTTP 的硬规定。
 :::
 
-::: practice 跟做 | 第 1 步 · 用 curl 看一次真实报文
+::: practice 练习 | 第 1 步 · 用 curl 看一次真实报文
 先跑一遍，把两段报文各抄一行下来：
 
 ```sh

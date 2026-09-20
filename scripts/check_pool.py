@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""科目图片池子的机器校验：索引 `pool.md` 与池子目录 `assets/img/pool/` 对不对得上。
+"""科目图片库的机器校验：索引 `pool.md` 与图片库目录 `assets/img/pool/` 对不对得上。
 
 用法：
   python3 scripts/check_pool.py <subject_path>
 
 落点（与 `image-scout`、`lesson-design` 里的路径逐字一致，R15）：
   · 图片目录：`<subject_path>/assets/img/pool/`（只放图片）
-  · 索引：`<subject_path>/assets/img/pool.md`——池子目录的**兄弟**，不是 `pool/pool.md`
+  · 索引：`<subject_path>/assets/img/pool.md`——图片库目录的**兄弟**，不是 `pool/pool.md`
 
 校验五条：
   ① 索引存在，表头七列齐全且与固定表头逐字一致：
      `| 文件 | 主题标签 | 一句话说明 | 来源 URL | 许可 | 尺寸 | 抓取日期 |`
      （Markdown 的分隔行 `|---|---|…` 会跳过，不当数据行）
-  ② 每行 `文件` 在池子目录里真实存在
+  ② 每行 `文件` 在图片库目录里真实存在
   ③ 文件名匹配命名规则（`<主题>-<子主题>-<要点>-<来源缩写>-<NN>.<ext>`，只用
      `[0-9A-Za-z\\u4e00-\\u9fa5-]`、无空格）且总长 ≤60 字符
   ④ `来源 URL`、`许可` 与 `抓取日期` 都非空（页面没标注也要写「未标注」；抓取日期写
@@ -21,7 +21,7 @@
      与体积无关，不参与判定
 
 输出：每条问题一行 `<索引路径>:<行号> <问题>`（行号 0 = 索引整体的问题）；
-全部合格时一行 `OK   <索引路径>（N 张）`。池子为空（索引只有表头、抓不到图）**算合格**——
+全部合格时一行 `OK   <索引路径>（N 张）`。图片库为空（索引只有表头、抓不到图）**算合格**——
 采集不到不阻塞大纲与课件，只记 `Gaps`。
 退出码：有问题非零；合格 0。没给参数时把本用法打到 stderr 并退出 1。
 
@@ -91,12 +91,12 @@ def check_row(cells, index, pool_dir, number):
 
     name = cell('文件')
     if not name:
-        return [(number, '`文件` 是空的（每行要写池子里的文件名）')]
+        return [(number, '`文件` 是空的（每行要写图片库里的文件名）')]
 
     target = os.path.join(pool_dir, name)
     exists = os.path.isfile(target)
     if not exists:
-        problems.append((number, f'文件缺失：池子里没有 {POOL_REL}/{name}'))
+        problems.append((number, f'文件缺失：图片库里没有 {POOL_REL}/{name}'))
     if len(name) > POOL_NAME_MAX:
         problems.append((number, f'文件名不合规：{len(name)} 字符 > {POOL_NAME_MAX} 字符（{name}）'))
     elif not POOL_NAME_RE.match(name):
@@ -119,14 +119,14 @@ def check_row(cells, index, pool_dir, number):
 
 
 def check_pool(subject_path):
-    """校验一个科目的池子。返回 (problems, 行数)：problems 是 [(行号, 说明)]。"""
+    """校验一个科目的图片库。返回 (problems, 行数)：problems 是 [(行号, 说明)]。"""
     index_path = os.path.join(subject_path, INDEX_REL)
     pool_dir = os.path.join(subject_path, POOL_REL)
     if not os.path.isfile(index_path):
-        problems = [(0, f'索引不存在：{INDEX_REL}（索引是池子的唯一检索入口）')]
+        problems = [(0, f'索引不存在：{INDEX_REL}（索引是图片库的唯一检索入口）')]
         if os.path.isfile(os.path.join(pool_dir, 'pool.md')):
             problems.append((0, f'索引写错了地方：找到 {POOL_REL}/pool.md——'
-                                f'它应是池子目录的兄弟 {INDEX_REL}'))
+                                f'它应是图片库目录的兄弟 {INDEX_REL}'))
         return problems, 0
 
     with open(index_path, 'rb') as handle:

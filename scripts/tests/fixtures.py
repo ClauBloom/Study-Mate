@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """回归测试用的**临时科目**：不依赖任何工作区，自己造 curriculum.yaml 与课件。
 
-闸门（`scripts/check_lesson.py`）要判的东西不少（文件名、两类引用、题目块、主题开关、
-命名与上下节课指针），所以 fixture 得是一份**能过闸门**的最小课件——测试再往里注入
+检查（`scripts/check_lesson.py`）要判的东西不少（文件名、两类引用、题目块、主题开关、
+命名与上下节课指针），所以 fixture 得是一份**能过检查**的最小课件——测试再往里注入
 自己那一处偏差，断言才不会被无关的 FAIL 污染。
 
 内容格式那条链路（`scripts/render_lesson.py`）另有一套 fixture：`write_content()` 写内容文件，
@@ -39,7 +39,7 @@ DEFAULT_NODES = [
 VALID_QUIZ = ('<div class="quiz" data-quiz=\'[{"q":"这是题面？","opts":["A","B"],'
               '"ans":0,"why":"一句解释"}]\'></div>')
 
-# 能过闸门的最小课件：两类引用齐全、有主题开关与接线、有一个合法题目块、没有题目位残留。
+# 能过检查的最小课件：两类引用齐全、有主题开关与接线、有一个合法题目块、没有题目位置残留。
 # 相对路径按 lessons/<file>.html → 共享层 ../../../assets/、科目组件 ../assets/ 写。
 LESSON_TEMPLATE = '''<!DOCTYPE html>
 <html lang="zh-CN" data-theme="light">
@@ -75,7 +75,7 @@ LESSON_TEMPLATE = '''<!DOCTYPE html>
   </header>
 
   <h2>正文</h2>
-  <p>这一节只是让闸门有东西可看。</p>
+  <p>这一节只是让检查有东西可看。</p>
 
   {quiz}
 {extra}
@@ -247,14 +247,14 @@ def lesson_md(subject, number, node_id):
 
 
 def run_gate(path, subject, node):
-    """跑闸门，返回 (exit_code, 输出)。"""
+    """跑检查，返回 (exit_code, 输出)。"""
     proc = subprocess.run(['python3', str(GATE), str(path), '--subject', str(subject), '--node', node],
                           capture_output=True, text=True)
     return proc.returncode, proc.stdout + proc.stderr
 
 
 def run_pool(subject):
-    """跑池子校验器（`scripts/check_pool.py`），返回 (exit_code, 输出)。"""
+    """跑图片库校验器（`scripts/check_pool.py`），返回 (exit_code, 输出)。"""
     proc = subprocess.run(['python3', str(POOL_CHECK), str(subject)],
                           capture_output=True, text=True)
     return proc.returncode, proc.stdout + proc.stderr

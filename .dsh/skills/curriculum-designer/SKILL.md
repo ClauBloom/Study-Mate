@@ -23,7 +23,7 @@ user-invocable: false
 | `title` | **≤16 字**，写这一课的名字本身；**不要用「A：B」把两个概念塞进一个标题** |
 | `objective` | **≤34 字、一句话、可观察**，深度对齐盘问结果里的目标层级（了解→能上手→能独立做项目→精通）；背景与细节放进 `problem` 与 `practice` |
 | `problem` | 场景钩子：这一课用哪个真实场景／真实问题开场——是问题，不是定义 |
-| `验收点` | 1-3 条可核对的话（如"手写路由表并解释匹配顺序"）；必须指向具体产物或具体解释，**不写"理解了 X"** |
+| `过关标准` | 1-3 条可核对的话（如"手写路由表并解释匹配顺序"）；必须指向具体产物或具体解释，**不写"理解了 X"** |
 | `resources` | 权威教材的章节 + 一处权威来源；**稳定基础知识可空或只放一条延伸阅读**，易变/版本相关（框架 API、工具配置、部署）必须放核对过的官方文档，冷门领域找不到来源就留空并在报告里说明；每条带 `title`/`type`/`url` |
 | 其余字段（`id`、`prerequisites`、`concepts`、`practice`、`pitfalls`、`realworld`、`status`、`mastery`） | 字段全量以 `<root>/schemas/curriculum.schema.json` 为准；`status` 初始"未开始"、`mastery` 0；`concepts` / `pitfalls` / `realworld` 按需写，不为"整齐"逐个填满 |
 
@@ -51,7 +51,7 @@ user-invocable: false
 - 改动限制在必要的节点与边上，已学节点的内容与状态保持原样
 - 调整后满足：无环、每条边的 from/to 都存在于 nodes、状态"能独立应用"及以上的节点保留（需复检时改成"需要复习"）
 - **同步实验课**：新增/删改节点后，检查每个 `kind: 实验` 节点的 `prerequisites` 是否还成立，并在报告里说明哪些普通节点的 `kind` 要跟着改（直接影响配不配 `lab`）
-- **位次会挪**：中间插节点或删节点，后面每个节点的位次都变了——报告里列清受影响的节点（课件文件名 `<序号>-<节点id>.html` 的序号就是位次，闸门按它校验），总控据此跑 `python3 <root>/scripts/renumber_lessons.py <subject_path> [--dry-run] [--render]` 改名并重渲（指针由渲染器重算，不用手改）
+- **位次会挪**：中间插节点或删节点，后面每个节点的位次都变了——报告里列清受影响的节点（课件文件名 `<序号>-<节点id>.html` 的序号就是位次，检查按它校验），总控据此跑 `python3 <root>/scripts/renumber_lessons.py <subject_path> [--dry-run] [--render]` 改名并重渲（指针由渲染器重算，不用手改）
 
 ## 五、校验（交付前必做）
 

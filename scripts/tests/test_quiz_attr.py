@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""`data-quiz` 属性值转义的回归测试（9 例矩阵，闸门口径）。
+"""`data-quiz` 属性值转义的回归测试（9 例矩阵，检查口径）。
 
-每个用例是「能过闸门的最小课件 + 一个题目块」，**只改属性怎么写**；断言闸门放行/拦截，
+每个用例是「能过检查的最小课件 + 一个题目块」，**只改属性怎么写**；断言检查放行/拦截，
 以及拦截文案有没有指到正确改法。
 
 背景（2026-09-18）：契约一度把 `" → &quot;` 写成正式规则，而单引号包裹时 `&quot;` 解码成
 裸 `"`、提前闭合 JSON 字符串。浏览器实测（headless Chrome，同一批用例）：
 
-    写法                      浏览器                          闸门
+    写法                      浏览器                          检查
     ' 包裹 + \\"              正常渲染 printf("x")            放行
     ' 包裹 + &quot; / &#34;      题目块显示「解析失败」            拦（文案给改法）
     " 包裹 + \\&quot;           正常                             放行
@@ -70,7 +70,7 @@ def main():
         ok = (code != 0) == want_fail and (not must or must in out)
         failures += not ok
         verdict = 'FAIL' if code else 'OK'
-        note = f'闸门={verdict}' + (f'，文案含「{must}」' if must and must in out else '')
+        note = f'检查={verdict}' + (f'，文案含「{must}」' if must and must in out else '')
         fixtures.check(label, ok, note if ok else note + '\n' + out)
     total = len(CASES)
     print(f'\n{total - failures}/{total} 通过')

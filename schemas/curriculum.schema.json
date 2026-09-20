@@ -14,7 +14,7 @@
           "title": { "type": "string" },
           "kind": {
             "enum": ["概念", "实操", "实验"],
-            "description": "节点类型。概念=轻量跟做+概念题（不配 lab，题目止于 L3）；实操=普通课带自己的小 lab；实验=里程碑验收课（插在大纲里与普通课同级，prerequisites 列出它验收的节点，产出实验说明页 + 实操任务，通过后被验收节点置「已通过项目验证」）。"
+            "description": "节点类型。概念=轻量练习+概念题（不配 lab，题目止于 L3）；实操=普通课带自己的小 lab；实验=里程碑验收课（插在大纲里与普通课同级，prerequisites 列出它验收的节点，产出实验说明页 + 实操任务，通过后被验收节点置「已通过项目验证」）。"
           },
           "objective": { "type": "string" },
           "problem": { "type": "string" },
@@ -35,7 +35,7 @@
           "practice": { "type": "string" },
           "pitfalls": { "type": "array", "items": { "type": "string" } },
           "realworld": { "type": "string" },
-          "验收点": {
+          "过关标准": {
             "type": "array",
             "items": { "type": "string" },
             "description": "过关标准：学完凭什么算做到了（可观察、可核对）。原字段名 evidence，2026-xx 题目系统重构时正名。"

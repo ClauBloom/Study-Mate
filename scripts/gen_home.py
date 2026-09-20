@@ -422,7 +422,7 @@ def curriculum_nodes(cur, prog, slug=None):
     if live and slug:
         warn(f'{slug}: progress.yaml 里有 curriculum.yaml 之外的节点，已忽略：{"、".join(sorted(live))}')
     if slug:
-        # 卡片字段的软上限：只提醒，不阻断（细节写进 problem/practice/验收点，那些不上卡片）
+        # 卡片字段的软上限：只提醒，不阻断（细节写进 problem/practice/过关标准，那些不上卡片）
         long_titles = [n for n in nodes if len(n['title']) > TITLE_SOFT_LIMIT]
         if long_titles:
             sample = '、'.join(f'{n["title"]}（{len(n["title"])}）' for n in long_titles[:3])

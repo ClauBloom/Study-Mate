@@ -16,18 +16,18 @@ step() {
 }
 
 if ! python3 -c 'import yaml' 2>/dev/null; then
-  printf '\n缺少 pyyaml：闸门读不了 curriculum.yaml（命名与指针那套会失败），\n'
+  printf '\n缺少 pyyaml：检查读不了 curriculum.yaml（命名与指针那套会失败），\n'
   printf '渲染器也读不了大纲（课件渲染那套会失败）。\n'
   printf '先装：python3 -m pip install pyyaml\n'
   exit 1
 fi
 
 step '安装脚本（沙箱 HOME，19 项）'        python3 scripts/tests/test_install.py
-step '题目属性转义（闸门，9 例）'          python3 scripts/tests/test_quiz_attr.py
-step '题目里的代码围栏（闸门，12 例）'     python3 scripts/tests/test_quiz_code.py
-step '课件配图（闸门，5 例）'              python3 scripts/tests/test_lesson_figure.py
-step '命名与上下节课指针（闸门，9 例）'    python3 scripts/tests/test_naming_nav.py
-step '池子索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
+step '题目属性转义（检查，9 例）'          python3 scripts/tests/test_quiz_attr.py
+step '题目里的代码围栏（检查，12 例）'     python3 scripts/tests/test_quiz_code.py
+step '课件配图（检查，5 例）'              python3 scripts/tests/test_lesson_figure.py
+step '命名与上下节课指针（检查，9 例）'    python3 scripts/tests/test_naming_nav.py
+step '图片库索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
 step '位次重排与 empty_reason（脚本，21 例）'  python3 scripts/tests/test_lesson_scripts.py
 step '课件渲染（渲染器，25 例）'           python3 scripts/tests/test_render_lesson.py
 step '提示词规则清单（390 条）'            python3 scripts/tests/test_skill_rules.py

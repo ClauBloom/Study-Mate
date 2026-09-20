@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件质量闸门：只阻断工程/结构缺项；内容风格类问题只提示，不影响放行。
+"""课件质量检查：只阻断工程/结构缺项；内容风格类问题只提示，不影响放行。
 
 用法：
   python3 scripts/check_lesson.py <课件路径> [<课件路径> ...] [--subject <科目目录>] [--node <节点id>]
@@ -24,7 +24,7 @@
        每个 .quiz[data-quiz] 块是合法 JSON 非空数组；每题：
          · 都有非空 `q`（题面）；
          · 选择题（写了 opts/ans）：`opts` 是 ≥2 项的数组、`ans` 是范围内的整数、`why` 非空；
-         · 开放题（写了 answer/criteria）：`answer`（参考答案）与 `criteria`（算过标准）都非空；
+         · 开放题（写了 answer/criteria）：`answer`（参考答案）与 `criteria`（判分要点）都非空；
          · 两组字段不能同时出现在一题里；都没有则题型不明。
          · `q`/`answer`/`criteria`/`why` 里的 ``` 围栏必须成对（不成对后半段会被渲染成代码块）。
        普通课件至少要有一道题；`kind: 实验` 的说明页是任务书，没有题目块不算缺项。
@@ -38,7 +38,7 @@
        · `kind: 概念`：链接了 lab/ 只提示（规范上概念课不配实操），不阻断。
     6 主题开关：存在 id="lesson-theme-checkbox" 的 <input type="checkbox">，
        且有 LearnTheme.wire(...) 引用该 id（骨架里的主题开关不能被改丢）。
-    7 题目位残留：`lessons/` 目录下的课件里不得留着 `<!-- 题目位：… -->` 标记
+    7 题目位置残留：`lessons/` 目录下的课件里不得留着 `<!-- 题目位置：… -->` 标记
        （那是手写课件时代留占位的写法；新流程写内容文件、由渲染器出页面，产物里不会有它）。
     8 命名与上/下节课指针（需 --subject 与 --node，邻居取自 curriculum.yaml 的 nodes 顺序）：
        · 节点必须真实存在于 `nodes:` 里——归属查不出来即 FAIL（否则课件在主页路线图上不存在，
@@ -58,18 +58,18 @@
     · 实操判定被跳过（没给 --subject/--node，或 progress.yaml 读不出来）。
     · 小节标题超过 14 字：它会进左侧目录（220px 宽），长了要换行。
     · 上/下节课指针指向的课件还没产出（悬空指针，正常）。
-    · 图片用了外链（http/https 或其他 scheme）：离线打开会裂；建议从科目池子
+    · 图片用了外链（http/https 或其他 scheme）：离线打开会裂；建议从科目图片库
       `assets/img/pool/` 挑一张本地文件引用。
     · 图片缺 alt：裂图时学生只看到空白，读屏软件也读不出。
 
-本闸门**不判内容风格**：真实场景、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
-着眼点与倾向，由讲解角色按内容与学生偏好现场定；闸门不用关键词词表去替它做判断——那种代理会把
-课件逼成套模板。题目**出得好不好**（难度、覆盖、与验收点的对应）也不由闸门判，那是
-layered-practice 的规范与 practice-evaluator 的活；闸门只判结构完整。
+本检查**不判内容风格**：真实场景、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
+着眼点与倾向，由讲解角色按内容与学生偏好现场定；检查不用关键词词表去替它做判断——那种代理会把
+课件逼成套模板。题目**出得好不好**（难度、覆盖、与过关标准的对应）也不由检查判，那是
+layered-practice 的规范与 practice-evaluator 的活；检查只判结构完整。
 
 已知且预期：templates/lesson.html 骨架本身过不了阻断项（组件示例改成注释形式后没有真的
 `.quiz[data-quiz]`，也没有指向 lab/ 的链接；校验前会先剥掉注释）——骨架只给工程外壳与组件示例，
-正文与题目由各角色按规范补齐，这不是闸门缺陷。
+正文与题目由各角色按规范补齐，这不是检查缺陷。
 
 依赖：标准库 + pyyaml（与 gen_home.py 一致）；没装 pyyaml 时实操判定跳过并回显提示。
 """
@@ -124,8 +124,8 @@ MAX_H2_CHARS = 14
 # 检查项 6：主题开关元素 id
 THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
 
-# 检查项 7：手写课件时代留下的题目位标记（新流程由渲染器出页面；骨架注释里是示例，路径不同）
-PLACEHOLDER_RE = re.compile(r'^[ \t]*<!--[ \t]*题目位', re.M)
+# 检查项 7：手写课件时代留下的题目位置标记（新流程由渲染器出页面；骨架注释里是示例，路径不同）
+PLACEHOLDER_RE = re.compile(r'^[ \t]*<!--[ \t]*题目位置', re.M)
 LESSONS_DIR_MARK = '/lessons/'
 
 # ── 公共正则 ────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ def ref_values(text):
 class SubjectData:
     """读 <科目>/curriculum.yaml，记下每个节点的 `kind`（概念／实操／实验）。
 
-    课型决定闸门怎么判实操：`概念` 不配 lab；`实操` 与 `实验` 必须有 lab 与产物。
+    课型决定检查怎么判实操：`概念` 不配 lab；`实操` 与 `实验` 必须有 lab 与产物。
     """
 
     def __init__(self, subject_dir):
@@ -273,7 +273,7 @@ def check_lab(text, path, subject, node):
         notes.append(f'节点 {node} 的 kind 是 {kind!r}，不在「概念/实操/实验」里——按概念课处理')
     if has_link:
         notes.append(f'概念课却链接了 lab/：节点 {node} 的 kind 是「概念」，'
-                     '按规范概念课不配实操（只有轻量跟做）')
+                     '按规范概念课不配实操（只有轻量练习）')
     return problems, notes
 
 
@@ -332,11 +332,11 @@ def check_subject_refs(text):
 
 
 def check_placeholder(text, path):
-    """检查项 7：课件里不得残留手写时代的 `<!-- 题目位：… -->` 标记（看原文，注释未剥）。"""
+    """检查项 7：课件里不得残留手写时代的 `<!-- 题目位置：… -->` 标记（看原文，注释未剥）。"""
     if LESSONS_DIR_MARK not in path.replace(os.sep, '/'):
         return []
     if PLACEHOLDER_RE.search(text):
-        return ['课件里还留着未替换的题目位标记（手写课件留下的占位没删；新流程由渲染器出页面，不会有它）']
+        return ['课件里还留着未替换的题目位置标记（手写课件留下的占位没删；新流程由渲染器出页面，不会有它）']
     return []
 
 
@@ -470,7 +470,7 @@ class QuizScanner(HTMLParser):
     HTML5 禁止属性值里出现**同种**引号，所以那种写法在浏览器里同样是截断的（不是「合法」）：
     裸 `'` 在单引号属性里、裸 `"` 在双引号属性里都会截断，**必须写成 `&#39;` / `&quot;`**。
     所以取值改用 scan_quiz_blocks()，并由它附带的 check_quiz_attr_delimiters() 把这类
-    写法报成 FAIL——正则取值比浏览器宽松，不查的话闸门会 OK 而学生的浏览器里炸。
+    写法报成 FAIL——正则取值比浏览器宽松，不查的话检查会 OK 而学生的浏览器里炸。
     """
 
     def __init__(self):
@@ -496,7 +496,7 @@ QUIZ_TAG_RE = re.compile(
 # 标签范围内的 data-quiz 属性：值取到「同类引号 + 空白/标签结束」为止。
 # 用 ([\"'])(.*)\1(?=[\s/>]) 而不是非贪婪 .*?：非贪婪会在值里第一个同类引号处就闭合。
 # ⚠️ 这个正则比浏览器**宽松**：属性值里出现裸的同类引号时，浏览器会在那里截断属性，
-# 而贪婪匹配会一路跨过去、取出「完整」的值交给 json.loads —— 于是 JSON 解析通过、闸门报 OK，
+# 而贪婪匹配会一路跨过去、取出「完整」的值交给 json.loads —— 于是 JSON 解析通过、检查报 OK，
 # 学生的浏览器里却看到「题目数据解析失败」。所以取值之后必须再跑 check_quiz_attr_delimiters()。
 DATA_QUIZ_ATTR_RE = re.compile(r'\bdata-quiz\s*=\s*(["\'])(.*)\1(?=[\s/>])', re.S)
 
@@ -578,7 +578,7 @@ def check_quiz_attr_entities(tag):
     """单引号包裹的 data-quiz 值里，JSON 字符串内部的引号是否写成了实体。
 
     这种写法浏览器解码后是一个**裸 `"`**，会提前闭合 JSON 字符串：多数情况 JSON.parse 报错、
-    题目块显示「解析失败」，少数情况还能解析成功但把后半句吃掉。闸门原有的「合法 JSON」检查
+    题目块显示「解析失败」，少数情况还能解析成功但把后半句吃掉。原有的「合法 JSON」检查
     只会说一句 `Expecting ',' delimiter`，看的人不知道该怎么改——这条把口径说清楚：
     字符串内部的引号写 JSON 自己的 `\\"`，单引号才写实体 `&#39;`。
     """
@@ -597,7 +597,7 @@ def check_quiz_attr_truncation(tag):
     """双引号包裹的 data-quiz：值里出现裸 `"`（含写成 `\\"` 的）时属性被浏览器截断。
 
     为什么必须单独查：`DATA_QUIZ_ATTR_RE` 是贪婪取值，能跨过那个裸引号取出「完整」的值、
-    JSON 还解析得通——于是闸门放行，而学生看到的是「题目数据解析失败」。
+    JSON 还解析得通——于是检查放行，而学生看到的是「题目数据解析失败」。
     只在「宽松取值能解析、浏览器口径取到的值解析不了」时报，避免与「不是合法 JSON」重复。
     """
     delimiter, raw = data_quiz_delimiter_span(tag)
@@ -624,7 +624,7 @@ def check_quiz_attr_delimiters(tag):
     """data-quiz 的值片段里是否含**裸的同类引号**（浏览器会在那里把属性截断）。
 
     为什么必须单独查：正则取值比浏览器宽松（贪婪跨过裸引号，取出「完整」的值），
-    于是 JSON 解析通过、闸门报 OK，而学生的浏览器里题目块退化成「题目数据解析失败」。
+    于是 JSON 解析通过、检查报 OK，而学生的浏览器里题目块退化成「题目数据解析失败」。
     判定「坏」的原则：**只认能取出 JSON 合法字符串字面量的那种坏**——
     出现在 JSON 字符串值里的裸定界引号必然截断；出现在字符串之外（如属性尾部的
     空白）则不确定，宁可不报，避免误报。
@@ -664,7 +664,7 @@ def check_quiz_fences(item, label):
     """题面/答案里的 ``` 围栏是否成对（不成对 = 后半段全被当成代码渲染）。
 
     围栏是 quiz.js 渲染真代码块的写法（缩进与等宽都在里面保证），见它顶部契约。
-    只查「成对」这一件结构事：语言标签写不写、写什么由作者定，闸门不管。
+    只查「成对」这一件结构事：语言标签写不写、写什么由作者定，检查不管。
     """
     problems = []
     for field in ('q', 'answer', 'criteria', 'why'):
@@ -722,12 +722,12 @@ def check_quiz(text, required=True):
     blocks = scan_quiz_blocks(text)
     if not blocks:
         if scanner.found:
-            # 块在、属性也在（HTMLParser 是浏览器口径），是**闸门的取值正则**取不出来：
+            # 块在、属性也在（HTMLParser 是浏览器口径），是**检查的取值正则**取不出来：
             # QUIZ_TAG_RE 的标签取到第一个 `>` 为止，属性值里的裸 `>` 会把标签切断。
             # 页面本身能渲染（HTML5 允许属性值里出现 `>`），所以必须说清是写法问题。
             problems.append(f'题目块在，但 data-quiz 的值取不出来（{scanner.found} 处）——'
                             f'属性值里可能有裸的 `>`（写成 &gt;）或裸的同类引号（写成 &#39;）：'
-                            f'闸门的取值正则到第一个 `>` 就断了')
+                            f'检查的取值正则到第一个 `>` 就断了')
         elif not problems and required:
             problems.append('缺少 .quiz[data-quiz] 题目块（每份课件至少一道题）')
         return problems, notes
@@ -801,7 +801,7 @@ def check_quiz(text, required=True):
                 if not isinstance(answer, str) or not answer.strip():
                     problems.append(f'{label}开放题缺参考答案（answer）')
                 if not isinstance(criteria, str) or not criteria.strip():
-                    problems.append(f'{label}开放题缺算过标准（criteria，学生据此自评）')
+                    problems.append(f'{label}开放题缺判分要点（criteria，学生据此自评）')
             else:
                 problems.append(f'{label}题型不明：选择题要 opts/ans/why，开放题要 answer/criteria')
     return problems, notes
@@ -826,8 +826,8 @@ def check_images(text, path):
 
     三条，按「学生会不会看到坏东西」判：
       · 本地图不存在 → **阻断**（学生看到裂图；gen_home 的自检只管自己写出的主页，
-        课件页明确不在它的范围内，所以这道只能由闸门把）
-      · 外链图（http/https）→ 提示：离线打开会裂，建议从科目池子挑一张本地文件
+        课件页明确不在它的范围内，所以这道只能由检查把）
+      · 外链图（http/https）→ 提示：离线打开会裂，建议从科目图片库挑一张本地文件
       · 没有 alt → 提示：裂图时学生只看到空白，读屏软件也读不出
     """
     problems = []
@@ -841,7 +841,7 @@ def check_images(text, path):
             continue
         if IMG_SCHEME_RE.match(value):
             notes.append(f'图片用了外链（{value[:60]}）——离线打开会裂；'
-                         f'建议从科目池子 assets/img/pool/ 挑本地文件引用')
+                         f'建议从科目图片库 assets/img/pool/ 挑本地文件引用')
         else:
             target = os.path.normpath(os.path.join(os.path.dirname(path) or '.',
                                                    value.split('#', 1)[0].split('?', 1)[0]))

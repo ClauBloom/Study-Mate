@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""闸门检查项 8（命名 + 上/下节课指针 + 归属）的回归测试，9 个场景。
+"""检查项 8（命名 + 上/下节课指针 + 归属）的回归测试，9 个场景。
 
-每个场景都从 fixture 重建 `lessons/`，只改这一处偏差，再跑闸门断言
+每个场景都从 fixture 重建 `lessons/`，只改这一处偏差，再跑检查断言
 「该拦的拦住、该放行的放行」。检查项 8 是「悬空指针」成立的前提：上一课的
 「下节课」按命名规则预写，下一课照规则起名，链接自己就通了（零回填）。
 
@@ -83,7 +83,7 @@ def main():
         ok = ok and (not item['must'] or item['must'] in out)
         ok = ok and all(phrase not in out for phrase in (item['must_not'] or []))
         failures += not ok
-        fixtures.check(item['label'], ok, out if not ok else f'闸门={"FAIL" if code else "OK"}')
+        fixtures.check(item['label'], ok, out if not ok else f'检查={"FAIL" if code else "OK"}')
     total = len(SCENARIOS)
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)

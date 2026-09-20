@@ -34,7 +34,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
 4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js`、`lesson-toc.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
-5. **图片池子是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补池只增不删。命名与索引格式见 `image-scout`。池子是**学习产物，随科目整体拷贝或迁移时跟着走**（`.venv` 那类本机工具链不进包，换机器重建）
+5. **图片库是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补图只增不删。命名与索引格式见 `image-scout`。图片库是**学习产物，随科目整体拷贝或迁移时跟着走**（`.venv` 那类本机工具链不进包，换机器重建）
 
 ## 课件三件与归属（`lessons/`）
 
@@ -42,12 +42,12 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 | 文件 | 谁写 | 里面是什么 |
 |---|---|---|
-| `.md`（内容） | 课件正文归 `learning-coach`（它直接写科目目录）；**`kind: 实验` 的说明页由你 `cp` 原样搬入** | 讲解、动手的引入、配图、题目位（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你跑 `scripts/apply_empty_reasons.py` 打进去 |
+| `.md`（内容） | 课件正文归 `learning-coach`（它直接写科目目录）；**`kind: 实验` 的说明页由你 `cp` 原样搬入** | 讲解、动手的引入、配图、题目位置（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你跑 `scripts/apply_empty_reasons.py` 打进去 |
 | `.quiz.json`（题库） | `practice-evaluator` 出题落 `deliver/`、你 `cp` 搬入（**题面与答案一个字都不改**） | `{"锚点文本": [题, …]}`，键与内容文件的锚点逐字对应 |
 | `.html`（渲染产物） | `python3 <root>/scripts/render_lesson.py <subject_path> <节点id>` | 学生看的页面；谁也不手改 |
 
 - **改课件＝改源文件，再重渲**：内容改 `.md`、题目改 `.quiz.json`，然后重跑渲染器；直接改 `.html` 会在下次渲染时被冲掉，两份文件还会对不上
-- **旧的手写课件并存**：`lessons/` 里已交付的 `.html` 不重渲、不搬家，闸门照旧判它们（含题目位残留那条）；新建的节点一律走三件——**`kind: 实验` 的说明页不出题，没有 `.quiz.json`，就是 `.md` + `.html` 两件**
+- **旧的手写课件并存**：`lessons/` 里已交付的 `.html` 不重渲、不搬家，检查照旧判它们（含题目位置残留那条）；新建的节点一律走三件——**`kind: 实验` 的说明页不出题，没有 `.quiz.json`，就是 `.md` + `.html` 两件**
 - 渲染报 `<文件>:<行>` 的按归属打回：内容 → `learning-coach`，题库与锚点 → `practice-evaluator`
 
 ## 学习记录（learning-records/）
@@ -60,7 +60,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 1. 命名 `NNNN-<节点id>.md`（编号递增），存 `subjects/<slug>/assessments/`
 2. `.md` 文件，**YAML frontmatter 承载 `assessment.schema.json` 的字段**（日期加引号），正文写题面与作答原文
-3. 逐题的 `验收点` 要与 `curriculum.yaml` 节点的 `验收点` **逐字对得上**；对不上以节点为准并修正记录
+3. 逐题的 `过关标准` 要与 `curriculum.yaml` 节点的 `过关标准` **逐字对得上**；对不上以节点为准并修正记录
 4. 同时双落点记误解（`misconceptions.yaml` + `progress.yaml.misconceptions`）
 
 ## 项目与实验课

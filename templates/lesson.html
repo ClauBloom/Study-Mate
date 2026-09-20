@@ -18,9 +18,9 @@
        BODY     正文（渲染器按内容文件产出）
        NAV      上/下节课指针（第一课无 --prev、最后一课无 --next）
        FOOTER   页脚那行
-     必须保留（改丢会被闸门判 FAIL）：顶部三条样式引用（共享层 ../../../assets/ + 科目 ../assets/）、
+     必须保留（改丢会被检查判 FAIL）：顶部三条样式引用（共享层 ../../../assets/ + 科目 ../assets/）、
      底部三条脚本引用、主题开关 id="lesson-theme-checkbox" 与 LearnTheme.wire(...) 接线、.lesson-ask。
-     产出的课件提交前跑一次闸门：
+     产出的课件提交前跑一次检查：
        python3 <root>/scripts/check_lesson.py <课件路径> --subject <科目目录> --node <节点id>
 
      ⚠ 这段说明是给维护者看的：它留在 <!DOCTYPE html> **之前**，渲染器只从 <!DOCTYPE 起取内容，
