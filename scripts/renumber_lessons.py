@@ -21,9 +21,9 @@
 
 输出（stdout）：
     0002-cpp.types.md → 0003-cpp.types.md                     一行一个「旧名 → 新名」
-    改了 3 个节点的 9 个文件 / 渲染 3 个页面                    末尾一行汇总（渲染几个页面只在 --render 时非零）
-    未处理 2 个文件（没动它们）：                              认不出的命名，逐条给原因
+    未处理 2 个文件（没动它们）：                              认不出的命名，逐条给原因（没有就整段不印）
       notes.md —— 没有「4 位序号-」前缀
+    改了 3 个节点的 9 个文件 / 渲染 3 个页面                    末尾一行汇总（渲染几个页面只在 --render 时非零）
 退出码：0 成事（含「有未处理项」）；1 有问题（大纲读不了 / 目标名被占 / 渲染失败）；用法错误 2。
 
 依赖：标准库 + pyyaml（与 render_lesson.py / check_pool.py 同口径，不引新依赖）。本脚本只改
@@ -250,7 +250,7 @@ def render_nodes(subject_path, node_ids):
     for node_id in node_ids:
         try:
             proc = subprocess.run([sys.executable or 'python3', str(RENDER), str(subject_path), node_id],
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, encoding='utf-8')
         except OSError as exc:                        # pragma: no cover - 渲染器不见了
             failed += 1
             print(f'{RENDER_REL}:1 起不了渲染器（{exc}）——改名已经做完、不回滚', file=sys.stderr)
@@ -316,14 +316,14 @@ def main(argv):
     elif render:
         rendered = len(changed)                       # --dry-run：把「会渲染几个页面」照实报出来
 
-    emit(f'改了 {len(changed)} 个节点的 {len(renames)} 个文件 / 渲染 {rendered} 个页面')
-
     if untouched:
         emit(f'未处理 {len(untouched)} 个文件（没动它们）：')
         for name, reason in untouched:
             emit(f'  {name} —— {reason}')
         note(f'{len(untouched)} 个文件没被接管（见上面的「未处理」清单）——它们的命名不在'
              f'「{NUM_WIDTH} 位序号-<节点id>.<md|quiz.json|html>」里，脚本一个字都没动它们')
+
+    emit(f'改了 {len(changed)} 个节点的 {len(renames)} 个文件 / 渲染 {rendered} 个页面')
 
     if failed:
         print(f'{len(changed)} 个节点改了名，其中 {failed} 个没渲染成功——'

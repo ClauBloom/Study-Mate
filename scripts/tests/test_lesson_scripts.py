@@ -262,6 +262,8 @@ def renumber_unknown_names(box, root):
             '08-cpp.io.md —— 序号 08 不是 4 位补零',
             '0003-cpp.io.txt —— 认不出的命名（后缀要正好是 md / quiz.json / html）')
     box.has(err, '提示:', '4 个文件没被接管')
+    box.expect(out.strip().splitlines()[-1] == '改了 1 个节点的 1 个文件 / 渲染 0 个页面',
+               f'汇总要是 stdout 的最后一行；实际：{out.strip().splitlines()[-1]!r}')
     box.present(lesson_md(subject, '0003-cpp.types.md'))
     after = snapshot(root)
     for name in ('lessons/notes.md', 'lessons/0009-ghost.md', 'lessons/08-cpp.io.md',
