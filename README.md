@@ -67,7 +67,7 @@ StudyMate 是 DSH（DeepSeek Harness）的**「学习模式」预设**加一套�
 
 - **长期陪读，会话不背历史**：同时带多门科目，每门一份大纲——知识点按前置依赖排成路线图，每个知识点标课的类型（只讲解的概念课 / 讲练结合的实操课 / 验收阶段成果的实验课）与过关标准。学习进度落在文件里，每次开场只恢复「当前学到哪」。
 - **一份跨科目共享记忆**：记住你的现有水平、哪种讲法有效、常见卡点，下一门课不用重新自我介绍。
-- **讲解写在课件文件里**：每个知识点一节课，页面是自包含 HTML（浏览器直接打开），源文件是同一份 `.md` 内容 + `.quiz.json` 题目，由 `scripts/render_lesson.py` 渲染成页面——改课件、改题都改源文件再重渲。能回看，页内练习当场判分；读不懂就把那段原文贴回会话问。
+- **讲解写在课件文件里**：每个知识点一节课，页面是自包含 HTML（浏览器直接打开），源文件是同一份 `.md` 内容 + `.quiz.json` 题目（实验课的说明页不出题，只有 `.md`），由 `scripts/render_lesson.py` 渲染成页面——改课件、改题都改源文件再重渲。能回看，页内练习当场判分；读不懂就把那段原文贴回会话问。
 - **动手有 lab**：实操课与实验课另配一份 lab，也就是引导式实操材料（分步带做，关键步骤留白给你亲手写），写完跑一次就能验证。
 - **过关看可运行证据**：核验时逐条对**验收点**（大纲里每个知识点的过关标准），练习按**四层**排难度——L1 理解 → L2 改造 → L3 排错 → L4 应用（L4 = 放进你自己的项目）。
 
@@ -113,14 +113,14 @@ python3 scripts/preview_templates.py --open    # 用假数据渲染主页模板�
 python3 scripts/render_lesson.py <subject_path> <节点id>   # 内容文件 + 题库 → 课件 HTML（--check 只校验不写盘）
 python3 scripts/check_curriculum.py examples/.learning/subjects/typescript-web-api/curriculum.yaml
 python3 scripts/check_lesson.py workspace/.learning/subjects/cpp-competitive-programming/lessons/0001-hello.first.html --subject workspace/.learning/subjects/cpp-competitive-programming --node hello.first
-python3 scripts/check_pool.py workspace/.learning/subjects/cpp-competitive-programming    # 图片池：索引 pool.md 与 assets/img/pool/ 对不对得上
+python3 scripts/check_pool.py <你的科目目录>    # 图片池：索引 pool.md 与 assets/img/pool/ 对不对得上
 python3 scripts/check_skill.py .dsh/skills/*    # 技能 frontmatter（改过技能就跑一次）
 bash scripts/tests/run_tests.sh                # 回归测试：闸门/题目属性/命名指针/提示词规则/DOM（改引擎就跑一次）
 
 # 换成你自己的科目：--subject 给科目目录，--node 给该课件对应的节点 id；大纲校验可一次传多个 curriculum.yaml
 ```
 
-`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示（「题目位标记残留」只可能来自手写时代的老课件）。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤300 KB。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
+`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示；其中「题目位标记残留」只可能来自手写时代的老课件——渲染产物里不会有标记。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤300 KB——还没建过图片池的科目没有 `assets/img/pool.md`，它会报一行「索引不存在」并退出 1，那是池子还没建，不是命令坏了。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
 
 `scripts/tests/run_tests.sh` 不需要浏览器（`--browser` 才加真实 Chrome 的高亮那套）；测试自己造临时科目，不碰 `workspace/`。改了闸门、`templates/assets/` 或 `.dsh/skills/` 之后跑一次，见 `scripts/tests/README.md`。
 
