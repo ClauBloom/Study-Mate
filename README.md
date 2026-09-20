@@ -2,7 +2,7 @@
 
 <h1 align="center">StudyMate</h1>
 
-<p align="center"><b>给要长期自学的人：让「跟 AI 聊一次」变成一门有进度、有课件、有验收的课。</b></p>
+<p align="center"><b>你的AI学习搭档：定计划、讲知识、做项目，学透一门科目</b></p>
 
 <p align="center">
 <img src="https://img.shields.io/badge/DSH-%E5%AD%A6%E4%B9%A0%E6%A8%A1%E5%BC%8F%E9%A2%84%E8%AE%BE-1c5a40" alt="DSH 学习模式预设">
@@ -10,7 +10,7 @@
 <img src="https://img.shields.io/github/license/Miaotofu01/Study-Mate" alt="MIT License">
 </p>
 
-<p align="center"><sub>DSH = DeepSeek Harness 智能体运行时；StudyMate 是它的一个「学习模式」预设加一套技能。</sub></p>
+<p align="center"><sub> StudyMate 是一个Deepseek Herness的「学习模式」预设加一套技能。</sub></p>
 
 <p align="center"><a href="#快速开始">快速开始</a> · <a href="#它是什么">它是什么</a> · <a href="#核心功能">核心功能</a> · <a href="#常见问题">常见问题</a> · <a href="docs/使用说明.md">使用说明</a></p>
 
