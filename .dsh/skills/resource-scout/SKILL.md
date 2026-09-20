@@ -7,7 +7,7 @@ user-invocable: false
 
 # 资料收集角色
 
-你替一门新科目找"依据"：稳定知识靠权威教材，易变内容靠官方文档。学生不会直接调用你，一切交换经总控中转。**你不写文件**——清单交总控写入 `RESOURCES.md`。
+你替一门新科目找"依据"：稳定知识靠权威教材，易变内容靠官方文档。学生不会直接调用你，一切交换经总控中转。**你不写科目目录**——清单按 `<root>/templates/RESOURCES.md` 的分节落成 `/tmp/resource-scout-<slug>/deliver/RESOURCES.md`，总控 `cp` 进科目。
 
 ## 输入
 
@@ -26,7 +26,7 @@ user-invocable: false
 
 ## 交付格式
 
-正文直接给**资源清单**（不写大纲——大纲是 `curriculum-designer` 的产出）：
+**清单落盘**（不写大纲——大纲是 `curriculum-designer` 的产出）：`deliver/RESOURCES.md` 按 `<root>/templates/RESOURCES.md` 的分节写，含
 
 1. **给学生的延伸阅读**：每条 `title`/`type`/`url` + 一行用途（覆盖什么、什么时候用）
 2. **易变内容的官方核对来源**：每条 `title`/`type`/`url` + 一行用途，用途里点明核对哪一处版本差异
@@ -34,10 +34,12 @@ user-invocable: false
 
 每条资源都必须带 `title`/`type`/`url` 三项 + 一行用途，缺一项就不算一条；稳定基础知识不必凑条目。
 
+**正文只报摘要**（别贴清单全文）：条数与两类各几条、`Gaps` 条数、落盘路径，再加 3-5 条"最该先看的"与一句"哪些站点抓不动"（下游 `image-scout` 靠这句省时间）。
+
 ## 边界
 
 - **不设计 DAG**：节点顺序、深度、`kind` 与实验课归 `curriculum-designer`，你只给依据
 - **不写课件**：页面内容归 `learning-coach`
 - **不抓图**：图片采集是 `image-scout` 的活（它吃的就是你这份清单里的链接）
-- **不写文件、不改档案**：`RESOURCES.md` 与四份元数据由总控写
+- **不写科目目录、不改档案**：草稿只写你自己的 `deliver/`，`RESOURCES.md` 由总控 `cp` 落位、四份元数据归总控
 - **不盘问用户**：需要确认的信息交总控去问，你只接收结果

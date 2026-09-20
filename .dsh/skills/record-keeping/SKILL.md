@@ -18,8 +18,8 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
         ├── progress.yaml  misconceptions.yaml
         ├── index.html            # 科目主页（生成产物）
         ├── lessons/ reference/ assets/    # 课件三件（见下）、速查页、科目组件
-        ├── lab/                  # 题目角色给内容、你写盘：实操 + solutions/ + README.md；概念课没有
-        ├── assessments/          # 评估记录（题目角色给内容、你写盘）
+        ├── lab/                  # 角色落 deliver/、你 cp 搬入：实操 + solutions/ + README.md；概念课没有
+        ├── assessments/          # 评估记录（你撰写）
         ├── learning-records/     # 学习记录
         └── sessions/YYYY-MM-DD.md
 ```
@@ -42,8 +42,8 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 | 文件 | 谁写 | 里面是什么 |
 |---|---|---|
-| `.md`（内容） | 课件正文归 `learning-coach`；**`kind: 实验` 的说明页由你按出题人给的内容原样写盘** | 讲解、动手的引入、配图、题目位（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你照抄一行 |
-| `.quiz.json`（题库） | `practice-evaluator` 出题、你写盘（题面与答案一个字都不改） | `{"锚点文本": [题, …]}`，键与内容文件的锚点逐字对应 |
+| `.md`（内容） | 课件正文归 `learning-coach`（它直接写科目目录）；**`kind: 实验` 的说明页由你 `cp` 原样搬入** | 讲解、动手的引入、配图、题目位（`::: quiz` 的锚点）；出题人交回的 `empty_reason:` 由你照抄一行 |
+| `.quiz.json`（题库） | `practice-evaluator` 出题落 `deliver/`、你 `cp` 搬入（**题面与答案一个字都不改**） | `{"锚点文本": [题, …]}`，键与内容文件的锚点逐字对应 |
 | `.html`（渲染产物） | `python3 <root>/scripts/render_lesson.py <subject_path> <节点id>` | 学生看的页面；谁也不手改 |
 
 - **改课件＝改源文件，再重渲**：内容改 `.md`、题目改 `.quiz.json`，然后重跑渲染器；直接改 `.html` 会在下次渲染时被冲掉，两份文件还会对不上
@@ -85,7 +85,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 边界
 
-- 课程内容归 `curriculum-designer`，课件/题库/lab/页面的归属见上表与上面的目录树（题目、lab 与实验说明页由 `practice-evaluator` 给内容、你写盘）。你只读写状态与元数据，发现不一致以文件为准并修正记录
+- 课程内容归 `curriculum-designer`，课件/题库/lab/页面的归属见上表与上面的目录树（题目、lab 与实验说明页由 `practice-evaluator` 落 `deliver/`、你 `cp` 搬入）。你只读写状态与元数据，发现不一致以文件为准并修正记录
 - 档案存结构化摘要，聊天的原始过程留在会话里
 - 科目之间隔离：只读当前科目，唯一的跨科目来源是 `MEMORY.md`
 - 只在 `<LEARN_WORKSPACE>/` 下写学习文件，绝不写会话目录
