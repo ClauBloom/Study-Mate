@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，20 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，25 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -10,6 +10,10 @@
   值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason`（且**只准**出现在 `::: quiz`——
   写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）· 配图存在性与题注来源 · 导航
   与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
+  锚点**双向**对账（题库缺题要 `empty_reason`；题库里多出来的孤儿键、同一个锚点被两个题目位引用，
+  都带行号报错）· 用法错误退 2 与坏题库三种形态（非 JSON／非对象／值是空数组）·
+  `kind: 实验` 的说明页没有题库也能渲染并过闸门（R12）· 名单里每个名字都必须被形状正则捕获
+  （连字符名 `<syo-editor>` 捕不到——它只能做成 `:::` 指令，不能靠加名单）·
   **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示；
   真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀；
   白名单是**完整**的 HTML 元素表 + SVG 名，`iframe`/`video`/`form`/`main`/`button`/`canvas`
@@ -24,6 +28,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -112,6 +117,13 @@ def render(subject, number, node_id, *args):
     path = fixtures.lesson_html(subject, number, node_id)
     text = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
     return code, out, text, path
+
+
+def run_raw(*args):
+    """直接跑渲染器的命令行入口，返回 (exit_code, stdout+stderr)——用法错误只能这样测。"""
+    proc = subprocess.run(['python3', str(fixtures.RENDER), *args],
+                          capture_output=True, text=True)
+    return proc.returncode, proc.stdout + proc.stderr
 
 
 def line_of(md_path, needle):
@@ -326,7 +338,9 @@ def _(a):
 @case('锚点无题：缺 empty_reason 报错带行号；有则跳过不报')
 def _(a):
     subject = new_subject()
-    fixtures.write_quiz(subject, 2, 'first-program', {'别的锚点': QUIZ_BOUNDARY})
+    # 题库是空对象：这份内容里的题目位全靠 empty_reason 交代，没有一道题——
+    # 写别的键会变成「没人引用的孤儿锚点」，那是另一条错（见 ㉑）
+    fixtures.write_quiz(subject, 2, 'first-program', {})
     directive = '::: quiz 理解 锚点：不存在的锚点'
     md = fixtures.write_content(subject, 2, 'first-program', body=f'''## 数次数
 
@@ -342,7 +356,7 @@ def _(a):
     a.ok('报错时没有写盘', not os.path.exists(path))
 
     subject2 = new_subject()
-    fixtures.write_quiz(subject2, 2, 'first-program', {'别的锚点': QUIZ_BOUNDARY})
+    fixtures.write_quiz(subject2, 2, 'first-program', {})
     fixtures.write_content(subject2, 2, 'first-program', body=f'''## 数次数
 
 数循环次数靠把取值列出来。
@@ -1110,6 +1124,207 @@ def _(a):
     a.ok('提示卡里写了也拦', code3 != 0, f'exit={code3}')
     a.has(out3, f'{md3}:{line_of(md3, stray)}', label='提示卡里的也指到那一行')
     a.ok('提示卡报错时也没有写盘', not os.path.exists(path3))
+
+
+# ══════════════════════════════════════════════════════════════════
+# ㉑ 锚点对账（反方向）：题库里多出来的键没有任何题目位引用，那些题一道都不会上页面
+# ══════════════════════════════════════════════════════════════════
+
+@case('题库里的孤儿锚点：没有题目位引用它 → 报错带行号；删掉那个键就放行')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map', body='''## 边界
+
+::: quiz 理解 锚点：锚点A
+:::
+''')
+    quiz_path = os.path.splitext(fixtures.lesson_md(subject, 1, 'overview-map'))[0] + '.quiz.json'
+    fixtures.write_quiz(subject, 1, 'overview-map',
+                        {'锚点A': QUIZ_BOUNDARY, '孤儿锚点': QUIZ_BOUNDARY})
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('孤儿键非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{quiz_path}:', label='报错指到题库文件（不是内容文件）')
+    a.has(out, '孤儿锚点', label='报错点名那个没人引用的键')
+    a.has(out, '任何 ::: quiz 题目位引用', label='报错说清方向：没有任何题目位引用它')
+    a.ok('孤儿键报错时不写盘', not os.path.exists(path))
+
+    # 正方向没被误伤：删掉孤儿键，被引用的那道题照常渲染
+    fixtures.write_quiz(subject, 1, 'overview-map', {'锚点A': QUIZ_BOUNDARY})
+    code2, out2, text2, path2 = render(subject, 1, 'overview-map')
+    a.equal('删掉孤儿键后渲染成功', code2, 0)
+    a.has(text2, '<div class="quiz" data-quiz=', label='被引用的题照常产出')
+
+    # 同一类漏法的另一头：内容里一个题目位都没有，题库文件却还在（整份交付没人用）
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map', body='## 正文\n\n一段话。\n')
+    stale = fixtures.write_quiz(subject2, 1, 'overview-map', {'锚点A': QUIZ_BOUNDARY})
+    code3, out3, text3, path3 = render(subject2, 1, 'overview-map')
+    a.ok('没有题目位却留着题库文件：非零退出', code3 != 0, f'exit={code3}')
+    a.has(out3, f'{stale}:1', '没有任何 ::: quiz 题目位', label='报错指到题库文件并说清原因')
+    a.ok('这条报错时也不写盘', not os.path.exists(path3))
+
+    os.remove(stale)                                   # 说明页那种「本来就不交题库」的状态
+    code4, _, text4, path4 = render(subject2, 1, 'overview-map')
+    a.equal('把题库文件删掉就放行（没有题目位不要求题库）', code4, 0)
+    a.hasnt(text4, 'data-quiz', label='页面上没有题目块')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ㉒ 锚点对账（同向重复）：两个题目位用同一个锚点，同一批题会渲染两遍
+# ══════════════════════════════════════════════════════════════════
+
+@case('重复锚点：两个题目位用同一个锚点 → 报错指到第二个题目位；不写盘')
+def _(a):
+    subject = new_subject()
+    second = '::: quiz 应用 锚点：锚点A'
+    md = fixtures.write_content(subject, 1, 'overview-map', body='''## 边界
+
+::: quiz 理解 锚点：锚点A
+:::
+
+换个层级再问一次：
+
+''' + second + '''
+''')
+    fixtures.write_quiz(subject, 1, 'overview-map', {'锚点A': QUIZ_BOUNDARY})
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('重复锚点非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, second)}', label='报错指到第二个题目位那一行')
+    a.has(out, '锚点A', '重复', label='报错说清是同一个锚点被用了两次')
+    a.ok('重复锚点报错时不写盘', not os.path.exists(path))
+
+    # 两个题目位各用各的锚点就放行：两块都要在页面上（每块一份自己的题）
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map', body='''## 边界
+
+::: quiz 理解 锚点：锚点A
+:::
+
+再问一道：
+
+::: quiz 应用 锚点：锚点B
+:::
+''')
+    fixtures.write_quiz(subject2, 1, 'overview-map',
+                        {'锚点A': QUIZ_BOUNDARY, '锚点B': QUIZ_BOUNDARY})
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.equal('两个不同锚点放行', code2, 0)
+    a.equal('两道题各出一块', text2.count('<div class="quiz" data-quiz='), 2)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ㉓ 用法错误退 2；坏题库的三种形态都要响（不是 JSON / 不是对象 / 值是空数组）
+# ══════════════════════════════════════════════════════════════════
+
+@case('用法错误退 2（缺参/多参/未知参数；--help 退 0）；坏题库三种形态都非零退出')
+def _(a):
+    code, out = run_raw()
+    a.equal('不给参数退 2', code, 2)
+    a.has(out, '用法错误', '用法：python3 scripts/render_lesson.py', label='用法错误时打印用法')
+
+    code, out = run_raw('某个科目目录')
+    a.equal('只给一个参数退 2', code, 2)
+    a.has(out, '用法错误', label='缺参数也算用法错误')
+
+    code, out = run_raw('--nope', 'a', 'b')
+    a.equal('未知参数退 2', code, 2)
+    a.has(out, '未知参数 --nope', label='未知参数点名')
+
+    code, out = run_raw('--help')
+    a.equal('--help 退 0', code, 0)
+    a.has(out, '用法：', 'python3 scripts/render_lesson.py <科目目录> <节点id> [--check]',
+          label='--help 打印用法（文档字符串）')
+
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map',
+                           body='## 边界\n\n::: quiz 理解 锚点：锚点A\n:::\n')
+    quiz_path = os.path.splitext(fixtures.lesson_md(subject, 1, 'overview-map'))[0] + '.quiz.json'
+    for label, payload, expect in (
+            ('不是合法 JSON', '这不是 JSON', '不是合法 JSON'),
+            ('最外层不是对象', '[]', '最外层是对象'),
+            ('锚点的值是空数组', '{"锚点A": []}', '值应是非空的题目数组')):
+        with open(quiz_path, 'w', encoding='utf-8') as handle:
+            handle.write(payload)
+        code, out, text, path = render(subject, 1, 'overview-map')
+        a.ok(f'{label}：非零退出', code != 0, f'exit={code}')
+        a.has(out, f'{quiz_path}:', label=f'{label}：报错指到题库文件')
+        a.has(out, expect, label=f'{label}：报错说清原因')
+        a.ok(f'{label}：报错时不写盘', not os.path.exists(path))
+
+
+# ══════════════════════════════════════════════════════════════════
+# ㉔ R12：`kind: 实验` 的说明页（任务书、不出题、没有 .quiz.json）也走渲染器并过闸门
+# ══════════════════════════════════════════════════════════════════
+
+@case('kind: 实验 说明页：没有题库文件也渲染，且过闸门 OK（R12 路径）')
+def _(a):
+    subject = new_subject(nodes=[('overview-map', '概念', '全景地图'),
+                                 ('first-lab', '实验', '第一个实验')])
+    # 闸门对 `kind: 实验` 的课要求 lab 产物齐全：lab/<编号>-*/ 有任务文件 + lab/solutions/ 非空
+    lab_dir = os.path.join(subject, 'lab', '0002-first-lab')
+    os.makedirs(lab_dir, exist_ok=True)
+    with open(os.path.join(lab_dir, 'README.md'), 'w', encoding='utf-8') as handle:
+        handle.write('# 第一个实验\n\n任务：按三步把过程写下来。\n')
+    solutions = os.path.join(subject, 'lab', 'solutions')
+    os.makedirs(solutions, exist_ok=True)
+    with open(os.path.join(solutions, 'main.cpp'), 'w', encoding='utf-8') as handle:
+        handle.write('int main() { return 0; }\n')
+
+    fixtures.write_content(subject, 1, 'overview-map', body='## 正文\n\n一段话。\n')
+    render(subject, 1, 'overview-map')                 # 闸门按同目录编号判跳号，0001 要在
+    md = fixtures.write_content(subject, 2, 'first-lab', body='''## 任务书
+
+先读 [实验任务书](../lab/0002-first-lab/README.md)，按里面的三步做。
+
+::: tip 留白态
+`solutions/` 里的参考解不是给你看的。
+:::
+''')
+    quiz_path = os.path.splitext(md)[0] + '.quiz.json'
+    a.ok('实验说明页没有题目位（不出题）',
+         '::: quiz' not in open(md, encoding='utf-8').read())
+    code, out, text, path = render(subject, 2, 'first-lab')
+    a.equal('没有 .quiz.json 也渲染成功', code, 0)
+    a.ok('渲染器没有去要题库文件', not os.path.exists(quiz_path))
+    a.has(text, '<h1>第一个实验</h1>',
+          '<a href="../lab/0002-first-lab/README.md">实验任务书</a>',
+          '<div class="lesson-tip">', label='说明页渲染出正文与 lab 链接')
+    a.hasnt(text, 'class="quiz"', label='说明页里没有题目块')
+    gate_code, gate_out = fixtures.run_gate(path, subject, 'first-lab')
+    a.equal('实验说明页过闸门', gate_code, 0)
+    a.has(gate_out, f'OK   {path}', label='闸门回 OK')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ㉕ 加名字的硬边界：名单里每个名字都必须被形状正则捕获；连字符名捕不到（只能做 ::: 指令）
+# ══════════════════════════════════════════════════════════════════
+
+@case('名单与形状正则对得上（连字符名捕不到）＋文档写明了这条边界')
+def _(a):
+    unmatched = [name for name in sorted(render_lesson.HTML_TAG_NAMES)
+                 if not render_lesson.HTML_TAG_RE.match(f'<{name}>')
+                 or not render_lesson.TAG_SHAPE_RE.search(f'<{name}>')]
+    a.ok('名单里每个名字都被两个形状正则捕获（加进来的名字必须捕得到）', not unmatched,
+         f'这些名字正则捕不到：{unmatched}')
+    a.ok('名单里没有连字符名（形状正则的名字部分不含连字符）',
+         not [name for name in render_lesson.HTML_TAG_NAMES if '-' in name])
+    a.ok('连字符自定义元素的完整名字捕不到（「往名单里加名字」对它无效）',
+         render_lesson.HTML_TAG_RE.match('<syo-editor>').group(1) == 'syo'
+         and render_lesson.TAG_SHAPE_RE.search('<syo-editor>') is None)
+
+    doc_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), 'docs', '课件内容格式.md')
+    doc = open(doc_path, encoding='utf-8').read()
+    a.has(doc, '不含连字符', 'syo-editor', 'MathML',
+          label='格式文档写明连字符与 MathML 两条边界')
+
+    # 行为侧再钉一次：连字符名是普通文字（按文档是已知边界），换成标准标签就拦
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map',
+                           body='## 组件\n\n这段里写了 <syo-editor> 组件。\n')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('<syo-editor> 当普通文字放行（连字符名不进判据）', code, 0)
+    a.has(text, '<p>这段里写了 &lt;syo-editor&gt; 组件。</p>', label='按字面量转义出厂')
 
 
 def main():

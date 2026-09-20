@@ -19,7 +19,8 @@
 跳过这类软提醒）——它们不代表失败，退出码只看有没有 `<文件>:<行>` 的问题行。
 
 一条铁律：**认不出就报错**。未知指令、认不出的块语法、手写 HTML（含段落中间的标签形状）、锚点在
-题库里没有题又没写 `empty_reason:`、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
+题库里没有题又没写 `empty_reason:`、题库里多出来的锚点（没有题目位引用它）、没有题目位却留着题库
+文件、同一个锚点被两个题目位引用、配图文件不存在、模板缺占位符——全部带行号报错，绝不静默降级或
 丢内容。渲染器自己产出模型不该写的部分：head 与共享层引用、顶栏与主题开关、页头 eyebrow
 （`序号 · 标题`）、提问提示、按 curriculum.yaml 算的上/下节课指针、页脚、三个 `<script>` 与
 `LearnTheme.wire(...)`。交付页面从 `<!DOCTYPE html>` 开始：模板里给维护者看的说明注释留在
@@ -83,8 +84,17 @@ CJK_RE = re.compile(r'[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff0
 # 这是**唯一来源**：行首检查（html_block_tag）与行内检查（tag_shape_at）都查它，
 # 名单之外的写法一律当普通文字（`<T>` 泛型、`n<m` 运算符）。
 # 约定：**名单一律小写**；查表前把捕获到的名字 `.lower()`（HTML 标签名本来就不区分大小写）。
-# 扩展词汇（例如以后加 `syo-editor` 之类的新组件标签）时，**必须同步往这里加名字**，
-# 否则那个标签会被当普通文字放行——docs/课件内容格式.md §2 列的是同一份名单。
+# 扩展词汇（例如以后加新组件标签）时，**必须同步往这里加名字**，否则那个标签会被当普通文字
+# 放行——docs/课件内容格式.md §2 列的是同一份名单（测试会断言两边逐字一致）。
+#
+# **但加名字有硬边界**：两个形状正则（HTML_TAG_RE / TAG_SHAPE_RE）捕获的名字都是
+# `[a-zA-Z][a-zA-Z0-9]*`——**不含连字符**。所以 `<syo-editor>` 这类连字符自定义元素，往这份名单里
+# 加多少名字都匹配不上（行首检查的 HTML_TAG_RE 只截到连字符前的 `syo`，行内检查的 TAG_SHAPE_RE
+# 干脆不匹配），照旧被当字面量放行（静默出厂）。这类组件只能走 docs/课件内容格式.md
+# §7「已知边界」给的那条路：**做成 `:::` 指令**（渲染器 + 测试 + 文档），不在这份名单里加名字。
+# 同理，这份名单收的是**元素名**（标准 HTML 元素 + SVG 元素名）：MathML 的内层元素名
+# （`<mrow>`、`<mi>`、`<msqrt>` 这类）不在里面，写进正文会被当普通文字放行——要排数学式
+# 就用 `::: svg`（或纯文本），别指望名单兜住。
 #
 # 范围（**完整**，不是「常用」子集——子集的承诺是假的：模型随手写一个 `<iframe>` 就会
 # 当字面量出厂）：标准 HTML 元素全表（HTML living standard 的每一个元素，含 aside/video/form
@@ -1063,8 +1073,13 @@ class Renderer:
         return f'（来源：{row["url"]}，许可：{row["license"]}）'
 
 
-def load_quiz(path, problems):
-    """题库：`{"锚点文本": [题, …]}`；结构不对就报错（渲染器不猜）。"""
+def load_quiz(path, problems, referenced=None):
+    """题库：`{"锚点文本": [题, …]}`；结构不对就报错（渲染器不猜）。
+
+    `referenced` 给了就顺手做**反方向**的对账：题库里多出来的锚点（没有任何题目位引用）
+    一道题都不会出现在页面上，也要带行号报出来——出题角色的全部交付就是这份 JSON，
+    这个方向的漂移同样不许静默。
+    """
     if not os.path.isfile(path):
         problems.add(path, 1, '内容里有 ::: quiz，但找不到题库文件（出题角色产出 .quiz.json）')
         return None
@@ -1083,7 +1098,29 @@ def load_quiz(path, problems):
         if not isinstance(questions, list) or not questions:
             problems.add(path, line_of(raw, f'"{anchor}"'),
                          f'锚点「{anchor}」的值应是非空的题目数组')
+    if referenced is not None:
+        for anchor in data:
+            if anchor in referenced:
+                continue
+            problems.add(path, line_of(raw, json.dumps(anchor, ensure_ascii=False)),
+                         f'题库里的锚点「{anchor}」没有任何 ::: quiz 题目位引用它——'
+                         '这些题不会出现在页面上（删掉这个键，或让讲解角色在正文里补题目位）')
     return data
+
+
+def check_duplicate_anchors(md_path, blocks, problems):
+    """同一个锚点被两个题目位引用 → 同一批题会渲染两遍，按错拦下（锚点是一对一的接头）。"""
+    first_line = {}
+    for block in blocks:
+        if block.get('name') != 'quiz':
+            continue
+        anchor = block['anchor']
+        if anchor in first_line:
+            problems.add(md_path, block['line'],
+                         f'锚点「{anchor}」重复：第 {first_line[anchor]} 行已经用过同一个锚点——'
+                         '同一批题会被渲染两遍（一个锚点只留一个题目位）')
+        else:
+            first_line[anchor] = block['line']
 
 
 def load_pool(subject_dir, problems):
@@ -1229,7 +1266,18 @@ def main(argv):
     blocks = parse_blocks(md_path, lines, body_start, len(lines), problems)
 
     needs_quiz = any(block.get('name') == 'quiz' for block in blocks)
-    quiz = load_quiz(quiz_path, problems) if needs_quiz else None
+    check_duplicate_anchors(md_path, blocks, problems)
+    referenced = {block['anchor'] for block in blocks if block.get('name') == 'quiz'}
+    if needs_quiz:
+        quiz = load_quiz(quiz_path, problems, referenced)
+    else:
+        quiz = None
+        if os.path.isfile(quiz_path):
+            # 内容里一个题目位都没有、题库文件却还在：出题角色的整份交付没人用（题目全丢）。
+            # `kind: 实验` 的说明页本来就不交题库，所以只有「文件真的存在」时才查这一条。
+            problems.add(quiz_path, 1,
+                         '内容文件里没有任何 ::: quiz 题目位，但题库文件还在——这些题一道也不会'
+                         '出现在页面上（删掉题库文件，或在正文里补上题目位）')
     pool = load_pool(subject_dir, problems) if any(block.get('name') == 'figure' for block in blocks) else {}
 
     renderer = Renderer(md_path, problems, lessons_dir, quiz,

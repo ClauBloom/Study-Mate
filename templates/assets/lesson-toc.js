@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    StudyMate · 课件侧边目录（照搬 sayo-ui 文档页的侧边栏）
    ═══════════════════════════════════════════════════════════════
-   用法：课件页底部引一次（骨架 templates/lesson.html 里已经带好）：
+   用法：课件页底部引一次（占位符壳 templates/lesson.html 由渲染器填好后已经带好）：
 
      <script src="../assets/lesson-toc.js" defer></script>
 
@@ -19,10 +19,10 @@
        <article class="lesson">…</article>
      </div>
 
-    上/下节课指针不在这里生成——它是**课件里的真实链接**（`<nav class="lesson-nav">`，由讲解角色按
-    `<序号>-<节点id>.html` 写），本脚本只负责把那一块搬到目录下面。理由：取值来自
-    `curriculum.yaml`（节点 id 与顺序），只有写课件的人手上有；照原样留在正文里，没有 javascript
-    时也还能点。
+    上/下节课指针不在这里生成——它是**课件里的真实链接**（`<nav class="lesson-nav">`，由
+    `scripts/render_lesson.py` 按 `curriculum.yaml` 的 nodes 顺序渲染进正文），本脚本只负责把那一块
+    搬到目录下面。取值来自 `curriculum.yaml`（节点 id 与顺序），所以交给渲染器算；照原样留在正文里，
+    没有 javascript 时也还能点。
 
    行为也照搬：桌面折叠状态记在 localStorage、≤1024px 自动收成 rail、≤768px 变抽屉
    （顶栏里的汉堡拉开、点遮罩或点链接关掉）；当前小节高亮由 Sayo 的 data-syo-scrollspy 负责

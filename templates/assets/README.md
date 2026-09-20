@@ -12,7 +12,7 @@
 | `learn-theme.js` | **共享行为层**：① 主题（亮/暗）逻辑——早期应用、切换并持久化、绑定开关（`LearnTheme.apply/set/toggle/current/wire`）；② **代码块高亮**——课件里的 `<pre><code>` 与 `.syo-editor` 加载即自动上色（`LearnTheme.highlight`）。三个页面共用，别各写一份 | 本项目自研 |
 | `style.css` | **课件层**（讲解排版 + 练习样式），叠在 Sayo 之上 | 本项目自研；Task 8 拷进每个科目 |
 | `quiz.js` | 课件**题目组件**（选择题即时反馈 + 开放题点开对照参考答案与算过标准）。数据契约以它顶部注释为准 | 同上 |
-| `lesson-toc.js` | 课件**侧边目录 + 上/下节课入口**：目录按页面 `<h2>` 自动生成；正文里的 `<nav class="lesson-nav">`（讲解角色写的真实链接）会被搬到目录下面。样式照搬 sayo-ui 文档页的 `.doc-sidebar`（可折叠成 rail、≤768px 变抽屉 + 汉堡），高亮交给 Sayo 的 `data-syo-scrollspy` | 同上 |
+| `lesson-toc.js` | 课件**侧边目录 + 上/下节课入口**：目录按页面 `<h2>` 自动生成；正文里的 `<nav class="lesson-nav">`（**渲染器按 `curriculum.yaml` 算出来的真实链接**）会被搬到目录下面。样式照搬 sayo-ui 文档页的 `.doc-sidebar`（可折叠成 rail、≤768px 变抽屉 + 汉堡），高亮交给 Sayo 的 `data-syo-scrollspy` | 同上 |
 
 ## 在工作区里的落地位置与引用路径
 
@@ -30,22 +30,29 @@
         │   ├── style.css
         │   ├── quiz.js
         │   └── lesson-toc.js
-        └── lessons/<NNNN>-<节点id>.html         # 课件（NNNN = 节点在 curriculum.yaml 里的序号）
+        └── lessons/                             # 每课三件：内容 + 题库由模型写，页面由渲染器产出
+            ├── <NNNN>-<节点id>.md               # 内容文件（讲解角色写；格式见 docs/课件内容格式.md）
+            ├── <NNNN>-<节点id>.quiz.json        # 题库（出题角色写；有 ::: quiz 题目位时才要）
+            └── <NNNN>-<节点id>.html             # 课件页面（render_lesson.py 产出，别手改）
 ```
 
-各页面**必须**按下面的相对路径引用（路径写死在模板/课件里）：
+各页面**必须**按下面的相对路径引用（路径写死在模板/课件里）；课件文件名的 `NNNN` = 节点在
+`<科目>/curriculum.yaml` 的 `nodes:` 里的序号（渲染器按它算，别自己编）：
 
 | 页面 | 引用共享层 | 引用本科目层 |
 |------|-----------|-------------|
 | 根主页 `<WS>/index.html` | `.learning/assets/sayo/sayo.css`<br>`.learning/assets/learn-theme.css`<br>`.learning/assets/learn-theme.js`<br>`.learning/assets/sayo/sayo.js` | — |
 | 科目主页 `<WS>/.learning/subjects/<slug>/index.html` | `../../assets/sayo/sayo.css`<br>`../../assets/learn-theme.css`<br>`../../assets/learn-theme.js`<br>`../../assets/sayo/sayo.js` | `assets/style.css` |
-| 课件 `<WS>/.learning/subjects/<slug>/lessons/<NNNN>-<节点id>.html`<br>（从 `templates/lesson.html` 拷起） | `../../../assets/sayo/sayo.css`<br>`../../../assets/learn-theme.css`<br>`../../../assets/learn-theme.js`<br>`../../../assets/sayo/sayo.js` | `../assets/style.css`<br>`../assets/quiz.js`<br>`../assets/lesson-toc.js` |
+| 课件 `<WS>/.learning/subjects/<slug>/lessons/<NNNN>-<节点id>.html`<br>（由 `scripts/render_lesson.py` 从 `<NNNN>-<节点id>.md` + `.quiz.json` 渲染产出；`templates/lesson.html` 是占位符壳，**不要手工拷贝**） | `../../../assets/sayo/sayo.css`<br>`../../../assets/learn-theme.css`<br>`../../../assets/learn-theme.js`<br>`../../../assets/sayo/sayo.js` | `../assets/style.css`<br>`../assets/quiz.js`<br>`../assets/lesson-toc.js` |
 
 > 路径提示：课件在 `.learning/subjects/<slug>/lessons/` 下，向上三层就是 `.learning/`，
 > 所以共享层是 `../../../assets/…`（不要再写一层 `.learning`）；科目内组件则是 `../assets/…`。
 >
 > 为什么分两层：共享层体积 260KB+，每个科目各拷一份纯属浪费；`style.css` / `quiz.js` / `lesson-toc.js`
-> 留在科目内，是因为讲解角色会往 `<subject>/assets/` 追加该科目专用的展示组件（题目内容与字段契约归题目角色，不在这里改）。
+> 留在科目内，是因为它们是**课件层的三个组件**，按「总控建科目」的口径随科目落地，渲染器产出的课件
+> 按 `../assets/…` 引用它们（题目内容与字段契约归题目角色，不在这里改）。**讲解角色不往这里追加组件**：
+> 页面里的组件 HTML 全部由渲染器产出，要加新组件得给渲染器加 `:::` 指令——流程见
+> `docs/课件内容格式.md` 的「已知边界」。
 
 ## 代码块高亮约定
 

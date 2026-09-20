@@ -17,7 +17,8 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
 ```
 
 产出：`.preview/index.html`（根主页）、`.preview/.learning/subjects/typescript-web-api/index.html`（科目页）、
-`.preview/.../lessons/0001-http-basics.html`（骨架渲染出的空壳页）、以及两份空状态页。
+`.preview/.../lessons/0001-http-basics.html`（课件页——预览写一份示例内容文件交给 `scripts/render_lesson.py`
+渲染，与真实课件是同一条产出路径）、以及两份空状态页。
 地址栏加 `?theme=dark` 看暗色。`.preview/` 已在 `.gitignore` 里。
 
 真实生成器是 **Task 13 的 `scripts/gen_home.py`**（读真数据、输出到学习工作区），预览脚本只负责看样式与交互。
@@ -28,19 +29,26 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
 - **区块级占位符必须独立成行**（生成器按整行替换）；**字段级可嵌在标签内**（如 `<title><!-- @LEARN:TITLE --> · 课程主页</title>`）
 - 生成器**原样保留模板其余内容**（样式、脚本、文案），区块占位符缺失时报错退出
 - 模板里**不放真实课程数据**：规范注释里的示例一律用字段名（`节点标题`、`NNNN`、`NN%`），避免被误当成数据
-- 占位符清单与每个占位符必须生成的结构：见 `docs/实施计划.md` 的 Global Constraints，以及**模板里占位符上方那段注释**（那是权威规范，改模板要同步改）
+- 占位符清单与每个占位符必须生成的结构：**两个主页模板**见 `docs/实施计划.md` 的 Global Constraints，
+  以及模板里占位符上方那段注释（那是权威规范，改模板要同步改）；**课件壳 `lesson.html`** 的 8 个
+  占位符见 `docs/课件内容格式.md` §5 与模板自己的注释——它不在 Global Constraints 那份清单里。
 
-| 模板 | 占位符 |
-|------|--------|
-| `home-index.html` | `SUBJECT_CARDS` |
-| `subject-index.html` | `TITLE` · `STATUS` · `MISSION` · `PROJECT` · `ROADMAP` · `ATTACHMENTS` |
+| 模板 | 占位符 | 权威在哪 |
+|------|--------|----------|
+| `home-index.html` | `SUBJECT_CARDS` | `docs/实施计划.md` Global Constraints + 模板注释 |
+| `subject-index.html` | `TITLE` · `STATUS` · `MISSION` · `PROJECT` · `ROADMAP` · `ATTACHMENTS` | 同上 |
+| `lesson.html` | `TITLE`（两处）· `SUBJECT`（两处）· `NUMBER` · `EYEBROW` · `GOAL` · `BODY` · `NAV` · `FOOTER` | `docs/课件内容格式.md` §5 + 模板自己的注释 |
 
 ## 其他文件
 
-- `lesson.html`：**课件骨架**。不是生成器输入，而是**拷着用**的起点——learning-coach 写课件时整份拷到
-  `<subject>/lessons/NNNN-x.html` 再写正文。顶栏（含亮/暗主题开关）、三个样式/脚本引用、提问提示块都已就位；
-  **正文不由骨架规定**：骨架只给工程外壳与注释形式的组件示例，分几节、怎么讲由讲解角色按内容自定，
-  交出前跑一次 `python3 scripts/check_lesson.py <课件路径>`。学生常被总控用 `xdg-open` 直接打开课件，
-  所以**主题开关必须长在课件自己身上**，别删。
+- `lesson.html`：**课件页的占位符壳**——**不要手工拷贝这个文件**。课件 HTML 由渲染器产出：
+  `python3 scripts/render_lesson.py <科目目录> <节点id>` 读内容文件 `<科目>/lessons/<序号>-<节点id>.md`
+  + 题库 `<序号>-<节点id>.quiz.json` + `<科目>/curriculum.yaml`，渲染成 `<序号>-<节点id>.html`。
+  顶栏（含亮/暗主题开关）、共享层与科目组件的引用、页头、上/下节课指针、页脚、三个 `<script>` 与
+  `LearnTheme.wire(...)` 全是**渲染器产出**，模板只提供占位符与给维护者看的注释（注释留在
+  `<!DOCTYPE` 之前，不进产物）。正文语法与组件写法以 **`docs/课件内容格式.md`** 为准（唯一规格）；
+  交出前跑一次 `python3 scripts/check_lesson.py <课件路径> --subject <科目目录> --node <节点id>`。
+  学生常被总控用 `xdg-open` 直接打开课件，所以**主题开关必须长在课件自己身上**——它由渲染器按模板
+  产出，要改就改模板或渲染器，别去手改 `<序号>-<节点id>.html`。
 - `MEMORY.md` / `subject.yaml` / `MISSION.md` / `RESOURCES.md` / `GLOSSARY.md`：科目与记忆模板（Task 3 的非前端部分，由对应会话产出）
 - `assets/`：前端资源（Sayo UI、共享主题层与主题逻辑、课件层组件）——**摆放位置与各页面引用路径见 `assets/README.md`**
