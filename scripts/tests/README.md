@@ -19,7 +19,7 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 | `test_naming_nav.py` | 闸门检查项 8：文件名与大纲位次一致、上/下节课指针指向大纲邻居、悬空指针只提示、归属查不出即 FAIL（9 个场景） |
 | `test_pool.py` | 池子校验器 `check_pool.py`：表头七列齐全（分隔行跳过）、每行的图真在 `assets/img/pool/` 下、文件名合规（字符集 + ≤60 字符）、`来源 URL`/`许可`/`抓取日期` 非空、单张 ≤300 KB（按文件字节，不读 `尺寸` 列）（6 例） |
 | `test_render_lesson.py` | 课件渲染器 `render_lesson.py`：壳与接线齐全、正文与代码块的 `&<>` 转义且代码原文逐字、表格/列表/围栏/行内标记、题目按锚点合入且 `data-quiz` 单引号包裹与实体正确、锚点无题必须 `empty_reason`、配图存在性与题注来源、导航序号按大纲算、未知指令与手写 HTML（块首与段落中间、HTML 注释、front matter 的 title、`alt:` 与 `caption:`、`script`/`style`/`link`/`meta` 与 `iframe`/`video`/`form`/`main`/`button`/`canvas` 及 11 个 SVG 名）带行号报错、一级标题与行首 `#include` 不许静默消失、运算符/泛型/落单反引号不误伤、真标签名单是完整 HTML 元素表 + SVG 名且与格式文档和测试里的字面集合逐字一致、`::: svg` 的收尾按保留换行的文本判（拆成两行不算闭合）、模板占位符报错指向真实行号、`--check` 不写盘、渲染产物过闸门且不带模板说明注释（19 例） |
-| `test_skill_rules.py` | 提示词回归：`.dsh/skills/*/SKILL.md` 里 331 条可执行规则逐条在位（压缩/改写时不许丢规则） |
+| `test_skill_rules.py` | 提示词回归：`.dsh/skills/*/SKILL.md` 里 341 条可执行规则逐条在位（压缩/改写时不许丢规则） |
 | `quiz_dom_test.js` | `templates/assets/quiz.js`：选择题判分、开放题展开/收起、坏数据兜底、计分，以及围栏 → `<pre><code>` 的渲染与 `textContent` 语义（26 项） |
 | `toc_dom_test.js` | `templates/assets/lesson-toc.js`：侧栏目录、折叠、移动端抽屉、上/下节课指针搬进侧栏（27 项） |
 
