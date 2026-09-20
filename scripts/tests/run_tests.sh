@@ -30,7 +30,7 @@ step '命名与上下节课指针（闸门，9 例）'    python3 scripts/tests/
 step '池子索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
 step '位次重排与 empty_reason（脚本，21 例）'  python3 scripts/tests/test_lesson_scripts.py
 step '课件渲染（渲染器，25 例）'           python3 scripts/tests/test_render_lesson.py
-step '提示词规则清单（387 条）'            python3 scripts/tests/test_skill_rules.py
+step '提示词规则清单（390 条）'            python3 scripts/tests/test_skill_rules.py
 
 if command -v node >/dev/null 2>&1; then
   step 'quiz.js 渲染（26 项）'             node scripts/tests/quiz_dom_test.js
