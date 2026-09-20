@@ -573,6 +573,9 @@ def parse_directive(path, lines, index, end, problems):
     if not known:
         return None, next_index
 
+    if name != 'quiz':
+        reject_stray_empty_reason(path, name, lines, index + 1, body_end, problems)
+
     if name in CONTAINER_DIRECTIVES:
         body = parse_blocks(path, lines, index + 1, body_end, problems)
         if name == 'practice':
@@ -586,6 +589,29 @@ def parse_directive(path, lines, index, end, problems):
     if name == 'svg':
         return build_svg(path, args, lines, index + 1, body_end, line_no, problems), next_index
     return build_links(path, name, lines, index + 1, body_end, line_no, problems), next_index
+
+
+def reject_stray_empty_reason(path, name, lines, start, end, problems):
+    """`empty_reason:` 只属于 `::: quiz` 的无题锚点；别的指令块里写了就按错拦下。
+
+    `::: practice`／`::: tip` 这类容器的块内是普通块，这一行会被当段落渲染成
+    `<p>empty_reason: …</p>` 印给学生，退出码还是 0——等于把内部记号静默送出厂。
+    围栏里的同名字符串是代码原文，不算。
+    """
+    in_fence = False
+    for offset in range(start, end):
+        text = lines[offset].strip()
+        if text.startswith('```'):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        field = FIELD_RE.match(text)
+        if field and field.group(1) == 'empty_reason':
+            problems.add(path, offset + 1,
+                         f'empty_reason: 只能出现在 ::: quiz 的块里（它给无题锚点用，'
+                         f'::: {name} 没有锚点）——删掉这一行；要留题目位就写 '
+                         '::: quiz <层级> 锚点：<锚点文本>')
 
 
 def build_practice(path, args, body, line_no, problems):

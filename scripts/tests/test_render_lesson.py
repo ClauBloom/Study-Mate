@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，19 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，20 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -7,7 +7,8 @@
 
   壳与接线（共享层 4 引用 + 科目组件 2 引用 + 主题开关 + 三个 script）· `&<>` 转义与代码原文
   逐字 · 表格/列表/围栏/行内标记 · 题目按锚点合入且 `data-quiz` 属性值转义正确（单引号包裹、
-  值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason` · 配图存在性与题注来源 · 导航
+  值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason`（且**只准**出现在 `::: quiz`——
+  写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）· 配图存在性与题注来源 · 导航
   与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
   **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示；
   真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀；
@@ -1073,6 +1074,42 @@ def _(a):
     missing = [name for name in sorted(RULED_TAG_NAMES) if f"读到 '<{name}>'" not in out4]
     a.ok('名单里每个名字都真的会拦', not missing, f'这些名字没拦住：{missing}')
     a.ok('名单全拦截时不写盘', not os.path.exists(path4))
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⑳ empty_reason 只准出现在 ::: quiz：别的指令块里写了会当正文印出来，按错拦下
+# ══════════════════════════════════════════════════════════════════
+
+@case('empty_reason 只准出现在 ::: quiz：practice/tip 里写了报错带行号，删掉就放行')
+def _(a):
+    stray = 'empty_reason: 该锚点的验收点在 lab 里验'
+    head = '## 跑三遍\n\n把命令换三个输入各跑一次。\n\n'
+
+    subject = new_subject()
+    md = fixtures.write_content(
+        subject, 2, 'first-program',
+        body=head + '::: practice 跟做 | 第 1 步 · 三条路各跑一次\n\n' + stray + '\n\n:::\n')
+    code, out, text, path = render(subject, 2, 'first-program')
+    a.ok('动手段落里写了 empty_reason 时非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, stray)}', label='报错指到 empty_reason 那一行')
+    a.has(out, '::: quiz', label='报错说清它只属于 ::: quiz')
+    a.ok('报错时没有写盘', not os.path.exists(path))
+
+    subject2 = new_subject()
+    fixtures.write_content(
+        subject2, 2, 'first-program',
+        body=head + '::: practice 跟做 | 第 1 步 · 三条路各跑一次\n\n三条输入各跑一次。\n\n:::\n')
+    code2, _, text2, path2 = render(subject2, 2, 'first-program')
+    a.equal('把那一行删掉就放行', code2, 0)
+    a.has(text2, 'lesson-practice__level', label='动手段落照常产出')
+
+    subject3 = new_subject()
+    md3 = fixtures.write_content(subject3, 2, 'first-program',
+                                 body='## 记一下\n\n::: tip 记一下\n\n' + stray + '\n\n:::\n')
+    code3, out3, _, path3 = render(subject3, 2, 'first-program')
+    a.ok('提示卡里写了也拦', code3 != 0, f'exit={code3}')
+    a.has(out3, f'{md3}:{line_of(md3, stray)}', label='提示卡里的也指到那一行')
+    a.ok('提示卡报错时也没有写盘', not os.path.exists(path3))
 
 
 def main():
