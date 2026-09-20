@@ -12,12 +12,12 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 
 | 套件 | 钉住什么 |
 |---|---|
-| `test_install.py` | `install.sh`：预设装到哪、占位符换成引擎 skills 路径、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。全部在沙箱 `HOME` 里跑（19 项） |
+| `test_install.py` | `install.sh`：预设装到哪、占位符换成引擎 skills 路径、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。全部在沙箱 `HOME` 里跑（16 项） |
 | `test_quiz_attr.py` | 闸门对 `data-quiz` 属性值写法的判定：9 例矩阵（单引号/双引号包裹 × 引号怎么写），含「实体引号提前闭合 JSON 字符串」与「裸引号把属性截断」两类 |
-| `test_quiz_code.py` | 题面里的 ` ``` ` 代码围栏：成对放行、没闭合即拦（含 `answer` 字段）、行内单个反引号不算围栏（6 例） |
+| `test_quiz_code.py` | 题面里的 ` ``` ` 代码围栏：成对放行、没闭合即拦（含 `answer` 字段）、行内单个反引号不算围栏（12 例） |
 | `test_lesson_figure.py` | 闸门检查项 9（配图）：本地图存在放行、**不存在即拦**（学生看到裂图；`gen_home` 的链接自检只管它写出的主页，课件页不在其范围内）、外链图与缺 `alt` 只提示、内联 SVG 不需要文件（5 例） |
 | `test_naming_nav.py` | 闸门检查项 8：文件名与大纲位次一致、上/下节课指针指向大纲邻居、悬空指针只提示、归属查不出即 FAIL（9 个场景） |
-| `test_pool.py` | 池子校验器 `check_pool.py`：表头七列齐全（分隔行跳过）、每行的图真在 `assets/img/pool/` 下、文件名合规（字符集 + ≤60 字符）、`来源 URL`/`许可` 非空、单张 ≤300 KB（按文件字节，不读 `尺寸` 列）（6 例） |
+| `test_pool.py` | 池子校验器 `check_pool.py`：表头七列齐全（分隔行跳过）、每行的图真在 `assets/img/pool/` 下、文件名合规（字符集 + ≤60 字符）、`来源 URL`/`许可`/`抓取日期` 非空、单张 ≤300 KB（按文件字节，不读 `尺寸` 列）（6 例） |
 | `test_skill_rules.py` | 提示词回归：`.dsh/skills/*/SKILL.md` 里 320 条可执行规则逐条在位（压缩/改写时不许丢规则） |
 | `quiz_dom_test.js` | `templates/assets/quiz.js`：选择题判分、开放题展开/收起、坏数据兜底、计分，以及围栏 → `<pre><code>` 的渲染与 `textContent` 语义（26 项） |
 | `toc_dom_test.js` | `templates/assets/lesson-toc.js`：侧栏目录、折叠、移动端抽屉、上/下节课指针搬进侧栏（27 项） |
@@ -30,12 +30,14 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 | `browser/quiz_code_test.mjs` | 题目里的代码块在真实 Chrome 里的样子：等宽、非粗体、**缩进按行保留**（按 Range 量左边界）、自动上色（`syn-*` 类真的出现——它验的是 quiz.js 建块后自己再触发一次扫描）、无围栏的题面不产生代码块（11 项） |
 | `browser/measure.mjs` | 主题测量：对比度扫描（含元素 `opacity` 与合成）、指定选择器的计算值、`--hover` 实测某选择器悬停态 |
 | `browser/hovers.mjs` | 批量取 hover 前后的计算值（给「悬停不许改底色」这类判断用） |
+| `browser/shot.mjs` | 截图工具：整页截图 + 记录目标元素的框（浅色/深色各一张），供人工验收与文档配图；`node scripts/tests/browser/shot.mjs <file-url> <out-prefix> <css-selector>`，chrome 起不来或选择器没命中就一行报错 + 非零退出 |
 | `browser/palette.py` | 由主色算一套配色表（纯 Python，不开浏览器） |
 | `browser/highlight-fixture.html` | 高亮套件的 fixture（引用仓库内的 `templates/assets/`） |
 | `browser/quiz-code-fixture.html` | 题目代码块的 fixture：一道围栏题 + 一道纯散文题（回归用） |
 
-后三个是**手动工具**不是断言套件：`measure.mjs` 与 `hovers.mjs` 要自己给页面 URL
-（`node scripts/tests/browser/measure.mjs file:///…/index.html [--hover ".sel"]`）。
+`measure.mjs`、`hovers.mjs`、`shot.mjs` 与 `palette.py` 是**手动工具**不是断言套件：前三个要自己给页面 URL
+（`node scripts/tests/browser/measure.mjs file:///…/index.html [--hover ".sel"]`、
+`node scripts/tests/browser/shot.mjs <file-url> <out-prefix> <css-selector>`），`palette.py` 吃主色出配色表。
 
 ## 写新测试
 

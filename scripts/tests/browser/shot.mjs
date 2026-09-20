@@ -18,10 +18,15 @@ const PROFILE = join(tmpdir(), 'smshot-' + Date.now());
 const chrome = spawn('google-chrome', ['--headless=new', '--disable-gpu', '--hide-scrollbars',
   '--no-first-run', `--user-data-dir=${PROFILE}`, `--remote-debugging-port=${PORT}`,
   '--window-size=820,900', 'about:blank'], { stdio: 'ignore' });
+// 没装 chrome / 起不来时 spawn 抛的是未捕获的 ENOENT（带回溯），把文档里那条失败路径变成死代码。
+// 接住 'error' 存下来，交给 target() 抛出去 —— 还是同一个 catch：一行可读报错 + 非零退出 + 收尾
+let spawnError = null;
+chrome.on('error', (error) => { spawnError = error; });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function target() {
   for (let i = 0; i < 60; i++) {
+    if (spawnError) throw new Error(`chrome 起不来：${spawnError.message}`);
     try {
       const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
       const page = list.find((t) => t.type === 'page');

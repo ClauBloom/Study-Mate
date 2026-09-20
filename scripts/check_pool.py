@@ -15,7 +15,8 @@
   ② 每行 `文件` 在池子目录里真实存在
   ③ 文件名匹配命名规则（`<主题>-<子主题>-<要点>-<来源缩写>-<NN>.<ext>`，只用
      `[0-9A-Za-z\\u4e00-\\u9fa5-]`、无空格）且总长 ≤60 字符
-  ④ `来源 URL` 与 `许可` 都非空（页面没标注也要写「未标注」，否则课件写不出 figcaption）
+  ④ `来源 URL`、`许可` 与 `抓取日期` 都非空（页面没标注也要写「未标注」；抓取日期写
+     `YYYY-MM-DD`，与 `image-scout` 第 6 步一致，否则课件写不出 figcaption）
   ⑤ 单张 ≤300 KB——按**磁盘上的文件字节**判；`尺寸` 列是「宽×高」（像素），
      与体积无关，不参与判定
 
@@ -81,7 +82,7 @@ def find_header(lines):
 
 
 def check_row(cells, index, pool_dir, number):
-    """② 文件存在 + ③ 文件名 + ④ 来源/许可非空 + ⑤ 体积。返回 [(行号, 问题)]。"""
+    """② 文件存在 + ③ 文件名 + ④ 来源/许可/抓取日期非空 + ⑤ 体积。返回 [(行号, 问题)]。"""
     problems = []
 
     def cell(name):
@@ -101,15 +102,19 @@ def check_row(cells, index, pool_dir, number):
     elif not POOL_NAME_RE.match(name):
         problems.append((number, f'文件名不合规：要 `{POOL_NAME_SHAPE}`（只用 {POOL_NAME_CHARS}、'
                                  f'无空格）：{name}'))
+    # ④ 三列都非空：来源 URL、许可、抓取日期（抓取日期此前漏在校验外，空着也印 OK，
+    # 而计划 Global Constraints 与 image-scout 第 6 步都要求三列齐）
     for column, hint in (('来源 URL', '这条图所在页面的地址，不是图片文件地址'),
-                         ('许可', '页面没标注也要写「未标注」')):
+                         ('许可', '页面没标注也要写「未标注」'),
+                         ('抓取日期', '抓取那天，要写成 `YYYY-MM-DD` 这样的日期')):
         if index.get(column) is not None and not cell(column):
             problems.append((number, f'`{column}` 为空（{hint}）'))
     if exists:
         size = os.path.getsize(target)
         if size > MAX_BYTES:
-            problems.append((number, f'超体积：{name} {size / 1024:.0f} KB > '
-                                     f'{MAX_BYTES // 1024} KB（不缩放、超了就放弃）'))
+            # 只报字节：四舍五入成 KB 时 307201 B 会印成「300 KB > 300 KB」，自相矛盾
+            problems.append((number, f'超体积：{name} {size} B > {MAX_BYTES} B'
+                                     f'（{MAX_BYTES // 1024} KB 上限；不缩放、超了就放弃）'))
     return problems
 
 
@@ -124,8 +129,16 @@ def check_pool(subject_path):
                                 f'它应是池子目录的兄弟 {INDEX_REL}'))
         return problems, 0
 
-    with open(index_path, encoding='utf-8') as handle:
-        lines = handle.read().splitlines()
+    with open(index_path, 'rb') as handle:
+        raw = handle.read()
+    try:
+        text = raw.decode('utf-8')
+    except UnicodeDecodeError as error:
+        # 非 UTF-8 也要守住输出契约（`<索引路径>:<行号> <问题>`，不抛回溯）：先定位坏字节在第几行
+        number = raw[:error.start].count(b'\n') + 1
+        return [(number, f'索引不是 UTF-8：第 {number} 行解不开（{error.reason}）——'
+                         f'索引必须是 UTF-8，否则表头与数据行都读不出来')], 0
+    lines = text.splitlines()
     header_number, columns = find_header(lines)
     if columns is None:
         return [(0, f'索引里没有表头行（逐字应为 | {" | ".join(REQUIRED_COLUMNS)} |）')], 0
