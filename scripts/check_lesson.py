@@ -48,6 +48,9 @@
        · `.lesson-nav` 里的 `--prev` / `--next` 必须正好指向大纲里的前后邻居
          （有邻居就得写、没有邻居就不许写；href 是同目录下的文件名）。
        · 指针指向的文件不存在只提示不阻断——下节课通常还没产出，落空是设计内的。
+    9 图片：<img> 引用的**本地**文件必须真实存在——学生看到裂图是工程缺陷，必须拦。
+       gen_home 的链接自检只管它自己写出的主页（根主页 + 科目主页），课件页不在它范围内。
+       内联 <svg> 不引用文件，这条不管。
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
     · 题面/答案的散文里出现 Markdown/HTML 标记（`**加粗**`、行内反引号、`# 标题`、`- 列表`、
       `<b>`）：字段是**纯文本**，这些会原样显示（换行用 `\n`、代码用 ``` 围栏）。
@@ -55,6 +58,9 @@
     · 实操判定被跳过（没给 --subject/--node，或 progress.yaml 读不出来）。
     · 小节标题超过 14 字：它会进左侧目录（220px 宽），长了要换行。
     · 上/下节课指针指向的课件还没产出（悬空指针，正常）。
+    · 图片用了外链（http/https 或其他 scheme）：离线打开会裂；建议从科目池子
+      `assets/img/pool/` 挑一张本地文件引用。
+    · 图片缺 alt：裂图时学生只看到空白，读屏软件也读不出。
 
 本闸门**不判内容风格**：真实场景、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
 着眼点与倾向，由讲解角色按内容与学生偏好现场定；闸门不用关键词词表去替它做判断——那种代理会把
@@ -101,6 +107,9 @@ MARKDOWN_RE = (
     re.compile(r'\[[^\]\n]+\]\([^)\n]+\)'),  # [链接](url)
     re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*[ >/]'),  # <b> 之类
 )
+
+# 检查项 9：图片 src 是否外链（任何 scheme: 或协议相对 //，与 gen_home 的 SCHEME_RE 同口径）
+IMG_SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 
 # 检查项 4：题目结构里的 ``` 围栏（与 templates/assets/quiz.js 的渲染口径一致）
 # 围栏行 = 行首可有缩进 + 三个反引号 + 可选语言标签；行内的单个反引号不算。
@@ -798,6 +807,51 @@ def check_quiz(text, required=True):
     return problems, notes
 
 
+class ImgScanner(HTMLParser):
+    """收集 <img> 的 src 与 alt（起始标签回调，注释/脚本文本不会进来）。"""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.images = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag != 'img':
+            return
+        attributes = {name.lower(): value for name, value in attrs}
+        self.images.append((attributes.get('src') or '', attributes.get('alt')))
+
+
+def check_images(text, path):
+    """检查项 9：课件里的图片。
+
+    三条，按「学生会不会看到坏东西」判：
+      · 本地图不存在 → **阻断**（学生看到裂图；gen_home 的自检只管自己写出的主页，
+        课件页明确不在它的范围内，所以这道只能由闸门把）
+      · 外链图（http/https）→ 提示：离线打开会裂，建议从科目池子挑一张本地文件
+      · 没有 alt → 提示：裂图时学生只看到空白，读屏软件也读不出
+    """
+    problems = []
+    notes = []
+    scanner = ImgScanner()
+    scanner.feed(text)
+    for src, alt in scanner.images:
+        value = (src or '').strip()
+        if not value:
+            problems.append('<img> 没有 src')
+            continue
+        if IMG_SCHEME_RE.match(value):
+            notes.append(f'图片用了外链（{value[:60]}）——离线打开会裂；'
+                         f'建议从科目池子 assets/img/pool/ 挑本地文件引用')
+        else:
+            target = os.path.normpath(os.path.join(os.path.dirname(path) or '.',
+                                                   value.split('#', 1)[0].split('?', 1)[0]))
+            if not os.path.exists(target):
+                problems.append(f'图片引用了不存在的文件：{value}（解析到 {target}）')
+        if not (alt or '').strip():
+            notes.append(f'图片缺 alt（{value[:40]}）：裂图时学生只看到空白')
+    return problems, notes
+
+
 def check_theme_toggle(text):
     """检查项 6：主题开关元素与接线未丢。"""
     problems = []
@@ -839,9 +893,11 @@ def check_file(path, subject=None, node=None):
     problems += quiz_problems
     problems += lab_problems
     problems += nav_problems
+    img_problems, img_notes = check_images(text, path)
+    problems += img_problems
     problems += check_theme_toggle(text)
     problems += check_placeholder(raw, path)
-    return problems, notes + lab_notes + nav_notes
+    return problems, notes + lab_notes + nav_notes + img_notes
 
 
 def parse_args(argv):

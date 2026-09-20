@@ -82,6 +82,13 @@
          </div>
          （行号槽里的 <span> 个数与代码行数对齐；要突出某个词时才手写 .syn-keyword 等类——
            写了高亮类的块整块不再自动上色）
+       配图（从科目池子挑，索引 assets/img/pool.md 是唯一检索入口，见 lesson-design 第四节）：
+         <figure class="lesson-figure">
+           <img src="../assets/img/pool/数组-内存布局-连续存储-cppreference-01.png" alt="左右指针向中间收拢">
+           <figcaption>图 1 · 双指针怎么收拢（来源：…）</figcaption>
+         </figure>
+         每张图必须有 alt；值得指认的再配 figcaption（引用池子里的图要写明来源与许可）
+         内联 SVG 用 class="lesson-figure lesson-figure--inline"（线条写 currentColor，跟着主题走）
        提示卡 .lesson-tip / 误区卡 .lesson-warn / 资源列表 .lesson-resources / 相关链接 .lesson-related
        题目块 <div class="quiz" data-quiz='[{...}]'></div>：选择题 {q,opts,ans,why}、开放题 {q,answer,criteria}；
          字段契约见 assets/quiz.js 顶部注释

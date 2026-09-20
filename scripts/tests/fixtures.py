@@ -17,6 +17,7 @@ from pathlib import Path
 TESTS_DIR = Path(__file__).resolve().parent
 REPO = TESTS_DIR.parents[1]
 GATE = REPO / 'scripts' / 'check_lesson.py'
+POOL_CHECK = REPO / 'scripts' / 'check_pool.py'
 
 # 默认大纲：全是「概念」课——概念课不要求 lab，fixture 就不用造 lab 产物
 DEFAULT_NODES = [
@@ -69,7 +70,7 @@ LESSON_TEMPLATE = '''<!DOCTYPE html>
   <p>这一节只是让闸门有东西可看。</p>
 
   {quiz}
-
+{extra}
   <nav class="lesson-nav" aria-label="上一课 / 下一课">
 {nav}  </nav>
 
@@ -151,12 +152,13 @@ def nav_html(links):
     return out
 
 
-def write_lesson(subject, number, node_id, quiz=None, nav='auto', title=None):
+def write_lesson(subject, number, node_id, quiz=None, nav='auto', title=None, extra=''):
     """写一份课件，返回路径。
 
     number  —— 编号（1 起，等于节点在 nodes 里的位次）
     quiz    —— 题目块的原始 HTML；不给就用一个合法题目块
     nav     —— 'auto'（按大纲自动填对）或 [(方向, href, 标题)]（原样写，用来注入偏差）
+    extra   —— 插在题目块与导航之间的原始 HTML（配图、表格等，测别的检查项用）
     """
     if nav == 'auto':
         nav = auto_nav(subject, number)
@@ -166,6 +168,7 @@ def write_lesson(subject, number, node_id, quiz=None, nav='auto', title=None):
         number=f'{number:04d}',
         title=title or titles.get(node_id, node_id),
         quiz=quiz if quiz is not None else VALID_QUIZ,
+        extra=extra,
         nav=nav_html(nav),
     )
     with open(path, 'w', encoding='utf-8') as handle:
@@ -176,6 +179,13 @@ def write_lesson(subject, number, node_id, quiz=None, nav='auto', title=None):
 def run_gate(path, subject, node):
     """跑闸门，返回 (exit_code, 输出)。"""
     proc = subprocess.run(['python3', str(GATE), str(path), '--subject', str(subject), '--node', node],
+                          capture_output=True, text=True)
+    return proc.returncode, proc.stdout + proc.stderr
+
+
+def run_pool(subject):
+    """跑池子校验器（`scripts/check_pool.py`），返回 (exit_code, 输出)。"""
+    proc = subprocess.run(['python3', str(POOL_CHECK), str(subject)],
                           capture_output=True, text=True)
     return proc.returncode, proc.stdout + proc.stderr
 

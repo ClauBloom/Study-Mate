@@ -52,6 +52,10 @@
      亮色由 html[data-theme="light"] 换成暖色版——阴影是**分主题**的，
      写死在通用规则里必然有一边失效（暖褐阴影叠暗底等于没有）。 */
   --learn-shadow-card: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 16px rgba(0, 0, 0, .25);
+
+  /* 配图底纸：位图自己不带主题信息，深色页面上给一块接近白纸的底
+    （像贴上去的印刷图），白底图不刺眼、浅色线条图也看得见。内联 SVG 不用它。 */
+  --learn-figure-paper: #f7f5f0;
 }
 
 html[data-theme="light"] {
@@ -77,6 +81,9 @@ html[data-theme="light"] {
 
   /* 卡片阴影：暖褐，且比暗色更淡（亮底上淡阴影就够，重了发脏） */
   --learn-shadow-card: 0 1px 2px rgba(38, 36, 31, .05), 0 6px 16px rgba(38, 36, 31, .05);
+
+  /* 配图底纸：亮色下就是最干净的白（页面底色是暖纸白，图像底再暖会发脏） */
+  --learn-figure-paper: #ffffff;
 }
 
 /* ── 3. 亮色主题：Sayo 令牌 → 我们的暖色系 ── */
