@@ -34,7 +34,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
 4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js`、`lesson-toc.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
-5. **图片池子是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补池只增不删。命名与索引格式见 `image-scout`。池子是**学习产物、随科目一起打包**——与 `.venv` 那类本机工具链不同（后者不进包，换机器重建）
+5. **图片池子是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补池只增不删。命名与索引格式见 `image-scout`。池子是**学习产物，随科目整体拷贝或迁移时跟着走**——与 `.venv` 那类本机工具链不同（后者不进包，换机器重建）
 
 ## 学习记录（learning-records/）
 

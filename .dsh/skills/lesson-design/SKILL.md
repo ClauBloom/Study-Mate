@@ -35,7 +35,7 @@ description: 课件设计规范（课件的唯一约束来源）：着眼点（�
 | 文件名 | `<序号>-<节点id>.html`，序号 = 本节点在 `curriculum.yaml` 的 `nodes:` 里排第几（4 位补零，如 `0003`）、节点 id 原样照抄——上一课的「下节课」指针按这条规则预写，名字错一位那根指针就断。**归属（这课是哪个节点、挂主页路线图哪个位置）只认文件名**：页头的 eyebrow 是给学生看的可读文字（`0001 · 第一份能提交的代码`），写不写节点 id 都不影响归属 |
 | 上/下节课指针 | 正文末尾 `.lesson-nav`：上一个、下一个节点取自 `nodes:` 顺序，`href` 按同一条命名规则写、标题用节点 `title`；第一课不写 `--prev`、最后一课不写 `--next`。「下节课」的课件通常还没产出，链接落空是正常的 |
 | 组件与题目 | 新组件写进 `assets/` 不内联；题目块字段契约见 `templates/assets/quiz.js` 顶部注释，**嵌题时照抄出题人给的题面与答案**，要改先回去找它 |
-| 配图 | 从 `<subject_path>/assets/img/pool/` 挑（索引 `pool.md` 是唯一检索入口）；位图 `<figure class="lesson-figure">`、内联 SVG `<figure class="lesson-figure--inline">`；**每张必须有 `alt`**；值得指认的再配 `<figcaption>图 N · …（来源：…）</figcaption>`；**别依赖外链**——页面里的图要能离线打开；单张 ≤200 KB |
+| 配图 | 从 `<subject_path>/assets/img/pool/` 挑（索引是它的兄弟 `<subject_path>/assets/img/pool.md`，唯一检索入口）；位图 `<figure class="lesson-figure">`、内联 SVG `<figure class="lesson-figure--inline">`；**每张必须有 `alt`**；值得指认的再配 `<figcaption>图 N · …（来源：…）</figcaption>`；**别依赖外链**——页面里的图要能离线打开；单张 ≤200 KB |
 | 交付形态 | 自包含 HTML（相对路径引用共享层与科目组件），浏览器直开可用；排版干净、适合反复回看 |
 
 ## 五、行文禁忌

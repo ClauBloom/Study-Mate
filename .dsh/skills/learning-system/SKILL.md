@@ -26,7 +26,7 @@ argument-hint: "你想学什么？或继续上次的科目"
      派 resource-scout → 你写 RESOURCES.md → 同时派两个：
         ├─ image-scout（爬池子）         ← 输入 = RESOURCES.md 的链接清单
         └─ curriculum-designer（设计大纲）← 输入 = 盘问结果 + 资源清单
-     两边都回来 → 你写 curriculum.yaml、核对 pool.md → 开始第一课
+     两边都回来 → 你写 curriculum.yaml、核对 pool.md → 开始第一课（仍按「对话节奏」问"开始吗"）
      ```
      派 `image-scout` 时逐条给全链接清单，另附 `subject_path`、`GLOSSARY.md`、池子 `<subject_path>/assets/img/pool/` 与索引 `<subject_path>/assets/img/pool.md`；它写盘即交付，回来报池子路径、张数、索引路径、`Gaps` 条数与最值得用的 3~5 张。**池子为空不阻塞**：抓不到图只记 `Gaps`，大纲与课件照常产出。后续节点若需要新图，再按需派一次 `image-scout`（补池）
    - 派 `curriculum-designer` 产大纲（**每个节点带 `kind`**；3-5 个 `kind: 实验` 的验收课节点，`prerequisites` 列出验收哪些课；输入 = 盘问结果 + 资源清单）
