@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，18 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，19 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -10,7 +10,8 @@
   值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason` · 配图存在性与题注来源 · 导航
   与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
   **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示；
-  真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀）。
+  真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀；
+  白名单本身钉死成「裁定集合 = 格式文档那份」，`script`/`style`/`link`/`meta` 一个都不能漏）。
 
 每个场景自造一个临时科目（`fixtures.write_subject` + `write_content` + `write_quiz`），
 **不读也不写任何工作区**。用法：python3 scripts/tests/test_render_lesson.py
@@ -672,6 +673,33 @@ caption: 图 1 · 收拢过程
     a.has(text3, '<figure class="lesson-figure lesson-figure--inline">',
           '<svg viewBox="0 0 4 2"/>')
 
+    # 注释里写 </svg> 不算收尾（先遮注释再判）；<svgfoo> 不算 <svg> 开头
+    subject4 = new_subject()
+    fake = '<svg viewBox="0 0 4 2"><!-- </svg> -->'
+    md = fixtures.write_content(subject4, 1, 'overview-map',
+                                body=f'## 画一张\n\n::: svg\n{fake}\n:::\n')
+    code4, out4, text4, path4 = render(subject4, 1, 'overview-map')
+    a.ok('注释里的 </svg> 不算收尾：非零退出', code4 != 0, f'exit={code4}')
+    a.has(out4, f'{md}:{line_of(md, "::: svg")}', label='假收尾报错指到指令那一行')
+
+    subject5 = new_subject()
+    md = fixtures.write_content(subject5, 1, 'overview-map',
+                                body='## 画一张\n\n::: svg\n<svgfoo>\n:::\n')
+    code5, out5, text5, path5 = render(subject5, 1, 'overview-map')
+    a.ok('<svgfoo> 不算 <svg>：非零退出', code5 != 0, f'exit={code5}')
+    a.has(out5, f'{md}:{line_of(md, "::: svg")}', label='假开头报错指到指令那一行')
+
+    # 正常闭合的多行 SVG：逐字透传
+    subject6 = new_subject()
+    multi = ('<svg viewBox="0 0 40 20" role="img">\n'
+             '  <path d="M2 10h36" stroke="currentColor"/>\n'
+             '</svg>')
+    fixtures.write_content(subject6, 1, 'overview-map',
+                           body=f'## 画一张\n\n::: svg\n{multi}\n:::\n')
+    code6, out6, text6, path6 = render(subject6, 1, 'overview-map')
+    a.equal('多行 SVG 放行', code6, 0)
+    a.has(text6, multi)
+
 
 # ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过闸门（check_lesson.py）
@@ -871,6 +899,71 @@ def _(a):
         a.equal('行号 = 模板文件里的真实行号', line, true_line)
         a.has(message, marker)
     shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⑲ 真标签名单：script/style/link/meta 也拦，且名单与格式文档逐字一致
+# ══════════════════════════════════════════════════════════════════
+
+# 控制器裁定的真标签集合（行首与行内检查都用它；名单之外的写法一律当普通文字）
+RULED_TAG_NAMES = frozenset('''
+    a b i em strong sup sub span div p br hr img figure figcaption code pre svg path
+    table thead tbody tr th td ul ol li nav section article header footer
+    h1 h2 h3 h4 h5 h6 script style link meta input label
+'''.split())
+
+
+def doc_tag_names():
+    """从 docs/课件内容格式.md §2 的白名单那句里取名字（`h1…h6` 展开成 h1..h6）。"""
+    doc = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                       'docs', '课件内容格式.md')
+    text = open(doc, encoding='utf-8').read()
+    sentence = re.search(r'真标签白名单\*\*里——(.+?)这些引擎', text, re.S)
+    assert sentence, 'docs/课件内容格式.md 里找不到真标签白名单那句（文档被改写了）'
+    listed = re.search(r'`([^`]+)`', sentence.group(1), re.S).group(1)
+    listed = re.sub(r'h1…h6', ' '.join(f'h{i}' for i in range(1, 7)), listed)
+    return {token for token in re.findall(r'[a-z][a-z0-9]*', listed)}
+
+
+@case('真标签名单：script/style/link/meta 都拦；名单 = 裁定集合 = 格式文档')
+def _(a):
+    a.equal('名单 = 控制器裁定的集合', render_lesson.HTML_TAG_NAMES, RULED_TAG_NAMES)
+    a.equal('名单 = docs/课件内容格式.md 里列的那一份', render_lesson.HTML_TAG_NAMES, doc_tag_names())
+    a.ok('名单全是小写（查表前 lower()，大小写约定一致）',
+         all(name == name.lower() for name in render_lesson.HTML_TAG_NAMES))
+
+    # 四个 head 标签：段落中间与行首都要拦（曾经漏在名单外，静默当字面量出厂）
+    for name, sample in (('script', '<script>alert(1)</script>'),
+                         ('style', '<style>p{color:red}</style>'),
+                         ('link', '<link rel="stylesheet" href="x.css">'),
+                         ('meta', '<meta charset="utf-8">')):
+        subject = new_subject()
+        inline = f'这段里写了 {sample} 标签。'
+        md = fixtures.write_content(subject, 1, 'overview-map',
+                                    body=f'## 正文\n\n{inline}\n')
+        code, out, text, path = render(subject, 1, 'overview-map')
+        a.ok(f'段落中间的 <{name}> 非零退出', code != 0, f'exit={code}')
+        a.has(out, f'{md}:{line_of(md, inline)}', label=f'<{name}> 报错带行号')
+        a.ok(f'<{name}> 报错时不写盘', not os.path.exists(path))
+
+        subject2 = new_subject()
+        md2 = fixtures.write_content(subject2, 1, 'overview-map',
+                                     body=f'## 正文\n\n{sample}\n')
+        code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+        a.ok(f'行首 <{name}> 非零退出', code2 != 0, f'exit={code2}')
+        a.has(out2, f'{md2}:{line_of(md2, sample)}', label=f'行首 <{name}> 报错带行号')
+
+    # 名单里的名字一个个试：段落中间出现就必须失败（防止名单被悄悄删条目）
+    missing = []
+    for name in sorted(RULED_TAG_NAMES):
+        subject3 = new_subject()
+        sample = f'<{name}>x</{name}>'
+        fixtures.write_content(subject3, 1, 'overview-map',
+                               body=f'## 正文\n\n这段里写了 {sample} 标签。\n')
+        code3, out3, text3, path3 = render(subject3, 1, 'overview-map')
+        if code3 == 0:
+            missing.append(name)
+    a.ok('名单里每个名字都真的会拦', not missing, f'这些名字没拦住：{missing}')
 
 
 def main():

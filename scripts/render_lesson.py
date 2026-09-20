@@ -79,15 +79,17 @@ HTML_COMMENT_OPEN = '<!--'                             # 内容文件里的注�
 # 段内换行要不要补空格：两侧都是中日韩文字与全角标点就直接相接（中文不用空格分词）
 CJK_RE = re.compile(r'[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]')
 
-# 块级 HTML 标签：内容文件里出现就是「模型在写 HTML」，一律拒收
-HTML_BLOCK_TAGS = frozenset('''
-    a article aside b blockquote br button canvas caption code dd details div dl dt em figcaption figure
-    footer form h1 h2 h3 h4 h5 h6 header hr i iframe img input label li main nav ol p pre section small
-    span strong summary sup sub table tbody td tfoot th thead tr ul video
+# ── 「什么算 HTML 标签」的唯一名单 ───────────────────────────────────────────
+# 这是**唯一来源**：行首检查（html_block_tag）与行内检查（tag_shape_at）都查它，
+# 名单之外的写法一律当普通文字（`<T>` 泛型、`n<m` 运算符）。
+# 约定：**名单一律小写**；查表前把捕获到的名字 `.lower()`（HTML 标签名本来就不区分大小写）。
+# 扩展词汇（例如以后加 `syo-editor` 之类的新组件标签）时，**必须同步往这里加名字**，
+# 否则那个标签会被当普通文字放行——docs/课件内容格式.md §2 列的是同一份名单。
+HTML_TAG_NAMES = frozenset('''
+    a b i em strong sup sub span div p br hr img figure figcaption code pre svg path
+    table thead tbody tr th td ul ol li nav section article header footer
+    h1 h2 h3 h4 h5 h6 script style link meta input label
 '''.split())
-# 行内检查认可的「真标签名」：块级那份 + 内联 SVG 与其余常见标签（其余一律当普通文字）
-HTML_TAG_NAMES = HTML_BLOCK_TAGS | frozenset(
-    'svg path circle rect line polygon polyline g text use tspan marker defs clipPath'.split())
 
 
 class Problems:
@@ -253,16 +255,24 @@ def parse_front_matter(path, lines, problems):
 
 
 def html_block_tag(stripped):
-    """行首是块级 HTML 标签时返回标签名，否则 None（「不许写 HTML」的唯一判定处）。"""
+    """行首是**真 HTML 标签**时返回标签名，否则 None（与行内检查同查 `HTML_TAG_NAMES`）。"""
     tag = HTML_TAG_RE.match(stripped)
-    if tag and tag.group(1).lower() in HTML_BLOCK_TAGS:
+    if tag and tag.group(1).lower() in HTML_TAG_NAMES:
         return tag.group(1)
     return None
 
 
 def is_html_block(stripped):
-    """行首是块级 HTML 标签（内容文件里出现就是「模型在写 HTML」）。"""
+    """行首是真 HTML 标签（内容文件里出现就是「模型在写 HTML」）。"""
     return html_block_tag(stripped) is not None
+
+
+def mask_comments(text):
+    """把 HTML 注释换成**等长空格**：只用于「按位置判断」，下标与原文本一一对应。
+
+    模板定位 `<!DOCTYPE`、`::: svg` 找 `</svg>` 收尾都要它——注释里提到的标签不算数。
+    """
+    return HTML_COMMENT_RE.sub(lambda match: ' ' * len(match.group(0)), text)
 
 
 def is_block_start(stripped):
@@ -637,10 +647,11 @@ def build_svg(path, args, lines, start, end, line_no, problems):
                              '::: svg 的块里先写 alt:/caption:，接着是 <svg>…</svg> 原文（这一行都不是）')
                 continue
         raw.append(raw_line)
-    inline_svg = '\n'.join(raw)
-    if '<svg' not in inline_svg:
+    inline_svg = ''.join(raw)
+    masked = mask_comments(inline_svg)                  # 注释里写的 </svg> 不算收尾
+    if not re.search(r'<svg(?=[\s/>])', masked):
         problems.add(path, line_no, '::: svg 块里没有 <svg>…</svg> 原文（内联图直接贴进来）')
-    elif '</svg>' not in inline_svg and not re.search(r'<svg\b[^<>]*/>', inline_svg):
+    elif not re.search(r'</svg\s*>', masked) and not re.search(r'<svg(?=[\s/>])[^<>]*/>', masked):
         problems.add(path, line_no, '::: svg 块里的 <svg> 没有 </svg> 收尾（原样透传前先补全，'
                                     '否则页面结构会从这里断掉；自闭合的 <svg/> 也算收尾）')
     return {'kind': 'directive', 'name': 'svg', 'alt': fields.get('alt', ''),
@@ -740,9 +751,9 @@ class Renderer:
         if hits:
             more = f'（这一段还有 {len(hits) - 1} 处）' if len(hits) > 1 else ''
             self.problems.add(self.path, line,
-                              f'不写 HTML（{where}）：读到 {hits[0]!r}{more}——'
-                              f'粗体写 `**…**`、代码或泛型这类字面量用反引号包起来'
-                              f'（如 `` `{hits[0]}` ``），HTML 由渲染器产出')
+                              f'不写 HTML（{where}）：读到 {hits[0]!r}{more}——内容文件写的是教学内容、'
+                              f'不是标记：粗体写 `**…**`。要在页面里展示 HTML 本身，'
+                              f'把那段放进 ``` 围栏（短片段也可以用反引号，如 `` `{hits[0]}` ``）')
 
     def inline(self, text, line, check_html=True):
         """行内语法：`code`、**粗**、*斜*、[文字](href)、^x^、~x~；其余按文字转义。
@@ -1041,7 +1052,7 @@ def load_template(path, problems):
     raw = read_text(path, problems, '课件模板')
     if raw is None:
         return None
-    masked = HTML_COMMENT_RE.sub(lambda match: ' ' * len(match.group(0)), raw)  # 等长遮罩，下标不变
+    masked = mask_comments(raw)                        # 等长遮罩：注释里的 DOCTYPE 不算数的
     start = masked.find('<!DOCTYPE')
     if start < 0:
         problems.add(path, 1, '模板里找不到 <!DOCTYPE（课件页必须是一份完整 HTML）')
