@@ -21,7 +21,14 @@ argument-hint: "你想学什么？或继续上次的科目"
 4. **新科目** → 你亲自走"新科目盘问"（见下），盘完按这个顺序落地：
    - 建科目文件夹（含 `assessments/`；`lab/` 不预建，见 `record-keeping`）
    - 写 `MISSION.md`（`## Why` 与 `## Success looks like` 来自盘问第一问）与 `subject.yaml` 的 `goal`
-   - 派 `resource-scout` 收集资料（输入：`subject_path`、盘问结果；按它的「交付格式」给回资源清单 + `## Gaps`）→ **你写入 `RESOURCES.md`**
+   - 派 `resource-scout` 收集资料（输入：`subject_path`、盘问结果；按它的「交付格式」给回资源清单 + `## Gaps`）→ **你写入 `RESOURCES.md`**。**建池与拟大纲并行**——你写完 `RESOURCES.md` 后，同时派下面两个（别串着等）：
+     ```
+     派 resource-scout → 你写 RESOURCES.md → 同时派两个：
+        ├─ image-scout（爬池子）         ← 输入 = RESOURCES.md 的链接清单
+        └─ curriculum-designer（设计大纲）← 输入 = 盘问结果 + 资源清单
+     两边都回来 → 你写 curriculum.yaml、核对 pool.md → 开始第一课
+     ```
+     派 `image-scout` 时逐条给全链接清单，另附 `subject_path`、`GLOSSARY.md`、池子 `<subject_path>/assets/img/pool/` 与索引 `<subject_path>/assets/img/pool.md`；它写盘即交付，回来报池子路径、张数、索引路径、`Gaps` 条数与最值得用的 3~5 张。**池子为空不阻塞**：抓不到图只记 `Gaps`，大纲与课件照常产出。后续节点若需要新图，再按需派一次 `image-scout`（补池）
    - 派 `curriculum-designer` 产大纲（**每个节点带 `kind`**；3-5 个 `kind: 实验` 的验收课节点，`prerequisites` 列出验收哪些课；输入 = 盘问结果 + 资源清单）
    - 建 `progress.yaml`：`nodes: {}`（**只写有变化的节点**，没写的按大纲初始值算——别把几十个节点全量抄一遍，两份文件都写状态就是漂移的源头）、`misconceptions: []`，`project` 只写 `current`；过 `schemas/progress.schema.json`
    - 刷新主页
@@ -88,7 +95,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 |---|---|---|
 | `subject.yaml` | 科目状态变化、目标变更 | 只改 `status`/`goal`；`goal` 先跟学生确认；改后过 schema |
 | `MISSION.md` | 目标 / 项目 / 约束变了（见"使命变更"） | 必须学生确认；旧使命留痕，不整篇替换 |
-| `RESOURCES.md` | 新资料被采用、发现失效或低质 | 延伸阅读 + 易变内容的核对来源；只收高可信来源、每条带一行用途；失效的删掉不堆积。要检索你自己查（读大量资料可派子 agent） |
+| `RESOURCES.md` | 新资料被采用、发现失效或低质 | 延伸阅读 + 易变内容的核对来源；只收高可信来源、每条带一行用途；失效的删掉不堆积。**收集归 `resource-scout`**：初次清单与后续补收集都派它，你只做小增量修改（换一条失效链接、补一条目） |
 | `GLOSSARY.md` | 学生**真能用对**某术语时（不是刚被介绍过） | 定义一两句 + 标出要避免的别名；课件用词以此为准 |
 
 三份 `.md` 无 schema，按 `<root>/templates/*.md` 的分节写；状态类文件（`progress.yaml`、`misconceptions.yaml`、`assessments/`、`learning-records/`、`sessions/`）的规则全在 `record-keeping`。
@@ -118,7 +125,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 - **md5 基准现场算**：多轮迭代要比对文件有没有被改动时，派工与返回都用同一个格式 `md5sum <文件> | cut -c1-12`，基准值**现场算完原样贴**，不许凭记忆写（基准错一次，老实执行的角色会被"校验失败"拦住）
 - **长产出走暂存目录**：成套文件（lab、实验说明页）让角色先落盘到 `/tmp/<角色>-<节点id>/deliver/`、正文只给文件清单（口径在 `practice-evaluator` 的「交付格式」），你按清单读盘写正式位置——**别指望回复正文传文件内容，长正文会被压缩掉**
 - **验收不过就退回给产出它的那个子 agent 自己改**（`send_message` 带上失败的原文证据；别自己代改，也别另派新 agent）
-- **只派四类活**：收集资料（`resource-scout`）、拟大纲与实验课、做课件（两回合）、出题与评估（两个时机）。其他一切你自己做——答疑、盘问、元数据、全部档案记录、按出题人的产出写盘 lab 与实验说明页。判断标准：这事需要**外部检索／大量生成／独立验证**吗？不需要就别派（信息源在你上下文里，派出去要先转述，更慢更费）
+- **只派五类活**：收集资料（`resource-scout`）、采图（`image-scout`）、拟大纲与实验课、做课件（两回合）、出题与评估（两个时机）。其他一切你自己做——答疑、盘问、元数据、全部档案记录、按出题人的产出写盘 lab 与实验说明页。判断标准：这事需要**外部检索／大量生成／独立验证**吗？不需要就别派（信息源在你上下文里，派出去要先转述，更慢更费）
 
 ## 边界
 
