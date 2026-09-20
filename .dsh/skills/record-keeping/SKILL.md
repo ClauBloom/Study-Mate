@@ -5,7 +5,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 # 档案维护规范
 
-学习状态由你（主教练）亲自读写——信息源就在你上下文里，不派角色。路径都以 `LEARN_WORKSPACE`（开场从 `~/.dsh/studymate-config.yaml` 读到）为前缀：
+学习状态由你（主教练）亲自读写，不派角色。路径都以 `LEARN_WORKSPACE`（开场从 `~/.dsh/studymate-config.yaml` 读到）为前缀：
 
 ```
 <LEARN_WORKSPACE>/
@@ -34,7 +34,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 2. **列出**：读 `subjects/*/subject.yaml`，汇总"科目名 + 状态 + 上次学习日期 + 当前节点"
 3. **切换**：切换即换路径，不复制不搬运
 4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js`、`lesson-toc.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
-5. **图片池子是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补池只增不删。命名与索引格式见 `image-scout`。池子是**学习产物，随科目整体拷贝或迁移时跟着走**——与 `.venv` 那类本机工具链不同（后者不进包，换机器重建）
+5. **图片池子是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补池只增不删。命名与索引格式见 `image-scout`。池子是**学习产物，随科目整体拷贝或迁移时跟着走**（`.venv` 那类本机工具链不进包，换机器重建）
 
 ## 课件三件与归属（`lessons/`）
 
@@ -85,7 +85,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 边界
 
-- 课程内容归 `curriculum-designer`；课件内容归 `learning-coach`、题库与 lab 归 `practice-evaluator`、页面由渲染器产出（见"课件三件与归属"）；**题目、lab 与实验说明页归 `practice-evaluator`（它给内容，你写盘）**。你只读写状态与元数据，发现不一致以文件为准并修正记录
+- 课程内容归 `curriculum-designer`，课件/题库/lab/页面的归属见上表与上面的目录树（题目、lab 与实验说明页由 `practice-evaluator` 给内容、你写盘）。你只读写状态与元数据，发现不一致以文件为准并修正记录
 - 档案存结构化摘要，聊天的原始过程留在会话里
 - 科目之间隔离：只读当前科目，唯一的跨科目来源是 `MEMORY.md`
 - 只在 `<LEARN_WORKSPACE>/` 下写学习文件，绝不写会话目录
