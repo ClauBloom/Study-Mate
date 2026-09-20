@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/images/logo.svg" width="110" alt="StudyMate"></p>
+<p align="center"><img src="docs/images/logo.png" width="120" alt="StudyMate"></p>
 
 <h1 align="center">StudyMate</h1>
 
