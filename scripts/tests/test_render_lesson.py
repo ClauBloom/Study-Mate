@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，17 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，18 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -9,7 +9,8 @@
   逐字 · 表格/列表/围栏/行内标记 · 题目按锚点合入且 `data-quiz` 属性值转义正确（单引号包裹、
   值里 `&#39;` / `&lt;` / `&gt;`）· 锚点缺题必须 `empty_reason` · 配图存在性与题注来源 · 导航
   与序号按大纲算 · 未知指令与块语法带行号报错 · `--check` 不写盘 · 渲染产物过闸门 ·
-  **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示）。
+  **一级标题与段落中间的 HTML 都不许静默通过**（前者会连内容一起消失、后者会当字面量显示；
+  真标签白名单与 code span 判定都只有一份，落单反引号遮不住标签、`n<m` 也不会被误杀）。
 
 每个场景自造一个临时科目（`fixtures.write_subject` + `write_content` + `write_quiz`），
 **不读也不写任何工作区**。用法：python3 scripts/tests/test_render_lesson.py
@@ -662,6 +663,15 @@ caption: 图 1 · 收拢过程
     a.has(out2, f'{md}:{line_of(md, "::: svg")}', label='缺 </svg> 报错指到指令那一行')
     a.has(out2, '</svg>', label='报错说清缺什么')
 
+    # 自闭合的根 <svg/> 是合法收尾（退化但合法），不能拦
+    subject3 = new_subject()
+    fixtures.write_content(subject3, 1, 'overview-map',
+                           body='## 画一张\n\n::: svg\n<svg viewBox="0 0 4 2"/>\n:::\n')
+    code3, out3, text3, path3 = render(subject3, 1, 'overview-map')
+    a.equal('自闭合 <svg/> 放行', code3, 0)
+    a.has(text3, '<figure class="lesson-figure lesson-figure--inline">',
+          '<svg viewBox="0 0 4 2"/>')
+
 
 # ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过闸门（check_lesson.py）
@@ -738,12 +748,20 @@ def _(a):
     a.ok('不认识的块记了一条问题', bool(problems) and problems.items[0][1] == 7,
          f'problems={problems.items}')
 
+    # 兜底同理：不认识的指令也要报错（不能静默空输出）
+    problems2 = render_lesson.Problems()
+    renderer2 = render_lesson.Renderer('x.md', problems2, '.', None, 'x.quiz.json', {})
+    output2 = renderer2.render_directive({'kind': 'directive', 'name': 'nope', 'line': 9}, '  ')
+    a.equal('不认识的指令不产出内容', output2, '')
+    a.ok('不认识的指令记了一条问题', bool(problems2) and problems2.items[0][1] == 9,
+         f'problems={problems2.items}')
+
 
 # ══════════════════════════════════════════════════════════════════
-# ⑯ 段落中间的 HTML 标签要拦；运算符 < > 与 code span 照常
+# ⑯ 段落中间的 HTML 标签要拦；运算符/泛型/落单反引号都不误伤
 # ══════════════════════════════════════════════════════════════════
 
-@case('段落中间的 HTML 标签报错；a < b / x > 0 / `vector<int>` 照常')
+@case('段落中间的 HTML 标签报错；运算符/泛型/落单反引号都不误伤')
 def _(a):
     subject = new_subject()
     inline_html = '这段里手写了 <b>粗</b> 标签。'
@@ -755,14 +773,44 @@ def _(a):
     a.has(out, '<b>', '**…**', label='报错给出改法（粗体写 **…**）')
     a.ok('报错时不写盘', not os.path.exists(path))
 
-    # 运算符与 code span 不是标签，必须原样放行
+    # 落单的反引号不是 code 区：它不能把后面的标签遮住（code span 判定与 inline() 共用一份）
+    subject = new_subject()
+    masked = '见 ` 这里 <b>粗</b> 结束。'
+    md = fixtures.write_content(subject, 1, 'overview-map',
+                                body=f'## 正文\n\n{masked}\n')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('落单反引号遮不住标签：非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, masked)}', label='落单反引号那一段报错带行号')
+    a.has(out, '<b>')
+
+    # 段落中间的 HTML 注释也要拦（手写时代留「题目位」的写法）
+    subject = new_subject()
+    comment = '前面 <!-- 题目位：L1 ×2 --> 后面。'
+    md = fixtures.write_content(subject, 1, 'overview-map',
+                                body=f'## 正文\n\n{comment}\n')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('段落中间注释非零退出', code != 0, f'exit={code}')
+    a.has(out, f'{md}:{line_of(md, comment)}', label='段落中间注释报错带行号')
+    a.has(out, 'HTML 注释', label='报错说清是注释')
+
+    # front matter 的 title 也是散文，同样要查（它是纯文本，不走 inline()）
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map', body='## 正文\n\n一段话。\n',
+                           title='<b>粗</b>标题')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.ok('title 里的标签非零退出', code != 0, f'exit={code}')
+    a.has(out, 'title', label='报错说清是 front matter 的 title')
+
+    # 运算符、泛型、code span：都必须原样放行
     subject2 = new_subject()
-    operators = '比较写成 a < b && c > d、2 < n，泛型写 `vector<int>` 就没问题。'
+    operators = ('当 n<m 且 m>0 时循环继续，a<b>c 也一样；比较写成 a < b && c > d、2 < n，'
+                 '泛型写 <T> 与 `vector<int>` 都没问题。')
     fixtures.write_content(subject2, 1, 'overview-map', body=f'## 运算符\n\n{operators}\n')
     code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
-    a.equal('运算符与 code span 放行', code2, 0)
-    a.has(text2, '<p>比较写成 a &lt; b &amp;&amp; c &gt; d、2 &lt; n，'
-                 '泛型写 <code>vector&lt;int&gt;</code> 就没问题。</p>')
+    a.equal('运算符与泛型放行', code2, 0)
+    a.has(text2, '<p>当 n&lt;m 且 m&gt;0 时循环继续，a&lt;b&gt;c 也一样；'
+                 '比较写成 a &lt; b &amp;&amp; c &gt; d、2 &lt; n，'
+                 '泛型写 &lt;T&gt; 与 <code>vector&lt;int&gt;</code> 都没问题。</p>')
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -793,6 +841,36 @@ def _(a):
           '<b>题目位的写法</b>',
           '<pre data-lang="markdown"><code>::: quiz 理解 锚点：某个锚点\n:::</code></pre>',
           '<p>锚点要和题库的键逐字一致。</p>')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⑱ 模板占位符报错的行号要指到 templates/lesson.html 的真实行
+# ══════════════════════════════════════════════════════════════════
+
+@case('模板占位符报错指到模板文件的真实行号（不被 DOCTYPE 切片平移）')
+def _(a):
+    template_path = render_lesson.TEMPLATE
+    original = open(template_path, encoding='utf-8').read()
+    marker = '<!-- @LEARN:TITLE -->'
+    a.ok('模板里 TITLE 出现两次（用例前提）', original.count(marker) == 2,
+         f'实际 {original.count(marker)} 次')
+
+    # 去掉 <h1> 那一处，只留 <title> 那一处：占位符数不对（1 ≠ 2），报错必须指到留下的那一行
+    broken = original.replace(f'<h1>{marker}</h1>', '<h1>标题</h1>', 1)
+    tmp_dir = tempfile.mkdtemp(prefix='smtest-tpl-')
+    broken_path = os.path.join(tmp_dir, 'lesson.html')
+    with open(broken_path, 'w', encoding='utf-8') as handle:
+        handle.write(broken)
+    true_line = broken[:broken.find(marker)].count('\n') + 1
+    problems = render_lesson.Problems()
+    a.ok('模板能读进来', render_lesson.load_template(broken_path, problems) is not None)
+    a.ok('模板缺占位符时报错', bool(problems), '没有报错')
+    if problems:
+        path, line, message = problems.items[0]
+        a.equal('报错指到模板文件', path, broken_path)
+        a.equal('行号 = 模板文件里的真实行号', line, true_line)
+        a.has(message, marker)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def main():

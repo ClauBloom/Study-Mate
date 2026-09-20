@@ -65,13 +65,17 @@ PLAIN_ITEM_RE = re.compile(r'^-\s*([^|]+?)\s*(?:\|\s*(.*))?$')
 LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]*)\)')
 HEADING_RE = re.compile(r'^(#{1,6})\s*(.*)$')
 HTML_TAG_RE = re.compile(r'^</?([a-zA-Z][a-zA-Z0-9]*)\b')
-# 段落中间的标签形状 HTML（`<b>粗</b>`、`</div>`、`<img src=…>`）：散文里出现就报错。
-# 只认「标签形状」，`<` 后面必须紧跟字母，所以 `a < b`、`x > 0`、`2 < n` 这类运算符不受影响。
-TAG_SHAPE_RE = re.compile(r'</?([a-zA-Z][a-zA-Z0-9-]*)(?:\s[^<>]*)?/?>')
+# 散文里的标签形状 HTML（`<b>粗</b>`、`</div>`、`<img src=…>`）。判据两条（缺一不可）：
+#   · `<` 前面不是 ASCII 字母/数字——`n<m`、`a<b>c`、`std::vector<int>` 是运算符/泛型，不是标签；
+#   · 名字在真标签白名单里——`<T>`、`<m>` 这类泛型/变量名不是标签。
+# 名单只收引擎自己的组件与语料真会用到的 HTML 标签，所以 `2 < n`、`x > 0`、`<T>` 照常放行。
+TAG_SHAPE_RE = re.compile(r'</?([a-zA-Z][a-zA-Z0-9]*)(?:\s[^<>]*)?/?>')
+ASCII_WORD_RE = re.compile(r'[0-9A-Za-z]')
 SEPARATOR_CELL_RE = re.compile(r'^:?-{3,}:?$')
 SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 TITLE_SOFT_LIMIT = 16                                  # 节点标题建议 ≤16 字（超了只提示）
 HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.S)      # 模板注释（定位 DOCTYPE 时要先遮掉）
+HTML_COMMENT_OPEN = '<!--'                             # 内容文件里的注释（手写时代的标记写法）
 # 段内换行要不要补空格：两侧都是中日韩文字与全角标点就直接相接（中文不用空格分词）
 CJK_RE = re.compile(r'[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]')
 
@@ -81,6 +85,9 @@ HTML_BLOCK_TAGS = frozenset('''
     footer form h1 h2 h3 h4 h5 h6 header hr i iframe img input label li main nav ol p pre section small
     span strong summary sup sub table tbody td tfoot th thead tr ul video
 '''.split())
+# 行内检查认可的「真标签名」：块级那份 + 内联 SVG 与其余常见标签（其余一律当普通文字）
+HTML_TAG_NAMES = HTML_BLOCK_TAGS | frozenset(
+    'svg path circle rect line polygon polyline g text use tspan marker defs clipPath'.split())
 
 
 class Problems:
@@ -263,6 +270,27 @@ def is_block_start(stripped):
     return bool(stripped.startswith(('#', '```', ':::', '|', '>', '* ', '+ ', '---'))
                 or UL_RE.match(stripped) or ORDERED_RE.match(stripped)
                 or is_html_block(stripped) or stripped.startswith('<!--'))
+
+
+def code_span_end(text, start):
+    """`text[start]` 是反引号时返回配对的收尾反引号下标；落单（或内容为空）返回 None。
+
+    **code span 的唯一判定**：`inline()` 与行内 HTML 检查都走这个函数。落单的反引号是普通字符、
+    不开启 code 区——这条规则只写一份，免得两处漂移（曾经用「反引号奇偶」判定，于是段落里
+    一个落单的反引号就把后面的 `<b>` 全遮住了）。
+    """
+    close = text.find('`', start + 1)
+    return close if close > start + 1 else None
+
+
+def tag_shape_at(text, index):
+    """`text[index] == '<'`；是**真标签**就返回标签原文，否则 None（判据见 TAG_SHAPE_RE 注释）。"""
+    if index > 0 and ASCII_WORD_RE.match(text[index - 1]):
+        return None
+    match = TAG_SHAPE_RE.match(text, index)
+    if not match or match.group(1).lower() not in HTML_TAG_NAMES:
+        return None
+    return match.group(0)
 
 
 def join_paragraph(parts):
@@ -609,11 +637,12 @@ def build_svg(path, args, lines, start, end, line_no, problems):
                              '::: svg 的块里先写 alt:/caption:，接着是 <svg>…</svg> 原文（这一行都不是）')
                 continue
         raw.append(raw_line)
-    if not any(line.strip().startswith('<svg') for line in raw):
+    inline_svg = '\n'.join(raw)
+    if '<svg' not in inline_svg:
         problems.add(path, line_no, '::: svg 块里没有 <svg>…</svg> 原文（内联图直接贴进来）')
-    elif not any(line.strip().endswith('</svg>') for line in raw):
+    elif '</svg>' not in inline_svg and not re.search(r'<svg\b[^<>]*/>', inline_svg):
         problems.add(path, line_no, '::: svg 块里的 <svg> 没有 </svg> 收尾（原样透传前先补全，'
-                                    '否则页面结构会从这里断掉）')
+                                    '否则页面结构会从这里断掉；自闭合的 <svg/> 也算收尾）')
     return {'kind': 'directive', 'name': 'svg', 'alt': fields.get('alt', ''),
             'caption': fields.get('caption', ''), 'raw': '\n'.join(raw), 'line': line_no}
 
@@ -680,25 +709,38 @@ class Renderer:
 
     # ── 行内 ──────────────────────────────────────────────────────
 
-    def check_inline_html(self, text, line):
-        """行内文本里出现**标签形状**的 HTML 就报错（code span 里除外：那是要原样显示的代码）。
+    def check_inline_html(self, text, line, where='正文'):
+        """行内文本里出现**真标签**或 HTML 注释就报错（code span 里除外：那是要原样显示的代码）。
 
-        `a < b`、`x > 0`、`2 < n` 这些运算符不匹配标签形状（`<` 后面紧跟字母才算），
-        所以照常是普通文字；`<b>粗</b>`、`</div>`、`<img src=…>` 一律拦下并给出改法。
+        判据与 `inline()` 共用 `code_span_end()`（落单的反引号不是 code 区，遮不住后面的标签），
+        标签判据见 `tag_shape_at()`：`a < b`、`x > 0`、`2 < n`、`n<m 且 m>0`、`a<b>c`、`<T>` 这些
+        运算符/泛型照常是普通文字；`<b>粗</b>`、`</div>`、`<img src=…>` 一律拦下并给出改法。
         一段文字只报第一处（带总数），不刷屏。
         """
-        backticks, hits = 0, []
-        for index, char in enumerate(text):
+        index, hits, comment = 0, [], None
+        while index < len(text):
+            char = text[index]
             if char == '`':
-                backticks += 1
-            elif char == '<' and backticks % 2 == 0:
-                match = TAG_SHAPE_RE.match(text, index)
-                if match:
-                    hits.append(match.group(0))
+                close = code_span_end(text, index)
+                index = close + 1 if close is not None else index + 1
+                continue
+            if char == '<':
+                if text.startswith(HTML_COMMENT_OPEN, index) and comment is None:
+                    comment = index
+                else:
+                    tag = tag_shape_at(text, index)
+                    if tag:
+                        hits.append(tag)
+            index += 1
+        if comment is not None:
+            self.problems.add(self.path, line,
+                              f'内容文件不写 HTML 注释（{where}，第 {comment + 1} 个字符处读到 '
+                              f'{HTML_COMMENT_OPEN}）——那是手写时代留「题目位」的写法，'
+                              '现在题目位写 `::: quiz <层级> 锚点：…`，说明写进正文')
         if hits:
             more = f'（这一段还有 {len(hits) - 1} 处）' if len(hits) > 1 else ''
             self.problems.add(self.path, line,
-                              f'不写 HTML：正文里读到 {hits[0]!r}{more}——'
+                              f'不写 HTML（{where}）：读到 {hits[0]!r}{more}——'
                               f'粗体写 `**…**`、代码或泛型这类字面量用反引号包起来'
                               f'（如 `` `{hits[0]}` ``），HTML 由渲染器产出')
 
@@ -715,8 +757,8 @@ class Renderer:
         while index < length:
             char = text[index]
             if char == '`':
-                close = text.find('`', index + 1)
-                if close > index + 1:
+                close = code_span_end(text, index)      # 与行内 HTML 检查共用同一判定
+                if close is not None:
                     out.append('<code>' + self.code_span(text[index + 1:close]) + '</code>')
                     index = close + 1
                     continue
@@ -848,6 +890,10 @@ class Renderer:
             return self.render_svg(block, indent)
         if name in ('resources', 'related'):
             return self.render_links(block, indent)
+        # 兜底：与 render_block 同理——认不出的指令**报错**，不做静默空输出
+        self.problems.add(self.path, line,
+                          f'渲染器不认识这个指令（name={name!r}）——这是渲染器的 bug，'
+                          '请把这一条连同内容文件报到引擎维护者')
         return ''
 
     def render_practice(self, block, indent):
@@ -1000,12 +1046,13 @@ def load_template(path, problems):
     if start < 0:
         problems.add(path, 1, '模板里找不到 <!DOCTYPE（课件页必须是一份完整 HTML）')
         return None
+    base_line = raw[:start].count('\n')                # 切片前的行数：报错行号要映射回原文件
     raw = raw[start:]
     for name, count in TEMPLATE_PLACEHOLDERS.items():
         placeholder = PLACEHOLDER.format(name)
         found = raw.count(placeholder)
         if found != count:
-            problems.add(path, line_of(raw, placeholder),
+            problems.add(path, base_line + line_of(raw, placeholder),
                          f'模板里 {placeholder} 应出现 {count} 次，实际 {found} 次（模板被改坏了）')
     return raw
 
@@ -1116,6 +1163,8 @@ def main(argv):
     body_html = renderer.render(blocks)
     title = front.get('title', '')
     goal_line = front_lines.get('goal', 1)
+    # front matter 的值也是散文：goal 走 inline()（自带检查），title 是纯文本，单独查一遍
+    renderer.check_inline_html(title, front_lines.get('title', 1), 'front matter 的 title')
     fields = {
         'title': gen_home.esc(title),
         'subject': gen_home.esc(load_subject_name(subject_dir)),
