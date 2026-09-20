@@ -17,7 +17,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
         ├── curriculum.yaml       # 课程设计角色产出
         ├── progress.yaml  misconceptions.yaml
         ├── index.html            # 科目主页（生成产物）
-        ├── lessons/ reference/ assets/    # 讲解角色产出（课件/速查/组件）
+        ├── lessons/ reference/ assets/    # 课件三件（见下）、速查页、科目组件
         ├── lab/                  # 题目角色给内容、你写盘：实操 + solutions/ + README.md；概念课没有
         ├── assessments/          # 评估记录（题目角色给内容、你写盘）
         ├── learning-records/     # 学习记录
@@ -35,6 +35,20 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 3. **切换**：切换即换路径，不复制不搬运
 4. **共享组件更新后同步到已有科目**：`<root>/templates/assets/` 里的 `style.css`、`quiz.js`、`lesson-toc.js` 一改，各科目 `assets/` 里的同名副本就旧了（新科目是建课时拷的），要一起覆盖——科目自己新增的组件不动
 5. **图片池子是科目自己的**：`assets/img/pool/`（图片）与它的索引 `assets/img/pool.md` **不从 `<root>/templates/` 同步**（模板里根本没有），由 `image-scout` 建、由课件消费。**已引用的图不能删**：删之前先 `grep` 一遍 `lessons/` 与 `reference/`，还有页面指着它就留着；补池只增不删。命名与索引格式见 `image-scout`。池子是**学习产物，随科目整体拷贝或迁移时跟着走**——与 `.venv` 那类本机工具链不同（后者不进包，换机器重建）
+
+## 课件三件与归属（`lessons/`）
+
+一个节点的课件是**三件**——`<序号>-<节点id>.md`（内容）+ `<序号>-<节点id>.quiz.json`（题库）+ `<序号>-<节点id>.html`（渲染产物）——各有 owner，**别手改渲染产物**：
+
+| 文件 | 谁写 | 里面是什么 |
+|---|---|---|
+| `.md`（内容） | `learning-coach` | 讲解、动手的引入、配图、题目位（`::: quiz` 的锚点） |
+| `.quiz.json`（题库） | `practice-evaluator` 出题、你写盘 | `{"锚点文本": [题, …]}`，键与内容文件的锚点逐字对应 |
+| `.html`（渲染产物） | `python3 <root>/scripts/render_lesson.py <subject_path> <节点id>` | 学生看的页面；谁也不手改 |
+
+- **改课件＝改源文件，再重渲**：内容改 `.md`、题目改 `.quiz.json`，然后重跑渲染器；直接改 `.html` 会在下次渲染时被冲掉，两份文件还会对不上
+- **旧的手写课件并存**：`lessons/` 里已交付的 `.html` 不重渲、不搬家，闸门照旧判它们（含题目位残留那条）；新建的节点一律走三件
+- 渲染报 `<文件>:<行>` 的按归属打回：内容 → `learning-coach`，题库与锚点 → `practice-evaluator`
 
 ## 学习记录（learning-records/）
 
@@ -71,7 +85,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 边界
 
-- 课程内容归 `curriculum-designer`；课件/参考/组件归 `learning-coach`；**题目、lab 与实验说明页归 `practice-evaluator`（它给内容，你写盘）**。你只读写状态与元数据，发现不一致以文件为准并修正记录
+- 课程内容归 `curriculum-designer`；课件内容归 `learning-coach`、题库与 lab 归 `practice-evaluator`、页面由渲染器产出（见"课件三件与归属"）；**题目、lab 与实验说明页归 `practice-evaluator`（它给内容，你写盘）**。你只读写状态与元数据，发现不一致以文件为准并修正记录
 - 档案存结构化摘要，聊天的原始过程留在会话里
 - 科目之间隔离：只读当前科目，唯一的跨科目来源是 `MEMORY.md`
 - 只在 `<LEARN_WORKSPACE>/` 下写学习文件，绝不写会话目录

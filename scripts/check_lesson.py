@@ -39,7 +39,7 @@
     6 主题开关：存在 id="lesson-theme-checkbox" 的 <input type="checkbox">，
        且有 LearnTheme.wire(...) 引用该 id（骨架里的主题开关不能被改丢）。
     7 题目位残留：`lessons/` 目录下的课件里不得留着 `<!-- 题目位：… -->` 标记
-       （那是讲解角色回合一留下的占位，回合二必须替换掉）。
+       （那是手写课件时代留占位的写法；新流程写内容文件、由渲染器出页面，产物里不会有它）。
     8 命名与上/下节课指针（需 --subject 与 --node，邻居取自 curriculum.yaml 的 nodes 顺序）：
        · 节点必须真实存在于 `nodes:` 里——归属查不出来即 FAIL（否则课件在主页路线图上不存在，
          而主页只按文件名归属，见 gen_home.py 的 lesson_node_id）；
@@ -124,7 +124,7 @@ MAX_H2_CHARS = 14
 # 检查项 6：主题开关元素 id
 THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
 
-# 检查项 7：讲解角色回合一留下的题目位标记（只有课件正文用；骨架注释里是示例，路径不同）
+# 检查项 7：手写课件时代留下的题目位标记（新流程由渲染器出页面；骨架注释里是示例，路径不同）
 PLACEHOLDER_RE = re.compile(r'^[ \t]*<!--[ \t]*题目位', re.M)
 LESSONS_DIR_MARK = '/lessons/'
 
@@ -332,11 +332,11 @@ def check_subject_refs(text):
 
 
 def check_placeholder(text, path):
-    """检查项 7：课件里不得残留回合一的 `<!-- 题目位：… -->` 标记（看原文，注释未剥）。"""
+    """检查项 7：课件里不得残留手写时代的 `<!-- 题目位：… -->` 标记（看原文，注释未剥）。"""
     if LESSONS_DIR_MARK not in path.replace(os.sep, '/'):
         return []
     if PLACEHOLDER_RE.search(text):
-        return ['课件里还留着未替换的题目位标记（回合二的嵌题没做完或标记没删）']
+        return ['课件里还留着未替换的题目位标记（手写课件留下的占位没删；新流程由渲染器出页面，不会有它）']
     return []
 
 
