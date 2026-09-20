@@ -194,13 +194,19 @@
         toolName: subagent
         modelSelectionSettings: true
         backgroundMode: continuable
+        # 角色只在全新上下文里跑，而且角色不得再往下派：默认 3 层，这里压到 1
+        # （总控 depth 0 → 角色 depth 1；角色再派会在启动时被拒，返回出错的工具结果）。
+        maxDepth: 1
 
-    # Fork omits model selection so provider/model stay equal to the parent and
-    # the inherited history remains eligible for KV Cache reuse. This preset
-    # keeps fork continuable; parent and child inherit the same messaging tool,
-    # while the parent id and return guidance follow the inherited history.
+    # 学习模式**关掉 fork**：fork 播的是"总控已完成的回合"，角色会读到总控建科目、
+    # 写元数据、装环境那一段，于是接着当总控——自己去写 RESOURCES.md／curriculum.yaml、
+    # 建 venv、再派一遍角色。实测一次新科目：2 个角色的活变成 4 个 agent 干，两份大纲
+    # 互相覆盖，科目里落了大纲的错版本，同一个 .venv 上三个并发安装。
+    # 角色派发一律用上面的 `subagent`（全新上下文）；要用 fork 就先补上并验证
+    # "角色只干活、不调度"的硬约束，再从这一行去掉 disabled。
     - id: tool-subagent-fork
       name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
       config:
         provider: fork
         toolName: subagent_fork

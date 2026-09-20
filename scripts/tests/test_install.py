@@ -63,6 +63,42 @@ def preset_skills(home):
     return match.group(1) if match else None
 
 
+def preset_tool_rows(home):
+    """读回预设里按 id 索引的工具行。
+
+    `disabled: !!js …` 是 DSH 自己的 JS 表达式标签（按平台禁用 bash/pwsh），
+    标准 SafeLoader 认不出来，所以把该标签原样当字符串收下——这里只关心
+    委派工具那两行的字面配置，不求值。
+    """
+    import yaml
+
+    class Tolerant(yaml.SafeLoader):
+        pass
+
+    Tolerant.add_multi_constructor(
+        'tag:yaml.org,2002:js',
+        lambda loader, suffix, node: loader.construct_scalar(node))
+
+    path = os.path.join(home, '.dsh', '.agent-presets', 'learning', 'agent.cordis.yml')
+    with open(path, encoding='utf-8') as handle:
+        data = yaml.load(handle, Loader=Tolerant)
+
+    rows = {}
+
+    def walk(node):
+        if isinstance(node, dict):
+            if isinstance(node.get('id'), str):
+                rows[node['id']] = node
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(data)
+    return rows
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix='smtest-install-')
     home = os.path.join(tmp, 'home')
@@ -80,6 +116,22 @@ def main():
     check('工作区建出 .learning/subjects',
           os.path.isdir(os.path.join(tmp, 'ws', '.learning', 'subjects')))
     check('配置里的 root = 当前引擎位置', config_of(home)['root'] == str(REPO), config_of(home))
+
+    # ①b 委派工具的口径：角色跑全新上下文，且角色不得再往下派。
+    # 这两条是"角色反过来当总控"那次的修复（fork 会把总控已完成的回合注进角色），
+    # 行被改回去就等于把那个故障放回来——所以钉在安装产物上。
+    parse_detail = ''
+    try:
+        rows = preset_tool_rows(home)
+    except Exception as exc:                      # YAML 语法错、行缺失都算失败
+        rows, parse_detail = {}, f'{type(exc).__name__}: {exc}'
+    check('装出来的预设能整份解析成 YAML（含 !!js 行）', bool(rows), parse_detail)
+    check('fork 工具被禁用：tool-subagent-fork disabled',
+          (rows.get('tool-subagent-fork') or {}).get('disabled') is True,
+          rows.get('tool-subagent-fork'))
+    check('subagent 深度封顶 1 层：角色不能再派角色',
+          ((rows.get('tool-subagent') or {}).get('config') or {}).get('maxDepth') == 1,
+          (rows.get('tool-subagent') or {}).get('config'))
 
     # ② 重复跑：沿用已有工作区
     proc = run(home)

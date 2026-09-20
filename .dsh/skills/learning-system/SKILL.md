@@ -117,7 +117,11 @@ argument-hint: "你想学什么？或继续上次的科目"
 
 ## 子 agent 派发规范（硬约束）
 
-- prompt 必须含：角色名、该角色 SKILL.md 的核心做法（**内联**——角色设了 `disable-model-invocation`，加载不了自己）、**要它加载的协议名**（如"先加载 `lesson-design`"／"先加载 `layered-practice` 与 `evidence-check`"）、输入数据、`subject_path`、`<root>`、返回格式要求
+- prompt 必须含：角色名、该角色 SKILL.md 的核心做法（**内联**——角色设了 `disable-model-invocation`，加载不了自己）、**要它加载的协议名**（如"先加载 `lesson-design`"／"先加载 `layered-practice` 与 `evidence-check`"）、输入数据、`subject_path`、`<root>`、返回格式要求、**三条边界**（不派子 agent／不用 `ask_user_question`／不建改环境）
+- **角色一律用全新上下文的 `subagent` 派，不要用 `subagent_fork`**：fork 会把**你已完成的回合**整段注进子 agent（建科目、写元数据、装环境全在里面），角色会误以为自己是总控——接着去写 `RESOURCES.md`／`curriculum.yaml`、建 venv、再派一遍角色。实测一次开新科目：2 个角色的活被 4 个 agent 干，两份大纲互相覆盖、科目里落了大纲的错版本，同一个 `.venv` 上出现三个并发安装。学习模式下 fork 工具已在预设里关掉（`preset/learning/agent.cordis.yml` 的 `tool-subagent-fork` 行 `disabled: true`），`subagent` 的 `maxDepth: 1` 兜住"角色再派角色"
+- **角色只干活，不调度**：派工 prompt 里写死三条边界——**不派任何子 agent**（要别的角色就写进报告由你派）、**不调用 `ask_user_question`**（用户通道只有你有）、**不建也不改环境**（`.venv`／`pyproject.toml`／`.python-version` 都是你的活）
+- **同一科目同时只有一个写入者**：并行只允许"不写同一个文件"的两支（现有并行段就是：`image-scout` 写池子与 `pool.md`、`curriculum-designer` 只回内容）；上一支没回来别派下一支
+- **暂存目录按角色分开**：要角色落草稿就在 prompt 里写死 `/tmp/<角色>-<节点id或slug>/`，**不许给 `/tmp/<科目名>` 这类共用固定路径**——两个 agent 撞同一路径时，后写的会盖掉先写的，交付的规模就和盘上内容对不上；角色回来除了路径**必须报**能复算的规模（节点数/边数、图片数/索引行数），你落盘后立刻跑 `check_curriculum.py`／`check_pool.py` 核对再写档案
 - **角色不写 `<root>`**：引擎项目只由你维护；派发时明说"临时脚本与中间产物写 `/tmp`，学习产物写 `subject_path`"。事后发现 `<root>` 里有陌生文件 → 查来路，有用就复核后收编并说明，没用就删
 - **派 `practice-evaluator` 时必须给节点 `kind`**；**实验课不派 `learning-coach`**
 - **派 `learning-coach` 时不规定内容怎么写**：只给结果式要求、节点内容、学生偏好与载体；分节、标题、行文由它按内容定（页面形态由渲染器统一产出）
