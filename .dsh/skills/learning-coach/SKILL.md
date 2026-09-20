@@ -13,7 +13,7 @@ user-invocable: false
 
 ## 输入（总控在 prompt 里给）
 
-`subject_path` + **节点 id**（`objective`／`过关标准` 自己从 `<subject_path>/curriculum.yaml` 读）、前置节点摘要（总控生成）、`MEMORY.md` 讲法偏好、项目上下文、`MISSION.md`（回扣目标）、节点的 `kind`（`kind: 实操` 才有小 lab，给载体与位置；`kind: 实验` 不走你）、`<root>`（渲染器脚本在它下面）。
+`subject_path` + **节点 id**（`objective`／`problem`／`practice`／`过关标准` 自己从 `<subject_path>/curriculum.yaml` 读）、前置节点摘要（总控生成）、`MEMORY.md` 讲法偏好、项目上下文、`MISSION.md`（回扣目标）、节点的 `kind`（`kind: 实操` 才有小 lab，给载体与位置；`kind: 实验` 不走你）、`<root>`（渲染器脚本在它下面）。
 
 ## 写内容（一次交付）
 
@@ -21,8 +21,9 @@ user-invocable: false
 2. 产出**内容文件** `<subject_path>/lessons/<序号>-<节点id>.md`（序号 = 本节点在 `curriculum.yaml` 的 `nodes:` 里排第几，文件名必须与上一课的「下节课」指针逐字一致）。**一个字 HTML 都不写**——HTML 由渲染器产出，内容文件里出现块级 HTML 标签会被它拦下（归属见 `record-keeping` 的「课件三件与归属」）
 3. 放题处写 `::: quiz <层级> 锚点：<锚点文本>`：**留题目位置，不写题**。练习段落写 `::: practice <层级> | <标题>`。`::: quiz` 的层级是元信息、不落到页面上；`::: practice` 的层级**会显示成徽标**，写 `练习`／`上手做` 这类中文阶段名。**每个指令块都要有单独一行 `:::` 收尾**。要不要 `empty_reason` 由出题人定，不用写也写不了
 4. `kind: 概念` 写**轻量练习**（敲一条命令、改一行看变化、在输出里指出某个东西），分步且每步能看到结果
-5. **交稿前自检**：`python3 <root>/scripts/render_lesson.py <subject_path> <节点id> --check`（只解析校验、不写盘）。**题库/锚点类报错此时是预期的**（题还没出、`quiz.json` 还没落盘），别消它——尤其别补 `empty_reason`、别删 `::: quiz` 块；其余每一行都改到没有
-6. 返回：内容文件路径、要点摘要（3-5 条）、每处锚点**想要的题型**（锚点文本在文件里，不用抄回来）
+5. **篇幅按节点侧重走**（读 `practice` 里那句"以什么为主"）：`以讲为主` → 讲解与配图是主体，代码示例少而短，练习只留一处轻量跟做；`以练为主` → 讲解只作引入，动手是主体；`讲练并重` → 讲一段立刻练一段。**不要写死比例**
+6. **交稿前自检**：`python3 <root>/scripts/render_lesson.py <subject_path> <节点id> --check`（只解析校验、不写盘）。**题库/锚点类报错此时是预期的**（题还没出、`quiz.json` 还没落盘），别消它——尤其别补 `empty_reason`、别删 `::: quiz` 块；其余每一行都改到没有
+7. 返回：内容文件路径、要点摘要（3-5 条）、每处锚点**想要的题型**（锚点文本在文件里，不用抄回来）
 
 渲染与检查的分工：**你交稿前跑 `--check`（只解析、不写盘）先把语法类错误消掉**；**正式渲染与 `check_lesson.py` 归总控**——那一刻题库才齐，而且失败要分两路打回（内容 → 你，题库与锚点 → `practice-evaluator`）。报错带行号打回你时改内容文件、改完再自检一遍。
 

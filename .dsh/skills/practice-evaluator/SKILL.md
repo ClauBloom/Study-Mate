@@ -13,11 +13,11 @@ user-invocable: false
 
 ## 输入（总控在 prompt 里给）
 
-`subject_path` + **节点 id**（节点字段自己从 `<subject_path>/curriculum.yaml` 读：`objective`／`过关标准`／`kind`／`prerequisites`——`kind` 决定题目上限与产出物，**别让总控贴节点全文**）、**实操载体**（记在 `<subject_path>/lab/README.md`；`lab/` 还没建时用总控 prompt 里给的那份——prompt 里也没有就问总控，别自己选）、`MEMORY.md` 讲法偏好、该科目最近的 misconceptions、目标层级（L1-L4，默认从 L2 起试）。**实验课**：`prerequisites` 里那些被验收节点同样按 id 自己读。
+`subject_path` + **节点 id**（节点字段自己从 `<subject_path>/curriculum.yaml` 读：`objective`／`problem`／`practice`／`过关标准`／`kind`／`prerequisites`——`kind` 决定题目上限与产出物，**别让总控贴节点全文**）、**实操载体**（记在 `<subject_path>/lab/README.md`；`lab/` 还没建时用总控 prompt 里给的那份——prompt 里也没有就问总控，别自己选）、`MEMORY.md` 讲法偏好、该科目最近的 misconceptions、目标层级（L1-L4，默认从 L2 起试）。**实验课**：`prerequisites` 里那些被验收节点同样按 id 自己读。
 
 ## 时机一 · 出题（课件产出后、学生开读前）
 
-1. 出概念题：题型与题量按 `layered-practice` 第二、三节。**按锚点清单逐个锚点出题**（锚点在总控给的内容文件里，自己读 `::: quiz` 行），题库落成 `deliver/<序号>-<节点id>.quiz.json`——**键与内容文件的锚点逐字对应，对不上渲染器直接报错（页面就少一道题）**，结构见 `<root>/docs/课件内容格式.md` 第 4 节；某个锚点这轮真不该出题，就对该锚点**交回一行 `empty_reason: <理由>`**（总控照抄进内容文件，讲解角色不写它）。**HTML 属性怎么转义、`data-quiz` 怎么拼都归渲染器**，题库正文只给**锚点 ↔ 层级 ↔ `过关标准` 的短表**
+1. 出概念题：题型与题量按 `layered-practice` 第二、三节，**层级与题量再跟着这课的侧重走**（`practice` 里那句"以什么为主"）：`以练为主` 的节点把题往 L3／L4 压、题量少而深（**上限仍由 `kind` 定**）；`以讲为主` 的节点以理解型题为主。**按锚点清单逐个锚点出题**（锚点在总控给的内容文件里，自己读 `::: quiz` 行），题库落成 `deliver/<序号>-<节点id>.quiz.json`——**键与内容文件的锚点逐字对应，对不上渲染器直接报错（页面就少一道题）**，结构见 `<root>/docs/课件内容格式.md` 第 4 节；某个锚点这轮真不该出题，就对该锚点**交回一行 `empty_reason: <理由>`**（总控照抄进内容文件，讲解角色不写它）。**HTML 属性怎么转义、`data-quiz` 怎么拼都归渲染器**，题库正文只给**锚点 ↔ 层级 ↔ `过关标准` 的短表**
 2. `kind: 实操` 还要产**整套 lab 内容**（教程、留白任务、断言、载体的依赖/构建描述文件（如需要）、`solutions/`、`lab/README.md` 整份——任务表与卡壳顺序都写进去），按 `layered-practice` 第六节
 3. `kind: 实验` **不产课件题**，改产两样：
    - **实验说明页内容**（内容格式、与课件正文同一套块；落成 `deliver/lessons/<序号>-<节点id>.md`，总控 `cp` 到位再渲染）：这次**要做出什么**（可观察的产物）、**怎么算过**（照被验收节点的 `过关标准` 写）、**自查清单**、**最可能卡在哪**（预期报错与坑）、**指向实操任务**
