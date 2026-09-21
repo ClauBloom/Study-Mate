@@ -34,6 +34,7 @@ import json
 import os
 import re
 import sys
+from urllib.parse import unquote
 
 try:
     import yaml
@@ -215,10 +216,21 @@ def load_outline(subject_dir, problems):
         problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
         return None
     nodes = data.get('nodes') if isinstance(data, dict) else None
+    if not isinstance(nodes, list):
+        problems.add(path, 1, '大纲的 nodes 必须是节点数组')
+        return None
     rows = []
-    for node in nodes or []:
-        if isinstance(node, dict) and node.get('id'):
-            rows.append({'id': str(node['id']), 'title': str(node.get('title') or node['id'])})
+    seen = set()
+    for position, node in enumerate(nodes, 1):
+        node_id = node.get('id') if isinstance(node, dict) else None
+        if not isinstance(node_id, str) or not re.fullmatch(r'[a-z0-9]+([.-][a-z0-9]+)*', node_id):
+            problems.add(path, 1, f'nodes 第 {position} 项缺少合法的节点 id（小写字母数字，以点或短横线分段）')
+            return None
+        if node_id in seen:
+            problems.add(path, 1, f'大纲里有重复 id: {node_id}（课件编号无法唯一确定）')
+            return None
+        seen.add(node_id)
+        rows.append({'id': node_id, 'title': str(node.get('title') or node_id)})
     if not rows:
         problems.add(path, 1, '大纲里没有 nodes:（课件编号与上下节课指针都按它算）')
         return None
@@ -1007,7 +1019,7 @@ class Renderer:
     def render_quiz(self, block, indent):
         """按锚点从题库取题；锚点没题时必须 empty_reason，否则报错（绝不静默出一个空块）。"""
         questions = self.quiz.get(block['anchor']) if isinstance(self.quiz, dict) else None
-        if questions:
+        if isinstance(questions, list) and questions:
             if block['empty_reason']:
                 self.problems.add(self.path, block['line'],
                                   f'锚点「{block["anchor"]}」在题库里有 {len(questions)} 道题，'
@@ -1024,12 +1036,13 @@ class Renderer:
 
     def render_figure(self, block, indent):
         src, line = block['src'], block['line']
-        if SCHEME_RE.match(src):
+        local_path = unquote(src.split('#', 1)[0].split('?', 1)[0])
+        if SCHEME_RE.match(src) or os.path.isabs(local_path):
             self.problems.add(self.path, line, f'::: figure 只接受本地相对路径（现在是 {src}）——'
                                                '图从科目图片库 assets/img/pool/ 挑')
         else:
-            target = os.path.normpath(os.path.join(self.lessons_dir, src))
-            if not os.path.exists(target):
+            target = os.path.normpath(os.path.join(self.lessons_dir, local_path))
+            if not os.path.isfile(target):
                 self.problems.add(self.path, line,
                                   f'图片文件不存在：{src}（解析到 {target}）——'
                                   '从科目图片库 assets/img/pool/ 挑一张，或先采图')
@@ -1085,7 +1098,8 @@ class Renderer:
 
     def pool_source(self, src):
         """图片库里的图：题注自动补「（来源：…，许可：…）」（读 assets/img/pool.md 的索引行）。"""
-        row = self.pool.get(os.path.basename(src))
+        local_path = unquote(src.split('#', 1)[0].split('?', 1)[0])
+        row = self.pool.get(os.path.basename(local_path))
         if not row:
             return ''
         return f'（来源：{row["url"]}，许可：{row["license"]}）'

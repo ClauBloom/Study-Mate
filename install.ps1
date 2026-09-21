@@ -21,19 +21,20 @@ $Dsh  = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '
 
 # ── 1) 学习模式预设 → <DSH>\.agent-presets\learning\，并把引擎的 skill 目录写进去
 $SkillsSrc = Join-Path $Root '.dsh\skills'
-if (-not (Test-Path $SkillsSrc)) {
+if (-not (Test-Path -LiteralPath $SkillsSrc -PathType Container)) {
     [Console]::Error.WriteLine("找不到 $SkillsSrc —— 引擎目录不完整（仓库要整个克隆，别只拷 install.ps1）")
     exit 1
 }
 $DestPreset = Join-Path $Dsh '.agent-presets\learning'
-New-Item -ItemType Directory -Force -Path $DestPreset | Out-Null
-Copy-Item -Path (Join-Path $Root 'preset\learning\*') -Destination $DestPreset -Recurse -Force
+[System.IO.Directory]::CreateDirectory($DestPreset) | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $Root 'preset\learning') -Force |
+    Copy-Item -Destination $DestPreset -Recurse -Force
 
 $AgentYml    = Join-Path $DestPreset 'agent.cordis.yml'
 $SkillsPosix = $SkillsSrc -replace '\\', '/'      # YAML 里用正斜杠：反斜杠是转义字符
 $text = Read-Utf8 $AgentYml
 if ($text.Contains('__STUDYMATE_SKILLS__')) {
-    Write-Utf8NoBom $AgentYml ($text.Replace('__STUDYMATE_SKILLS__', $SkillsPosix))
+    Write-Utf8NoBom $AgentYml ($text.Replace('__STUDYMATE_SKILLS__', $SkillsPosix.Replace("'", "''")))
 } elseif (-not $text.Contains($SkillsPosix)) {
     [Console]::Error.WriteLine('预设里既没有占位符 __STUDYMATE_SKILLS__，也没有已写入的 skill 路径')
     exit 1
@@ -45,10 +46,24 @@ Write-Host "① 预设 → $DestPreset（skill 目录：$SkillsPosix）"
 $Config      = Join-Path $Dsh 'studymate-config.yaml'
 $Workspace   = $env:LEARN_WORKSPACE
 $KeptExisting = $false
-if (-not $Workspace -and (Test-Path $Config)) {
-    $hit = Select-String -Path $Config -Pattern '^workspace:\s*(.+?)\s*$' | Select-Object -First 1
+if (-not $Workspace -and (Test-Path -LiteralPath $Config)) {
+    $hit = Select-String -LiteralPath $Config -Pattern '^workspace:\s*(.+?)\s*$' | Select-Object -First 1
     if ($hit) {
         $Workspace = $hit.Matches[0].Groups[1].Value
+        # 本安装器输出 JSON 字符串（也是 YAML 字符串），兼容旧版未加引号的配置。
+        if ($Workspace.StartsWith('"')) {
+            if ($Workspace -notmatch '^("(?:\\.|[^"\\])*")\s*(?:#.*)?$') {
+                throw '配置里的 workspace 引号未正确闭合'
+            }
+            $Workspace = ConvertFrom-Json $Matches[1]
+        } elseif ($Workspace.StartsWith("'")) {
+            if ($Workspace -notmatch "^'((?:[^']|'')*)'\s*(?:#.*)?$") {
+                throw '配置里的 workspace 引号未正确闭合'
+            }
+            $Workspace = $Matches[1].Replace("''", "'")
+        } else {
+            $Workspace = ($Workspace -replace '\s+#.*$', '').TrimEnd()
+        }
         $KeptExisting = $true
     }
 }
@@ -62,14 +77,16 @@ if ($Workspace.StartsWith('~')) {
 if (-not [System.IO.Path]::IsPathRooted($Workspace)) {
     $Workspace = Join-Path (Get-Location).Path $Workspace
 }
-New-Item -ItemType Directory -Force -Path (Join-Path $Workspace '.learning\subjects') | Out-Null
-$Workspace = (Resolve-Path $Workspace).Path -replace '\\', '/'
+[System.IO.Directory]::CreateDirectory((Join-Path $Workspace '.learning\subjects')) | Out-Null
+$Workspace = (Resolve-Path -LiteralPath $Workspace).Path -replace '\\', '/'
 $RootPosix = $Root -replace '\\', '/'
+$WorkspaceYaml = ConvertTo-Json -InputObject $Workspace -Compress
+$RootPosixYaml = ConvertTo-Json -InputObject $RootPosix -Compress
 
 Write-Utf8NoBom $Config @"
 # StudyMate 学习工作区与引擎项目定位
-workspace: $Workspace
-root: $RootPosix
+workspace: $WorkspaceYaml
+root: $RootPosixYaml
 "@
 if ($KeptExisting) {
     Write-Host "② 学习工作区 → $Workspace（沿用已有工作区；配置在 $Config）"

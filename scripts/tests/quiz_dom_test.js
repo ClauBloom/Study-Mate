@@ -182,5 +182,47 @@ const openFenced = makeBlock([{ q: '题面', answer: '参考答案：\n\n```cpp\
 run([openFenced]);
 check('answer 里的围栏也渲染成代码块', findAll(openFenced, 'quiz__code').length === 1);
 
+// 题号和判分前缀不能拼进围栏首行；JSON 字符串也可能使用 Windows 换行。
+const leadingFence = makeBlock([
+  { q: '```cpp\nint n = 1;\n```\n结果？', opts: ['1', '2'], ans: 0,
+    why: '```cpp\nreturn 1;\n```\n解释' },
+  { q: '```text\r\n    保留缩进\r\n```', answer: '答', criteria: '标准' },
+]);
+run([leadingFence]);
+const leadingQuestions = findAll(leadingFence, 'quiz__q');
+check('题号不破坏题干开头的围栏',
+  findAll(leadingQuestions[0], 'quiz__code')[0]?.textContent === 'int n = 1;' &&
+  leadingQuestions[0].textContent.startsWith('1. ') && leadingQuestions[0].textContent.endsWith('结果？'));
+findAll(leadingFence, 'quiz__opts')[0].children[0].click();
+const leadingFeedback = findAll(leadingFence, 'feedback')[0];
+check('反馈前缀不破坏 why 开头的围栏',
+  findAll(leadingFeedback, 'quiz__code')[0]?.textContent === 'return 1;' &&
+  leadingFeedback.textContent.startsWith('✓ 对') && leadingFeedback.textContent.endsWith('解释'));
+check('CRLF 围栏正常渲染且保留缩进',
+  findAll(leadingQuestions[1], 'quiz__code')[0]?.textContent === '    保留缩进');
+
+const invalidItems = [
+  null, false, 1, '题目', [],
+  { q: '越界', opts: ['a', 'b'], ans: 2, why: 'w' },
+  { q: '小数', opts: ['a', 'b'], ans: 0.5, why: 'w' },
+  { q: '无选项', opts: [], ans: 0, why: 'w' },
+  { q: '无解释', opts: ['a', 'b'], ans: 0 },
+  { q: '冲突', opts: ['a', 'b'], ans: 0, why: 'w', answer: 'a', criteria: 'c' },
+  { q: '空答案', answer: ' ', criteria: 'c' },
+  { answer: 'a', criteria: 'c' },
+];
+const invalid = makeBlock(invalidItems.concat([
+  { q: '可答题', opts: ['a', 'b'], ans: 0, why: 'w' },
+]));
+const afterInvalid = makeBlock([{ q: '后续题组', answer: 'a', criteria: 'c' }]);
+let invalidError = '';
+try { run([invalid, afterInvalid]); } catch (e) { invalidError = e.message; }
+check('非对象题目不抛错且后续题组继续渲染',
+  !invalidError && findAll(afterInvalid, 'quiz__reveal').length === 1, invalidError);
+check('不完整或冲突题目统一显示兜底',
+  findAll(invalid, 'feedback').filter(e => e.textContent.includes('数据不完整')).length === invalidItems.length);
+check('坏选择题不提供无效选项且不计入总分',
+  findAll(invalid, 'quiz__opts').length === 1 && findAll(invalid, 'quiz__score').length === 0);
+
 console.log(failures === 0 ? '\n全部通过' : `\n${failures} 项失败`);
 process.exit(failures === 0 ? 0 : 1);

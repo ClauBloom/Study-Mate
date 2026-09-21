@@ -75,7 +75,7 @@ export function parseStatusLine(line: string): { version: string; status: number
 
 /* ── 任务 4：判断成功 ────────────────────────────────────────── */
 
-export function isSuccess(status: number): status is 200 | 201 | 204 {
-  // 类型上只声明最常用的三个 2xx（便于调用方收窄），运行时的判断覆盖整个 2xx 区间。
+export function isSuccess(status: number): boolean {
+  // 接受整个 2xx 区间，不能把调用方的值收窄成 200 / 201 / 204。
   return status >= 200 && status < 300;
 }

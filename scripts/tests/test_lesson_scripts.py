@@ -615,7 +615,7 @@ def apply_bad_target(box, root):
     box.has(err, '节点 ghost 不在 curriculum.yaml 的 nodes: 里')
     code, out, err = run(APPLY, subject, 'cpp.io', tsv)        # 大纲里有、但还没交内容文件
     box.expect(code == 1, f'内容文件没产出应退出 1，实际 {code}')
-    box.has(err, 'lessons/0003-cpp.io.md:1', '找不到内容文件')
+    box.has(err, os.path.join('lessons', '0003-cpp.io.md') + ':1', '找不到内容文件')
     code, out, err = run(APPLY, subject, 'cpp.types', os.path.join(root, '没有这个.tsv'))
     box.expect(code == 1, f'TSV 不在应退出 1，实际 {code}')
     box.has(err, '找不到 TSV 文件')

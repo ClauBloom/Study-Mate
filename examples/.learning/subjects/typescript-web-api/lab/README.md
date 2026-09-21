@@ -14,7 +14,7 @@
 | `0001-http-basics/requests.ts` | 你要读和写的源码：教程部分已完成，四个函数留白（标了 `▸ 你的任务`） |
 | `0001-http-basics/requests.test.ts` | 自检脚本：教程断言 + 四个任务断言（任务部分此刻用 `test.skip` 放着） |
 | `0001-http-basics/package.json` | 只有一个 `test` 脚本：`node --test` |
-| `solutions/requests.ts` | 参考答案（做完再对照，别提前看） |
+| `solutions/0001-http-basics/requests.ts` | 参考答案（做完再对照，别提前看） |
 
 ## 环境
 
@@ -48,19 +48,19 @@ npm test
 | 1 | `requestLineText(request)` | 拼出请求行原文，如 `GET /menu HTTP/1.1` | "任务 1"2 条断言 |
 | 2 | `headerValue(request, name)` | 按名字取请求头；**头名不区分大小写**，找不到返回 `undefined` | "任务 2"3 条断言 |
 | 3 | `parseStatusLine(line)` | 把 `HTTP/1.1 404 Not Found` 拆成 `{version, status, reason}`，`status` 是数字 | "任务 3"3 条断言 |
-| 4 | `isSuccess(status)` | 2xx 才算成功；返回类型写成类型守卫 | "任务 4"4 条断言（含 199/300 两个边界） |
+| 4 | `isSuccess(status)` | 2xx 才算成功；返回布尔值 | "任务 4"4 条断言（含 199/300 两个边界） |
 
 卡住了按这个顺序来：**先读报错原文** → 再看函数上方注释里的"边界/提示" → 还不行就把报错原样贴回会话。
 我不直接给答案，会先问你觉得哪一行不对。
 
 ## 答案
 
-- `../solutions/requests.ts`：四个任务的完整实现。
+- `solutions/0001-http-basics/requests.ts`：四个任务的完整实现（相对于本文件所在目录）。
 - 对照方式：把那份整个覆盖到 `0001-http-basics/requests.ts`，再把四条 `test.skip(` 改成 `test(`，`npm test` 应全绿。
   可用的命令：
 
   ```bash
-  cp ../solutions/requests.ts requests.ts && npm test   # 覆盖回去前先确认自己的版本已经提交/备份
+  cp ../solutions/0001-http-basics/requests.ts requests.ts && npm test   # 在 0001-http-basics/ 下运行；先确认自己的版本已经提交/备份
   ```
 
 ## 做完之后

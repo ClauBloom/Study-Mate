@@ -456,7 +456,9 @@ def progress_nodes(prog):
 
 def subject_nodes(cur, prog, slug=None):
     """卡片统计用的节点视图：有课程大纲就用它；没有就退回 progress.yaml 自己的节点。"""
-    return curriculum_nodes(cur, prog, slug) or progress_nodes(prog)
+    if isinstance((cur or {}).get('nodes'), list):
+        return curriculum_nodes(cur, prog, slug)
+    return progress_nodes(prog)
 
 
 def node_stats(nodes):
@@ -532,7 +534,7 @@ def render_cards_html(subjects):
             status=esc(item['status'], attr=True),
             progress=num_text(item['progress']),
             mastery=num_text(item['mastery']),
-            slug=esc(item['slug'], attr=True),
+            slug=esc(urllib.parse.quote(item['slug'], safe=''), attr=True),
             name=esc(item['name']),
             badge=status_tag(item['status'], 'syo-tag learn-subject-card__status'),
             current=esc(item['current']),
@@ -636,7 +638,7 @@ def render_project_html(prog):
 def lesson_files(slug, ws):
     """lessons/*.html → [(编号, 文件名, 完整路径)]，按编号升序。"""
     rows = []
-    for path in glob.glob(os.path.join(subject_dir(ws, slug), 'lessons', '*.html')):
+    for path in glob.glob(os.path.join(glob.escape(subject_dir(ws, slug)), 'lessons', '*.html')):
         name = os.path.basename(path)
         match = LESSON_FILE_RE.match(name)
         rows.append((match.group(1) if match else '', name, path))
@@ -735,7 +737,7 @@ def render_node_html(node, nodes, lessons):
              if str(node.get('kind') or '').strip() == '实验' else '')
     # 卡片上标题一行省略号、目标两行截断；全文放进 title 属性，鼠标悬停能看全（截断只影响显示，信息不丢）
     title_attr = f' title="{esc(node["title"], attr=True)}"'
-    objective = (f'<span class="learn-node__objective"{title_attr}>{esc(node["objective"])}</span>'
+    objective = (f'<span class="learn-node__objective" title="{esc(node["objective"], attr=True)}">{esc(node["objective"])}</span>'
                  if node['objective'] else '')
     foot = ('<span class="learn-node__foot">'
             f'<span class="learn-node__prereq">前置 {prereq_chips(node, nodes)}</span>'
@@ -752,7 +754,7 @@ def render_node_html(node, nodes, lessons):
                '<span class="learn-node__caret" aria-hidden="true"></span>'
                '</span>')
         children = '\n'.join(LESSON_CHILD_TEMPLATE.format(
-            file=esc(name, attr=True), number=esc(number), title=esc(title))
+            file=esc(urllib.parse.quote(name, safe=''), attr=True), number=esc(number), title=esc(title))
             for number, name, title in lessons)
         return NODE_SLOT_TEMPLATE.format(node_id=esc(node['id'], attr=True), kind=kind,
                                          row=row, objective=objective, foot=foot, children=children)
@@ -790,7 +792,7 @@ def render_roadmap_html(slug, cur, prog, ws):
 def reference_items(sdir):
     """参考文档：reference/*.html（标题取页面标题，退文件名；meta 写所在目录）。"""
     items = []
-    for path in sorted(glob.glob(os.path.join(sdir, 'reference', '*.html'))):
+    for path in sorted(glob.glob(os.path.join(glob.escape(sdir), 'reference', '*.html'))):
         name = os.path.basename(path)
         title = os.path.splitext(name)[0]
         match = TITLE_RE.search(strip_comments(read_text_quiet(path, '参考文档')))
@@ -819,7 +821,7 @@ def md_title(path, fallback):
 def learning_record_items(sdir):
     """学习记录：learning-records/*.md，按编号升序。"""
     rows = []
-    for path in glob.glob(os.path.join(sdir, 'learning-records', '*.md')):
+    for path in glob.glob(os.path.join(glob.escape(sdir), 'learning-records', '*.md')):
         name = os.path.basename(path)
         match = RECORD_FILE_RE.match(name)
         rows.append((match.group(1) if match else 'zzzz', name, path))
@@ -835,7 +837,7 @@ def learning_record_items(sdir):
 def session_items(sdir):
     """会话摘要：sessions/*.md，按日期倒序（最新的在前）。"""
     rows = []
-    for path in glob.glob(os.path.join(sdir, 'sessions', '*.md')):
+    for path in glob.glob(os.path.join(glob.escape(sdir), 'sessions', '*.md')):
         name = os.path.basename(path)
         match = SESSION_FILE_RE.match(name)
         rows.append((match.group(1) if match else '', name, path))
@@ -862,7 +864,7 @@ def render_attachments_html(slug, ws):
         if not items:
             continue
         rows = '\n'.join(ATTACH_ROW_TEMPLATE.format(
-            href=esc(href, attr=True), title=esc(title), meta=esc(meta))
+            href=esc(urllib.parse.quote(href), attr=True), title=esc(title), meta=esc(meta))
             for href, title, meta in items)
         blocks.append(ATTACH_GROUP_TEMPLATE.format(label=esc(label), rows=rows))
     if not blocks:

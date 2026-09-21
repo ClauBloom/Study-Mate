@@ -40,7 +40,10 @@
 
   /* localStorage 在 file:// 下不一定可用（各浏览器策略不同），失败了就当没记住 */
   function readCollapsed() {
-    try { return window.localStorage.getItem(COLLAPSE_KEY) === '1'; } catch (e) { return false; }
+    try {
+      var value = window.localStorage.getItem(COLLAPSE_KEY);
+      return value === '1' ? true : value === '0' ? false : null;
+    } catch (e) { return null; }
   }
   function writeCollapsed(value) {
     try { window.localStorage.setItem(COLLAPSE_KEY, value ? '1' : '0'); } catch (e) { /* 忽略 */ }
@@ -136,14 +139,19 @@
       document.body.style.overflow = '';
     }
 
-    if (!isMobile() && readCollapsed()) aside.classList.add('collapsed');
+    var collapsed = readCollapsed();
+    function syncCollapsed() {
+      aside.classList.toggle('collapsed', collapsed === null ? window.innerWidth <= 1024 : collapsed);
+    }
+    if (!isMobile()) syncCollapsed();
 
     toggle.addEventListener('click', function () {
       if (isMobile()) {
         if (aside.classList.contains('mobile-open')) closeMobile(); else openMobile();
         return;
       }
-      writeCollapsed(aside.classList.toggle('collapsed'));
+      collapsed = aside.classList.toggle('collapsed');
+      writeCollapsed(collapsed);
     });
 
     if (hamburger) {
@@ -156,6 +164,7 @@
 
     window.addEventListener('resize', function () {
       if (!isMobile() && aside.classList.contains('mobile-open')) closeMobile();
+      if (!isMobile()) syncCollapsed();
     });
 
     Array.prototype.forEach.call(aside.querySelectorAll('a'), function (link) {

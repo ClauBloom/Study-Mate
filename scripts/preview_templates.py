@@ -432,11 +432,14 @@ def main():
     print('  切亮色：在地址栏 URL 后加 ?theme=light（暗色是默认）')
 
     if '--open' in sys.argv[1:]:
-        opener = 'open' if sys.platform == 'darwin' else 'xdg-open'
-        try:
-            subprocess.run([opener, os.path.join(OUT, 'index.html')], check=False)
-        except FileNotFoundError:
-            print('（找不到 %s，请手动打开上面的文件）' % opener)
+        if sys.platform == 'win32':
+            os.startfile(os.path.join(OUT, 'index.html'))
+        else:
+            opener = 'open' if sys.platform == 'darwin' else 'xdg-open'
+            try:
+                subprocess.run([opener, os.path.join(OUT, 'index.html')], check=False)
+            except FileNotFoundError:
+                print('（找不到 %s，请手动打开上面的文件）' % opener)
 
     if not lesson_page:                       # 课件页没渲出来 = 预览不完整，别静默退 0
         raise SystemExit(1)
