@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    StudyMate · 课件侧边目录（照搬 sayo-ui 文档页的侧边栏）
    ═══════════════════════════════════════════════════════════════
-   用法：课件页底部引一次（骨架 templates/lesson.html 里已经带好）：
+   用法：课件页底部引一次（占位符壳 templates/lesson.html 由渲染器填好后已经带好）：
 
      <script src="../assets/lesson-toc.js" defer></script>
 
@@ -14,9 +14,15 @@
          <button class="sidebar-toggle">…</button>   ← 折叠成 44px rail
          <p class="doc-sidebar-title">…本节目录</p>   ← 图标 + 标题
          <a href="#sec-1">…</a> …                     ← 每个 h2 一条
+         <nav class="lesson-nav">…</nav>             ← 正文里的上/下节课指针，搬到这里
        </aside>
        <article class="lesson">…</article>
      </div>
+
+    上/下节课指针不在这里生成——它是**课件里的真实链接**（`<nav class="lesson-nav">`，由
+    `scripts/render_lesson.py` 按 `curriculum.yaml` 的 nodes 顺序渲染进正文），本脚本只负责把那一块
+    搬到目录下面。取值来自 `curriculum.yaml`（节点 id 与顺序），所以交给渲染器算；照原样留在正文里，
+    没有 javascript 时也还能点。
 
    行为也照搬：桌面折叠状态记在 localStorage、≤1024px 自动收成 rail、≤768px 变抽屉
    （顶栏里的汉堡拉开、点遮罩或点链接关掉）；当前小节高亮由 Sayo 的 data-syo-scrollspy 负责
@@ -96,6 +102,12 @@
       link.textContent = item.text;
       aside.appendChild(link);
     });
+
+    // ③b 上/下节课指针：把正文里的 .lesson-nav 搬到目录下面（appendChild 自带"从原位移走"）。
+    //     页面里没有这一块（第一课没写、或旧课件）就跳过。
+    var nav = lesson.querySelector('.lesson-nav');
+    if (nav) aside.appendChild(nav);
+
     grid.insertBefore(aside, lesson);
 
     // ④ 顶栏里的汉堡（只有 ≤768px 显示，CSS 管可见性）

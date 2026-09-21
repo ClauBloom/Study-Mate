@@ -51,7 +51,7 @@
 
 /* ═══════════════════════════════════════════════════════════════
    侧边目录：照搬 sayo-ui 文档页的 .doc-sidebar（含折叠 rail 与移动端抽屉）
-   来源：/home/tofu/我的项目/sayo-ui/index.html 的 <style> 块——.doc-grid / .doc-sidebar /
+   来源：该页 <style> 块里的 .doc-grid / .doc-sidebar /
         .sidebar-toggle / .doc-sidebar-title / .nav-hamburger / .sidebar-backdrop + 两段媒体查询
    只改两处：① var(--syo-nav-height) → 本页顶栏高度 var(--lesson-nav-h)；
             ② 第二列改 minmax(0, 1fr)（防宽内容撑破），去掉与课件无关的 .doc-main/.doc-section/syo-hero-logo
@@ -164,7 +164,7 @@
   }
 
   /* ── 侧栏底部：上/下节课指针 ────────────────────────────────────
-     正文里由讲解角色写一份 <nav class="lesson-nav">（真实链接，js 关掉也还在），
+     正文里由 render_lesson.py 渲染一份 <nav class="lesson-nav">（真实链接，js 关掉也还在），
      lesson-toc.js 生成目录后把它搬到侧栏目录下面——页面上只有一份。
      样式写在这里对两种位置都成立：搬进侧栏后吃 .doc-sidebar a 的内边距与 hover，
      没搬（无 js）时就是正文末尾一块普通导航。 */
@@ -456,6 +456,37 @@
 }
 
 .lesson img, .lesson svg { max-width: 100%; }
+
+/* ── 配图 ─────────────────────────────────────────────────────
+   两种放法：① 内联 <svg>（首选：用 currentColor 就跟主题走、体积小、中文用页面字体）
+   ② 图片文件（PNG/WebP，从科目图片库 `assets/img/pool/` 挑，见 lesson-design 第三节）。
+   ②的问题是自己不带主题信息——深色页面上一张白底图会刺眼、浅色线条图又会看不见，
+   所以统一给 figure 一块"纸面"：浅色底 + 细边框，深浅主题下都当插图看
+   （图像内容不必跟着换）。 */
+.lesson-figure {
+  margin: var(--syo-space-5) 0;
+  padding: var(--syo-space-4);
+  background: var(--learn-figure-paper);
+  border: 1px solid var(--syo-border);
+  border-radius: var(--syo-radius-md);
+  text-align: center;
+}
+.lesson-figure img,
+.lesson-figure svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+/* 内联 SVG 跟着主题走时不要把纸面刷成白色：纸面只服务于位图。
+   写了 .lesson-figure--inline 就透明底，线条颜色取 currentColor。 */
+.lesson-figure--inline { background: none; border: 0; padding: 0; }
+.lesson-figure figcaption {
+  margin-top: var(--syo-space-3);
+  font-size: .8125rem;
+  line-height: 1.6;
+  color: var(--syo-fg-muted);
+}
 
 /* ── 提示块：三个语气 ───────────────────────────────────────── */
 

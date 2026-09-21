@@ -1,0 +1,14 @@
+# 局部提问与误解记录：按时间追加，不做整篇重写（字段口径见 local-qa）
+- topic: 状态码
+  question: 301 和 302 有什么区别？为什么我改完接口浏览器还在用旧结果？
+  misunderstanding: 以为 3xx 都是「重定向失败」，没意识到旧结果是本地缓存在起作用
+  answer_summary: 301 是永久重定向会被缓存，302 是临时；你这个是没设 Cache-Control，浏览器按启发式缓存了旧响应
+  follow_up: '给同一接口分别加 Cache-Control: no-store 与 max-age=60，对比两次请求的 Network 面板'
+  importance: high
+
+- topic: 请求头大小写
+  question: 我写 req.headers.Authorization 拿不到值，为什么？
+  misunderstanding: 以为 HTTP 头的名字大小写敏感
+  answer_summary: 头名不区分大小写，Node 统一转成小写，要用 req.headers.authorization
+  follow_up: 打印一次 req.headers 的键，对照自己写的名字
+  importance: low
