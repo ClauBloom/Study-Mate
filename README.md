@@ -140,7 +140,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 ├── templates/                 # 页面骨架（主页、科目页、课件壳）与前端资源 assets/
 ├── scripts/                   # 主页生成 + 课件渲染器 + 四道校验检查（用法见上）+ tests/ 回归测试
 ├── examples/                  # 示例学习工作区：两门示例科目，可拿来跑生成器看效果
-├── docs/                      # 使用说明、课件内容格式、设计方案、实施计划、docs/images/ 截图
+├── docs/                      # 使用说明、课件内容格式、设计方案、工程约束、docs/images/ 截图
 └── workspace/                 # 你的学习数据（默认位置，可配置；也被 .gitignore 忽略）
 ```
 
@@ -168,6 +168,6 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 
 - **仓库状态**：**当前版本 v0.1**（首个可交付版本）；本仓库 **MIT 许可**（见 `LICENSE`，版权 Cattofu）；徽章只用真实可核实的值（本项目版本、预设形态、Python 版本、许可证），没有 star / 构建状态 / 下载量这类还不足据可填的徽章。
 - **变更日志**：[CHANGELOG.md](CHANGELOG.md)（当前 v0.1）
-- **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、检查与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位置的语法）· [设计方案](docs/设计方案.md)（产品视角）· [实施计划](docs/实施计划.md)（历史任务清单）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
+- **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、检查与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位置的语法）· [设计方案](docs/设计方案.md)（产品视角）· [工程约束](docs/工程约束.md)（目录约定、占位符契约、技术选型）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
 - **改之前先跑**：`python3 scripts/check_skill.py .dsh/skills/*`，以及上面对应那一条大纲 / 课件校验命令。
 

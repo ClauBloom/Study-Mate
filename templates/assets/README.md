@@ -94,7 +94,7 @@ cp -r <sayo-ui>/icons templates/assets/sayo/icons
 
 1. `templates/assets/README.md`（本文件的表格与目录树）
 2. `scripts/preview_templates.py` 里的 `shared_files` / `shared_dirs`
-3. `docs/实施计划.md` Global Constraints 的「前端技术选型」与 Task 13 的资源就位要求
+3. `docs/工程约束.md` 的「前端技术选型」与「目录与规则归属」（共享层那份清单）
 
 ## 谁在哪里落地
 

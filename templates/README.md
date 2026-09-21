@@ -29,13 +29,13 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
 - **区块级占位符必须独立成行**（生成器按整行替换）；**字段级可嵌在标签内**（如 `<title><!-- @LEARN:TITLE --> · 课程主页</title>`）
 - 生成器**原样保留模板其余内容**（样式、脚本、文案），区块占位符缺失时报错退出
 - 模板里**不放真实课程数据**：规范注释里的示例一律用字段名（`节点标题`、`NNNN`、`NN%`），避免被误当成数据
-- 占位符清单与每个占位符必须生成的结构：**两个主页模板**见 `docs/实施计划.md` 的 Global Constraints，
+- 占位符清单与每个占位符必须生成的结构：**两个主页模板**见 `docs/工程约束.md` 的「模板与生成器的占位符契约」，
   以及模板里占位符上方那段注释（那是权威规范，改模板要同步改）；**课件壳 `lesson.html`** 的 8 个
   占位符见 `docs/课件内容格式.md` §5 与模板自己的注释——它不在 Global Constraints 那份清单里。
 
 | 模板 | 占位符 | 权威在哪 |
 |------|--------|----------|
-| `home-index.html` | `SUBJECT_CARDS` | `docs/实施计划.md` Global Constraints + 模板注释 |
+| `home-index.html` | `SUBJECT_CARDS` | `docs/工程约束.md` 的「模板与生成器的占位符契约」+ 模板注释 |
 | `subject-index.html` | `TITLE` · `STATUS` · `MISSION` · `PROJECT` · `ROADMAP` · `ATTACHMENTS` | 同上 |
 | `lesson.html` | `TITLE`（两处）· `SUBJECT`（两处）· `NUMBER` · `EYEBROW` · `GOAL` · `BODY` · `NAV` · `FOOTER` | `docs/课件内容格式.md` §5 + 模板自己的注释 |
 
