@@ -42,7 +42,7 @@ VALID_QUIZ = ('<div class="quiz" data-quiz=\'[{"q":"这是题面？","opts":["A"
 # 能过检查的最小课件：两类引用齐全、有主题开关与接线、有一个合法题目块、没有题目位置残留。
 # 相对路径按 lessons/<file>.html → 共享层 ../../../assets/、科目组件 ../assets/ 写。
 LESSON_TEMPLATE = '''<!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

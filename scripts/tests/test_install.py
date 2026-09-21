@@ -33,14 +33,20 @@ def check(label, ok, extra=''):
     failures += not ok
 
 
-def run(home, workspace=None, script=None, env_extra=None):
-    """在沙箱 HOME 里跑 install.sh，返回 CompletedProcess。"""
+def run(home, workspace=None, script=None, env_extra=None, cwd=None):
+    """在沙箱 HOME 里跑 install.sh，返回 CompletedProcess。
+
+    cwd 只在测「相对路径」那条时要给：install.sh 是按**进程当前目录**解析相对
+    工作区路径的（PWD 环境变量只是它自己带的一个变量，改它没用），不给 cwd 就会
+    把 relws/ 建到仓库根目录里——本测试曾经真的这么漏过。
+    """
     env = dict(os.environ, HOME=home, DSH_HOME=os.path.join(home, '.dsh'))
     env.pop('LEARN_WORKSPACE', None)
     if workspace:
         env['LEARN_WORKSPACE'] = workspace
     env.update(env_extra or {})
-    return subprocess.run(['bash', str(script or INSTALL)], env=env, capture_output=True, text=True)
+    return subprocess.run(['bash', str(script or INSTALL)], env=env,
+                          capture_output=True, text=True, cwd=cwd)
 
 
 def config_of(home):
@@ -117,8 +123,23 @@ def main():
           os.path.isdir(os.path.join(tmp, 'ws', '.learning', 'subjects')))
     check('配置里的 root = 当前引擎位置', config_of(home)['root'] == str(REPO), config_of(home))
 
-    # ①b 委派工具的口径：角色跑全新上下文，且角色不得再往下派。
-    # 这两条是"角色反过来当总控"那次的修复（fork 会把总控已完成的回合注进角色），
+    # ①a Windows 安装脚本：本机没有 PowerShell 跑不了它，只能钉"它没走样"——
+    # 关键动作必须与 install.sh 一一对应，否则改了一边、另一边会静默失效。
+    ps1_path = REPO / 'install.ps1'
+    check('Windows 安装脚本 install.ps1 在', ps1_path.is_file())
+    ps1 = ps1_path.read_text(encoding='utf-8') if ps1_path.is_file() else ''
+    for label, needle in (
+        ('装预设到 .agent-presets\\learning', '.agent-presets\\learning'),
+        ('替换 skill 目录占位符', '__STUDYMATE_SKILLS__'),
+        ('写 studymate-config.yaml', 'studymate-config.yaml'),
+        ('支持 LEARN_WORKSPACE 覆盖', 'LEARN_WORKSPACE'),
+        ('配置里落 workspace 行', 'workspace: $Workspace'),
+        ('配置里落 root 行', 'root: $RootPosix'),
+        ('UTF-8 不带 BOM 写盘', 'UTF8Encoding($false)'),
+    ):
+        check(f'install.ps1 与 install.sh 对齐：{label}', needle in ps1)
+
+    # ①b 委派工具的口径：角色跑全新上下文，且角色不得再往下派。    # 这两条是"角色反过来当总控"那次的修复（fork 会把总控已完成的回合注进角色），
     # 行被改回去就等于把那个故障放回来——所以钉在安装产物上。
     parse_detail = ''
     try:
@@ -144,16 +165,18 @@ def main():
     gen = subprocess.run(['python3', str(REPO / 'scripts' / 'gen_home.py')], env=env,
                          capture_output=True, text=True)
     check('装完能跑 gen_home 生成空状态主页', gen.returncode == 0, gen.stdout + gen.stderr)
-    check('根主页与共享层就位',
+    check('根主页与共享层就位（含抬头看板娘）',
           os.path.isfile(os.path.join(tmp, 'ws', 'index.html')) and
-          os.path.isdir(os.path.join(tmp, 'ws', '.learning', 'assets', 'sayo')))
+          os.path.isdir(os.path.join(tmp, 'ws', '.learning', 'assets', 'sayo')) and
+          os.path.isfile(os.path.join(tmp, 'ws', '.learning', 'assets', 'learn-mascot.png')))
 
     # ④ 路径写法：~ 展开、相对路径变绝对（配置是机器全局的，留相对路径就找不到工作区）
     proc = run(home, workspace='~/tilde')
     check('`~/x` 展开成家目录下的绝对路径',
           config_of(home)['workspace'] == os.path.join(home, 'tilde'), config_of(home))
-    proc = run(home, workspace='relws', env_extra={'PWD': tmp})
-    check('相对路径落成绝对路径', os.path.isabs(config_of(home)['workspace']), config_of(home))
+    proc = run(home, workspace='relws', env_extra={'PWD': tmp}, cwd=tmp)
+    check('相对路径落成绝对路径（且落在当时的当前目录下，不落到仓库里）',
+          config_of(home)['workspace'] == os.path.join(tmp, 'relws'), config_of(home))
 
     # ⑤ 引擎被搬走：root 与预设里的 skills 路径都按当前位置重写
     moved = os.path.join(tmp, 'moved-repo')

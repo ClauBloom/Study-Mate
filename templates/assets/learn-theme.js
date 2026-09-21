@@ -54,7 +54,7 @@
 
   /* 应用主题：可选传 'light'/'dark' 强制指定；不传则按上面的优先级推断 */
   function apply(theme) {
-    var next = theme || fromQuery() || readSaved() || 'light';
+    var next = theme || fromQuery() || readSaved() || 'dark';
     root.setAttribute('data-theme', next === 'dark' ? 'dark' : 'light');
     return current();
   }

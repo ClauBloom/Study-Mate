@@ -1,0 +1,65 @@
+nodes:
+  - id: vector.space
+    title: 向量与线性组合
+    kind: 概念
+    objective: "能把方程组读成列向量的线性组合，并说清线性无关的几何含义"
+    problem: "为什么解方程组可以看成「用几个向量拼出目标向量」"
+    prerequisites: []
+    concepts: [向量, 线性组合, 张成, 线性无关]
+    resources:
+      - title: MIT 18.06 线性代数（Gilbert Strang）第 1 讲
+        url: https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/
+        type: video
+      - title: 3Blue1Brown：向量究竟是什么
+        url: https://www.3blue1brown.com/lessons/vectors
+        type: video
+    practice: "把 3 元方程组写成 Ax=b 的列向量组合，判断三个列向量是否线性无关"
+    pitfalls: [把矩阵乘法当「逐元素相乘」, 只记消元步骤不看几何意义]
+    realworld: "图像压缩与推荐系统里，一切数据都是向量，一切模型都是向量组合"
+    过关标准: ["能把方程组改写成列向量的线性组合", "能判断一组向量是否线性无关并说出理由"]
+    status: 能独立应用
+    mastery: 0.85
+  - id: matrix.transform
+    title: 矩阵与线性变换
+    kind: 概念
+    objective: "能把矩阵读成「对空间做的一次变换」，并算出它的秩与零空间"
+    problem: "同一个矩阵乘不同向量，为什么有的方向被压扁、有的方向不变"
+    prerequisites: [vector.space]
+    concepts: [线性变换, 秩, 零空间, 列空间]
+    resources:
+      - title: MIT 18.06 第 5-9 讲（列空间与零空间）
+        url: https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/
+        type: video
+      - title: 3Blue1Brown：线性变换与矩阵
+        url: https://www.3blue1brown.com/lessons/linear-transformations
+        type: video
+    practice: "给一个 3×3 矩阵，算出秩、零空间维数，并解释这个变换把空间压成了几维"
+    pitfalls: [把秩当成「矩阵里非零行的个数」而不看行之间的依赖, 混淆零空间与解空间]
+    realworld: "最小二乘拟合、图像旋转缩放，都是在矩阵这个「变换」上做的"
+    过关标准: ["能算秩与零空间维数，并说明变换把空间压成了几维", "能说清 Ax=b 有解等价于 b 落在列空间里"]
+    status: 学习中
+    mastery: 0.45
+  - id: eigen.basic
+    title: 特征值与特征向量
+    kind: 概念
+    objective: "能解出小矩阵的特征值与特征向量，并解释它们为什么方向不变"
+    problem: "为什么要找一个矩阵乘上去只伸缩、不转向的方向"
+    prerequisites: [matrix.transform]
+    concepts: [特征值, 特征向量, 特征多项式, 对角化]
+    resources:
+      - title: MIT 18.06 第 21-22 讲（特征值与对角化）
+        url: https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/
+        type: video
+    practice: "手算一个 2×2 矩阵的特征值与特征向量，再用 Python 的 numpy.linalg.eig 核对"
+    pitfalls: [把特征向量方向记反, 忘记特征值可以是复数]
+    realworld: "PCA 降维、PageRank、振动模态分析，核心都是特征分解"
+    过关标准: ["能手算 2×2 矩阵的特征值与特征向量", "能用 numpy 核对并解释结果一致"]
+    status: 未开始
+    mastery: 0
+edges:
+  - from: vector.space
+    to: matrix.transform
+    reason: "不会把方程组读成向量组合，就看不懂矩阵在做什么"
+  - from: matrix.transform
+    to: eigen.basic
+    reason: "特征向量是变换下不变的方向，先得会看变换"

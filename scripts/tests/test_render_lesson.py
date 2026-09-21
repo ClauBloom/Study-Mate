@@ -162,7 +162,7 @@ def _(a):
     a.equal('渲染退出码 0', code, 0)
     a.has(text,
           '<!DOCTYPE html>',
-          '<html lang="zh-CN" data-theme="light">',
+          '<html lang="zh-CN" data-theme="dark">',
           '<title>编译并跑通 · 测试科目</title>',
           '<link rel="stylesheet" href="../../../assets/sayo/sayo.css">',
           '<link rel="stylesheet" href="../../../assets/learn-theme.css">',

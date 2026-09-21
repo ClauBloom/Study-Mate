@@ -327,7 +327,8 @@ def learn_workspace():
 
 
 def ensure_shared_assets(ws):
-    """把共享层（sayo/ 整个目录 + learn-theme.css/js）拷进 <WS>/.learning/assets/（幂等覆盖）。
+    """把共享层（sayo/ 整个目录 + learn-theme.css/js + learn-mascot.png）拷进
+    <WS>/.learning/assets/（幂等覆盖）。
 
     缺共享层页面会退化成无样式裸 HTML，所以这一步是硬要求；已存在则覆盖同名文件。
     科目自己的 assets/{style.css,quiz.js} 由建科目流程负责，这里不碰（T13-R3）。
@@ -339,7 +340,7 @@ def ensure_shared_assets(ws):
         raise SystemExit(f'缺少共享资源目录 {sayo_src}，请检查模板目录是否完整')
     os.makedirs(dst, exist_ok=True)
     shutil.copytree(sayo_src, os.path.join(dst, 'sayo'), dirs_exist_ok=True)
-    for name in ('learn-theme.css', 'learn-theme.js'):
+    for name in ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png'):
         path = os.path.join(src, name)
         if not os.path.isfile(path):
             raise SystemExit(f'缺少共享资源 {path}，请检查模板目录是否完整')

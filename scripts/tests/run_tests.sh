@@ -22,7 +22,7 @@ if ! python3 -c 'import yaml' 2>/dev/null; then
   exit 1
 fi
 
-step '安装脚本（沙箱 HOME，19 项）'        python3 scripts/tests/test_install.py
+step '安装脚本（沙箱 HOME，27 项）'        python3 scripts/tests/test_install.py
 step '题目属性转义（检查，9 例）'          python3 scripts/tests/test_quiz_attr.py
 step '题目里的代码围栏（检查，12 例）'     python3 scripts/tests/test_quiz_code.py
 step '课件配图（检查，5 例）'              python3 scripts/tests/test_lesson_figure.py

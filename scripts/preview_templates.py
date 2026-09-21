@@ -381,7 +381,7 @@ def main():
     # 模拟 install/生成流程：共享层放 .learning/assets/（一份）。
     # 清单必须与 templates/assets/README.md 一致——新增共享文件时两处都要加
     src_assets = os.path.join(ROOT, 'templates', 'assets')
-    shared_files = ('learn-theme.css', 'learn-theme.js')
+    shared_files = ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png')
     shared_dirs = ('sayo',)
     for name in shared_files:
         shutil.copy(os.path.join(src_assets, name), assets)
@@ -429,7 +429,7 @@ def main():
     print()
     print('打开方式：')
     print('  xdg-open %s   # 或用浏览器打开这个文件' % os.path.join(OUT, 'index.html'))
-    print('  切暗色：在地址栏 URL 后加 ?theme=dark')
+    print('  切亮色：在地址栏 URL 后加 ?theme=light（暗色是默认）')
 
     if '--open' in sys.argv[1:]:
         opener = 'open' if sys.platform == 'darwin' else 'xdg-open'

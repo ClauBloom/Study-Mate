@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href=".learning/assets/learn-theme.css">
 
 <!-- 主题：首帧前应用已保存的主题（共享逻辑在 assets/learn-theme.js，
-     亮色=我们的暖色系、暗色=Sayo 的 Primer 暗色；URL 加 ?theme=dark 可临时预览） -->
+     暗色是默认（Sayo 的 Primer 暗色），亮色=我们的暖色系；URL 加 ?theme=light 可临时预览） -->
 <script src=".learning/assets/learn-theme.js"></script>
 <script>LearnTheme.apply();</script>
 
@@ -48,33 +48,96 @@
   padding: clamp(44px, 7vw, 76px) 0 clamp(30px, 4vw, 44px);
 }
 
+/* 亮色抬头：网格层已从本页撤掉（背景层那套现在只剩星云在暗色下用），
+   改成一层极淡的冷色洗（--learn-soft-blue，调色板里的柔和蓝，不新造色值）——
+   否则冷色的看板娘压在暖纸白上像"贴上去的" */
+html[data-theme="light"] .learn-hero {
+  background: linear-gradient(180deg, var(--learn-soft-blue) 0%, transparent 62%);
+}
+
 .learn-hero__inner { position: relative; z-index: 1; }
 
-.learn-hero__mark {
-  display: inline-grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-bottom: var(--syo-space-4);
-  border-radius: var(--syo-radius-lg);
-  background: var(--learn-soft-accent);
-  color: var(--syo-accent);
+/* 抬头主视觉：透明底看板娘（左）+ 发光字（右）。本页不再有星空层——
+   角色图接替它当抬头视觉，星云微光保留（否则角色是浮在纯色上的）。
+   看板娘是共享资源 learn-mascot.png，由生成流程拷进 .learning/assets/ */
+.learn-hero__brand-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.2vw, 26px);
 }
-.learn-hero__mark svg { width: 24px; height: 24px; }
 
-.learn-hero__title {
+.learn-hero__mascot {
+  flex: none;
+  width: clamp(124px, 16vw, 224px);
+  height: auto;
+}
+/* 看板娘**不带外发光**：暗色下那圈蓝晕会在深底上糊成一团光斑，人物反而脏；
+   亮色原来还要垫白晕压网格，网格撤掉之后白晕也没有存在理由了 */
+html[data-theme="light"] .learn-hero__mascot {
+  filter: none;
+}
+
+/* 品牌字：**真意大利体衬线 + 镂空描边**——字身透明，靠一圈 --brand-ink 描边 + 光晕成形。
+   字体栈是有意写长的：C059（Century Schoolbook 开源同族）→ Charter → Noto Serif → Georgia，
+   全是各平台自带的**真意大利体**衬线，哪台机器上都是"斜体衬线"这个设计意图，不会退化成无衬线。
+   墨色只有一个来源 --brand-ink：暗色 = Sayo 紫强调（--syo-accent），
+   亮色在下面的覆盖里换成主题的黑（--syo-fg-default）——描边与两层光晕都跟着它走，
+   所以"换颜色"永远只改一个变量。
+   - 不用 background-clip:text 填充：那个写法的渐变背景盒就是元素盒，line-height 一压紧，
+     "y" 的下伸部就落到盒外拿不到颜色 → 看着像被截断。描边画在字形上，不受盒子限制。
+   - 光晕走 filter: drop-shadow：镂空字的"形状"就是那圈描边，drop-shadow 跟着描边走，
+     正好是霓虹灯管的效果；text-shadow 会从透明的字身里透出来，把镂空糊死。
+   - 刷新时的入场动效见下面的 learn-brand-in。 */
+.learn-hero__brand {
+  --brand-ink: var(--syo-accent);
   margin: 0;
-  font-size: clamp(28px, 4vw, 36px);
-  font-weight: 600;
-  letter-spacing: -.02em;
-  line-height: 1.25;
+  font-family: "C059", "Century Schoolbook L", "Bitstream Charter", "Noto Serif", Georgia, serif;
+  font-style: italic;
+  font-size: clamp(2.1rem, 6.8vw, 5.2rem);
+  font-weight: 700;
+  letter-spacing: -.005em;
+  line-height: 1.16;
+  color: transparent;
+  -webkit-text-stroke: .034em var(--brand-ink);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--brand-ink) 52%, transparent))
+          drop-shadow(0 0 26px color-mix(in srgb, var(--brand-ink) 28%, transparent));
+  animation: learn-brand-in 900ms var(--syo-ease-out) 60ms backwards;
+}
+/* 亮色：**同样是镂空描边**——字形两个主题一致，只换墨色与光晕强度。
+   上一版在亮色改实心，是因为当时网格还在：镂空会让网格从笔画里透出来。
+   网格整层撤掉之后，纸白底上的镂空就是干净的"钢印"，没有理由再换字形。
+   墨色取 --syo-secondary（调色板里的蓝，与看板娘同一个色系）；光晕比暗色收细——
+   暖纸白上的大光晕只会糊成一团雾。 */
+html[data-theme="light"] .learn-hero__brand {
+  --brand-ink: var(--syo-secondary);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--brand-ink) 22%, transparent))
+          drop-shadow(0 0 18px color-mix(in srgb, var(--brand-ink) 12%, transparent));
 }
 
-.learn-hero__sub {
-  margin: var(--syo-space-2) 0 0;
-  font-size: .9375rem;
-  color: var(--syo-fg-muted);
+/* 刷新时的 logo 动效：光晕由弱到强"点亮"，同时字距从松收到紧、整体轻微上浮。
+   起点必须是**看得见**的状态——本仓库的规矩是入场动效不许从 opacity:0 或
+   "描边宽度 0"起手（卡片入场也只动 transform），否则动画一旦没跑起来，
+   抬头就是一片空白。属性只挑不动可见性的：letter-spacing / transform / filter。
+   prefers-reduced-motion 下由 Sayo 的全局规则把时长压成 0，直接落到终态。 */
+@keyframes learn-brand-in {
+  0% {
+    letter-spacing: .085em;
+    transform: translateY(8px);
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--brand-ink) 20%, transparent))
+            drop-shadow(0 0 10px color-mix(in srgb, var(--brand-ink) 10%, transparent));
+  }
+  55% { letter-spacing: -.026em; }
+  100% { letter-spacing: -.005em; }
 }
+/* 看板娘与品牌字同一条入场节奏（错开 60ms 起手），只动 transform */
+@keyframes learn-mascot-in {
+  from { transform: translateY(10px); }
+  to   { transform: none; }
+}
+.learn-hero__mascot { animation: learn-mascot-in 900ms var(--syo-ease-out) backwards; }
+
+/* 抬头里不再有可见的页面标题与副标题：字面的"我的课程"是 h1.syo-sr-only 里的，
+   屏幕上由品牌字承担（页签 <title> 里也有"我的课程 · StudyMate"） */
 
 /* ── 主体 ── */
 .learn-main { padding-top: 0; }
@@ -107,6 +170,8 @@ body.is-ready .learn-subject-card { animation: none; }
 
 @media (max-width: 640px) {
   .learn-nav-date { display: none; }
+  /* 看板娘缩一号：560px 以下字号已经吃到下限，再占 120px 会把标题挤成两行 */
+  .learn-hero__mascot { width: 104px; }
 }
 </style>
 </head>
@@ -140,23 +205,17 @@ body.is-ready .learn-subject-card { animation: none; }
 </nav>
 
 <header class="learn-hero">
-  <!-- 抬头背景三层：星云 + 远星（视差 6px）+ 近星（视差 12px，缓慢闪烁）
-       Sayo 自动初始化视差；prefers-reduced-motion 下动静效果都会被跳过 -->
-  <span class="learn-hero__grid" aria-hidden="true"></span>
+  <!-- 抬头背景：只剩星云微光（暗色下生效）。星点层与蓝图网格层都已从本页撤掉——
+       抬头视觉换成看板娘 + 品牌字，见 .learn-hero__mascot / .learn-hero__brand -->
   <span class="learn-hero__nebula" aria-hidden="true"></span>
-  <span class="learn-hero__stars learn-hero__stars--far" data-syo-parallax="6" aria-hidden="true"></span>
-  <span class="learn-hero__stars learn-hero__stars--near" data-syo-parallax="12" aria-hidden="true"></span>
   <div class="syo-container learn-hero__inner">
-    <span class="learn-hero__mark" aria-hidden="true">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10 7.2 4.7 12.6M10 7.2l5.3 5.4"/>
-        <circle cx="10" cy="5.2" r="2"/>
-        <circle cx="4.5" cy="14.5" r="2"/>
-        <circle cx="15.5" cy="14.5" r="2"/>
-      </svg>
-    </span>
-    <h1 class="learn-hero__title">我的课程</h1>
-    <p class="learn-hero__sub">从一门课继续，或开一门新的</p>
+    <!-- 页面标题只留在语义里（视觉隐藏）：抬头改成「看板娘 + 品牌字」后，
+         屏幕上不再重复一遍"我的课程"——页签 <title> 里也有 -->
+    <h1 class="syo-sr-only">我的课程</h1>
+    <div class="learn-hero__brand-row">
+      <img class="learn-hero__mascot" src=".learning/assets/learn-mascot.png" alt="" aria-hidden="true">
+      <p class="learn-hero__brand">StudyMate</p>
+    </div>
   </div>
 </header>
 
@@ -254,41 +313,14 @@ body.is-ready .learn-subject-card { animation: none; }
 (function () {
   'use strict';
 
-  var root = document.documentElement;
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---------- 视差启停：只有暗色主题开视差 ----------
-     Sayo 的视差是 mousemove 绑定，与主题无关，所以在切主题时要显式启停。
-     等 DOMContentLoaded 之后再同步：sayo.js 的自动初始化挂的是同一个事件，
-     它的监听先注册、先执行，这里后跑才能把亮色下的实例销毁干净。 */
-  var parallaxEls = Array.prototype.slice.call(document.querySelectorAll('[data-syo-parallax]'));
+  /* 抬头不再有视差层：星空被看板娘接替（见 .learn-hero__mascot），
+     本页因此也没有 data-syo-parallax——主题切换只剩主题本身要切 */
 
-  function parallaxWanted() {
-    return root.getAttribute('data-theme') !== 'light';
-  }
-
-  function syncParallax() {
-    if (!window.Sayo || !Sayo.parallax) return;
-    /* 先全部销毁：sayo.js 的自动初始化已经把带 data-syo-parallax 的元素绑过一遍，
-       那些实例在它自己的闭包里，我们拿不到引用，只能整体清掉再按主题重建 */
-    Sayo.parallax.destroy();
-    if (!parallaxWanted()) return;   // 亮色主题：抬头用静态网格，不绑视差
-    parallaxEls.forEach(function (el) {
-      Sayo.parallax.init(el, { maxShift: parseFloat(el.getAttribute('data-syo-parallax')) || 8 });
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', syncParallax);
-  } else {
-    syncParallax();
-  }
-
-  /* ---------- 主题开关（主题本身已在 <head> 里应用） ----------
-     切主题后要重算视差：亮色主题用静态网格，不开视差 */
+  /* ---------- 主题开关（主题本身已在 <head> 里应用） ---------- */
   var themeCheckbox = document.getElementById('learn-theme-checkbox');
   LearnTheme.wire(themeCheckbox);
-  if (themeCheckbox) themeCheckbox.addEventListener('change', syncParallax);
 
   /* ---------- 今天日期（导航栏右上角） ---------- */
   var dateText = '';

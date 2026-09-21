@@ -12,7 +12,7 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 
 | 套件 | 钉住什么 |
 |---|---|
-| `test_install.py` | `install.sh`：预设装到哪、占位符换成引擎 skills 路径、**委派工具口径（`tool-subagent-fork` 必须 `disabled: true`、`subagent` 的 `maxDepth` 必须 `1`——fork 会把总控已完成的回合注进角色，角色会反过来当总控）**、预设整份能被 YAML 解析（含 `!!js` 行）、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。全部在沙箱 `HOME` 里跑（19 项） |
+| `test_install.py` | `install.sh`：预设装到哪、占位符换成引擎 skills 路径、**委派工具口径（`tool-subagent-fork` 必须 `disabled: true`、`subagent` 的 `maxDepth` 必须 `1`——fork 会把总控已完成的回合注进角色，角色会反过来当总控）**、预设整份能被 YAML 解析（含 `!!js` 行）、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。另钉 `install.ps1`（Windows 版）与 `install.sh` 的关键动作对齐（本机没 PowerShell，跑不了它，只能钉它没走样）。全部在沙箱 `HOME` 里跑（27 项） |
 | `test_quiz_attr.py` | 检查对 `data-quiz` 属性值写法的判定：9 例矩阵（单引号/双引号包裹 × 引号怎么写），含「实体引号提前闭合 JSON 字符串」与「裸引号把属性截断」两类 |
 | `test_quiz_code.py` | 题面里的 ` ``` ` 代码围栏：成对放行、没闭合即拦（含 `answer` 字段）、行内单个反引号不算围栏（12 例） |
 | `test_lesson_figure.py` | 检查项 9（配图）：本地图存在放行、**不存在即拦**（学生看到裂图；`gen_home` 的链接自检只管它写出的主页，课件页不在其范围内）、外链图与缺 `alt` 只提示、内联 SVG 不需要文件（5 例） |

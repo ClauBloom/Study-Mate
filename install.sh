@@ -59,4 +59,4 @@ else
   echo "② 学习工作区 → $WORKSPACE（配置在 $CONFIG）"
 fi
 
-echo "完成。现在可在任意目录开会话，选'学习模式'预设开始学习。"
+echo "完成（StudyMate v0.1）。现在可在任意目录开会话，选'学习模式'预设开始学习。"
