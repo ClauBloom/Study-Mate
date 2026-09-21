@@ -15,7 +15,7 @@
 
 <p align="center"><a href="#快速开始">快速开始</a> · <a href="#它是什么">它是什么</a> · <a href="#核心功能">核心功能</a> · <a href="#常见问题">常见问题</a> · <a href="docs/使用说明.md">使用说明</a></p>
 
-<p align="center"><img src="docs/images/taitou.png" width="720" alt="课程总览页抬头：看板娘与发光品牌字（暗色主题）"></p>
+<p align="center"><img src="docs/images/taitou.png" width="860" alt="StudyMate：看板娘 + 手写体品牌字 + 覆盖科目（线代／微积分／概率论／C++／Python／机器学习／深度学习）+「任何科目，一站式搞定 / Learn With Doing」"></p>
 
 ## 快速开始
 
@@ -164,10 +164,26 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 
 更多问题（手改 YAML 的坑、大纲改节点后指针为什么会错、能不能离线）见 [使用说明 §八 常见问题](docs/使用说明.md#八常见问题)。
 
-## 贡献 / 路线图 / License
+## 贡献 / License
 
-- **仓库状态**：**当前版本 v0.1**（首个可交付版本）；本仓库 **MIT 许可**（见 `LICENSE`，版权 Cattofu）；徽章只用真实可核实的值（本项目版本、预设形态、Python 版本、许可证），没有 star / 构建状态 / 下载量这类还不足据可填的徽章。
+- **仓库状态**：**当前版本 v0.1**；
 - **变更日志**：[CHANGELOG.md](CHANGELOG.md)（当前 v0.1）
 - **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、检查与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位置的语法）· [设计方案](docs/设计方案.md)（产品视角）· [工程约束](docs/工程约束.md)（目录约定、占位符契约、技术选型）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
-- **改之前先跑**：`python3 scripts/check_skill.py .dsh/skills/*`，以及上面对应那一条大纲 / 课件校验命令。
+
+### 提改动前先跑这几条
+
+四条校验器各管一段（最后一行是回归套件），都是确定性的、带行号报错：
+
+```bash
+python3 scripts/check_skill.py .dsh/skills/*                                   # 提示词与技能：契约、单一 owner、措辞闸门
+python3 scripts/check_curriculum.py <学习工作区>/.learning/subjects/<slug>/curriculum.yaml  # 大纲：schema、引用完整、无环、实验课要写 prerequisites
+python3 scripts/check_lesson.py <课件.html> --subject <科目目录> --node <节点 id>   # 课件：版式、配图、题目、命名与上下节课指针
+python3 scripts/check_pool.py <科目目录>                                        # 图片库：索引七列、图片存在、命名合规、单张 ≤500 KB
+bash scripts/tests/run_tests.sh                                               # 回归：11 套快测（--browser 再加 2 套，共 13 套）
+```
+
+### License
+
+MIT（见 [LICENSE](LICENSE)，版权 Cattofu）。
+
 
