@@ -1,2 +1,4 @@
 - [ ] 适配deepseek herness最新版本
 - [ ] npm包修改
+- [ ] 课件agent提示词优化
+- [ ] 出题agent提示词优化

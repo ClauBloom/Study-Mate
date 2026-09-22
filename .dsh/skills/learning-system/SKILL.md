@@ -19,19 +19,19 @@ argument-hint: "你想学什么？或继续上次的科目"
 2. **没有科目**（首次使用）：问三件事——想学什么、当前基础、讲法偏好（一次一件）；写进 `MEMORY.md`，然后走下面的盘问
 3. **已有科目**：把科目清单摆给学生选项，或让他报新科目名
 4. **新科目** → 你亲自走"新科目盘问"（见下），盘完按这个顺序落地：
-   - 建科目文件夹（含 `assessments/`；`lab/` 不预建，见 `record-keeping`）
-   - 写 `MISSION.md`（`## Why` 与 `## Success looks like` 来自盘问第一问；`## Constraints` 收前置基础、时间投入与偏好）与 `subject.yaml` 的 `goal`
-   - 派 `resource-scout` 收集资料（值：`subject_path` + 盘问结果摘要）：它把清单草稿落到 `/tmp/resource-scout-<slug>/deliver/RESOURCES.md`——你 `cp` 到科目、扫一眼条数与来源域名（**别把清单读进上下文再写出来**）。**建池与拟大纲并行**——`RESOURCES.md` 落位后，同时派下面两个（别串着等）：
+   1. 建科目文件夹（含 `assessments/`；`lab/` 不预建，见 `record-keeping`）
+   2. 写 `MISSION.md`（`## Why` 与 `## Success looks like` 来自盘问第一问；`## Constraints` 收前置基础、时间投入与偏好）与 `subject.yaml` 的 `goal`
+   3. 派 `resource-scout` 收集资料（值：`subject_path` + 盘问结果摘要）：它把清单草稿落到 `/tmp/resource-scout-<slug>/deliver/RESOURCES.md`——你 `cp` 到科目、扫一眼条数与来源域名。**建池与拟大纲并行**——`RESOURCES.md` 落位后，同时派下面两个（别串着等）：
      ```
-     派 resource-scout → cp 落 RESOURCES.md → 同时派两个：
+     派 resource-scout → cp 落 RESOURCES.md → 写 GLOSSARY.md（## 待掌握 装 5-15 个主题词，写明用日文原词还是中文）→ 同时派两个：
         ├─ image-scout（爬图片库）         ← 值 = RESOURCES.md 的绝对路径 + 点名要抓的条目
         └─ curriculum-designer（设计大纲）← 值 = 盘问结果摘要 + RESOURCES.md 路径
      两边都回来 → 你写 curriculum.yaml、核对 pool.md → 开始第一课（仍按「对话节奏」问"开始吗"）
      ```
      `image-scout` 点名的站点不够用时，**再给一批"额外允许站点"**（如 Wikimedia Commons、对应语言的维基条目、官方教程的示例画廊）。**图片库为空不阻塞**：抓不到图只记 `Gaps`，大纲与课件照常产出。后续节点若需要新图，再按需派一次 `image-scout`（补图）
-   - 派 `curriculum-designer` 产大纲（值：`subject_path` + 盘问结果摘要 + `RESOURCES.md` 路径）
-   - 建 `progress.yaml`：`nodes: {}`（**只写有变化的节点**，没写的按大纲初始值算）、`misconceptions: []`，`project` 只写 `current`；过 `schemas/progress.schema.json`
-   - 刷新主页
+   4. 派 `curriculum-designer` 产大纲（值：`subject_path` + 盘问结果摘要 + `RESOURCES.md` 路径）
+   5. 建 `progress.yaml`：`nodes: {}`（**只写有变化的节点**，没写的按大纲初始值算）、`misconceptions: []`，`project` 只写 `current`；过 `schemas/progress.schema.json`
+   6. 刷新主页
 5. **报告 + 给下一步（不许只报告就停）**：报上次学到哪、这次建议学什么（依据薄弱点与实验课进度）；新科目还要报清"几个节点／几个实验课／第一课叫什么／什么课型"。然后按「对话节奏」给下一步并问"开始吗"。开场顺带打开根主页（`<LEARN_WORKSPACE>/index.html`），**并把绝对路径写在回复里**（`present` 呈上更好——点得开才算给到）
 
 ## 新科目盘问（你亲自执行）
@@ -99,7 +99,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 | `subject.yaml` | 科目状态变化、目标变更 | 只改 `status`/`goal`；`goal` 先跟学生确认；改后过 schema |
 | `MISSION.md` | 目标 / 项目 / 约束变了（见"使命变更"） | 必须学生确认；旧使命留痕，不整篇替换 |
 | `RESOURCES.md` | 新资料被采用、发现失效或低质 | 延伸阅读 + 易变内容的核对来源；只收高可信来源、每条带一行用途；失效的删掉不堆积。**收集归 `resource-scout`**：初次清单与后续补收集都派它，你只做小增量修改（换一条失效链接、补一条目） |
-| `GLOSSARY.md` | 学生**真能用对**某术语时（不是刚被介绍过） | 定义一两句 + 标出要避免的别名；课件用词以此为准 |
+| `GLOSSARY.md` | 开课先建这份文件、写 `## 待掌握`；学会后挪到 `## 已掌握` | 定义一两句 + 标出要避免的别名；课件用词以此为准 |
 
 三份 `.md` 无 schema，按 `<root>/templates/*.md` 的分节写；状态类文件（`progress.yaml`、`misconceptions.yaml`、`assessments/`、`learning-records/`、`sessions/`）的规则全在 `record-keeping`。
 
