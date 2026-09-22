@@ -1,0 +1,2 @@
+- [ ] 适配deepseek herness最新版本
+- [ ] npm包修改
