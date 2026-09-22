@@ -52,7 +52,10 @@ function el(tag, cls = '', text = '') {
     add: (k) => { const s = new Set((e.className || '').split(/\s+/).filter(Boolean)); s.add(k); e.className = [...s].join(' '); },
     remove: (k) => { const s = new Set((e.className || '').split(/\s+/).filter(Boolean)); s.delete(k); e.className = [...s].join(' '); },
     contains: (k) => (e.className || '').split(/\s+/).includes(k),
-    toggle: (k) => { const has = e.classList.contains(k); has ? e.classList.remove(k) : e.classList.add(k); return !has; },
+    toggle: (k, force) => {
+      const on = force === undefined ? !e.classList.contains(k) : !!force;
+      on ? e.classList.add(k) : e.classList.remove(k); return on;
+    },
   };
   return e;
 }
@@ -190,6 +193,30 @@ const check = (label, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
   check('移动端点链接 → 关闭', !aside.classList.contains('mobile-open'));
   window.resize(1400);
   check('拉宽到桌面 → 不再处于移动打开态', !aside.classList.contains('mobile-open'));
+}
+
+// 平板默认折叠，但用户仍可展开；宽度变化不能覆盖已保存的选择。
+{
+  const { body } = page([['A', ''], ['B', '']]);
+  const { window, store } = run(body, { width: 900 });
+  const aside = body.querySelector('.doc-sidebar');
+  check('平板宽度默认折叠', aside.classList.contains('collapsed'));
+  aside.querySelector('.sidebar-toggle').fire('click');
+  check('平板点击可展开', !aside.classList.contains('collapsed'));
+  window.resize(1400); window.resize(900);
+  check('调整宽度保留手动展开状态', !aside.classList.contains('collapsed'));
+  const reloaded = page([['A', ''], ['B', '']]);
+  run(reloaded.body, { width: 900, store });
+  check('平板重新打开保留展开状态', !reloaded.body.querySelector('.doc-sidebar').classList.contains('collapsed'));
+}
+{
+  const { body } = page([['A', ''], ['B', '']]);
+  const { window } = run(body);
+  const aside = body.querySelector('.doc-sidebar');
+  window.resize(900);
+  check('没有偏好时缩窄自动折叠', aside.classList.contains('collapsed'));
+  window.resize(1400);
+  check('没有偏好时拉宽自动展开', !aside.classList.contains('collapsed'));
 }
 
 // ⑤ 重复执行不重复建

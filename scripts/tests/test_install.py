@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""`install.sh` 的回归测试：全部在沙箱 HOME 里跑，不碰真实的 `~/.dsh` 与工作区。
+"""安装器的回归测试：按平台跑 install.sh / install.ps1，全部在沙箱 HOME 里跑。
 
 它管两件事：装学习预设（并把引擎的 skill 目录写进预设）、建学习工作区并写配置文件。
 这里钉住的是**踩过的与容易踩的**：
@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-INSTALL = REPO / 'install.sh'
+INSTALL = REPO / ('install.ps1' if os.name == 'nt' else 'install.sh')
 
 failures = 0
 total = 0
@@ -34,30 +34,29 @@ def check(label, ok, extra=''):
 
 
 def run(home, workspace=None, script=None, env_extra=None, cwd=None):
-    """在沙箱 HOME 里跑 install.sh，返回 CompletedProcess。
+    """在沙箱 HOME / USERPROFILE 里跑本平台安装器，返回 CompletedProcess。
 
     cwd 只在测「相对路径」那条时要给：install.sh 是按**进程当前目录**解析相对
     工作区路径的（PWD 环境变量只是它自己带的一个变量，改它没用），不给 cwd 就会
     把 relws/ 建到仓库根目录里——本测试曾经真的这么漏过。
     """
-    env = dict(os.environ, HOME=home, DSH_HOME=os.path.join(home, '.dsh'))
+    env = dict(os.environ, HOME=home, USERPROFILE=home, DSH_HOME=os.path.join(home, '.dsh'))
     env.pop('LEARN_WORKSPACE', None)
     if workspace:
         env['LEARN_WORKSPACE'] = workspace
     env.update(env_extra or {})
-    return subprocess.run(['bash', str(script or INSTALL)], env=env,
-                          capture_output=True, text=True, cwd=cwd)
+    command = ([shutil.which('pwsh') or 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File']
+               if os.name == 'nt' else ['bash'])
+    return subprocess.run([*command, str(script or INSTALL)], env=env,
+                          capture_output=True, text=True, encoding='utf-8', cwd=cwd)
 
 
 def config_of(home):
     """读回配置里的 workspace / root。"""
     path = os.path.join(home, '.dsh', 'studymate-config.yaml')
-    values = {}
-    for line in open(path, encoding='utf-8'):
-        if ':' in line and not line.startswith('#'):
-            key, value = line.split(':', 1)
-            values[key.strip()] = value.strip()
-    return values
+    import yaml
+    with open(path, encoding='utf-8') as handle:
+        return {key: os.path.normpath(value) for key, value in yaml.safe_load(handle).items()}
 
 
 def preset_skills(home):
@@ -65,8 +64,8 @@ def preset_skills(home):
     path = os.path.join(home, '.dsh', '.agent-presets', 'learning', 'agent.cordis.yml')
     text = open(path, encoding='utf-8').read()
     import re
-    match = re.search(r"^\s*-\s*'([^']*\.dsh/skills)'", text, re.M)
-    return match.group(1) if match else None
+    match = re.search(r"^\s*-\s*'((?:[^']|'')*\.dsh/skills)'", text, re.M)
+    return os.path.normpath(match.group(1).replace("''", "'")) if match else None
 
 
 def preset_tool_rows(home):
@@ -123,8 +122,7 @@ def main():
           os.path.isdir(os.path.join(tmp, 'ws', '.learning', 'subjects')))
     check('配置里的 root = 当前引擎位置', config_of(home)['root'] == str(REPO), config_of(home))
 
-    # ①a Windows 安装脚本：本机没有 PowerShell 跑不了它，只能钉"它没走样"——
-    # 关键动作必须与 install.sh 一一对应，否则改了一边、另一边会静默失效。
+    # ①a 同时钉住两个安装器的关键动作，防止只改了一边。
     ps1_path = REPO / 'install.ps1'
     check('Windows 安装脚本 install.ps1 在', ps1_path.is_file())
     ps1 = ps1_path.read_text(encoding='utf-8') if ps1_path.is_file() else ''
@@ -162,7 +160,7 @@ def main():
 
     # ③ 首课流程要用的：工作区能生成主页（用沙箱配置，不碰真实 ~/.dsh）
     env = dict(os.environ, HOME=home, DSH_HOME=os.path.join(home, '.dsh'))
-    gen = subprocess.run(['python3', str(REPO / 'scripts' / 'gen_home.py')], env=env,
+    gen = subprocess.run([sys.executable, str(REPO / 'scripts' / 'gen_home.py')], env=env,
                          capture_output=True, text=True)
     check('装完能跑 gen_home 生成空状态主页', gen.returncode == 0, gen.stdout + gen.stderr)
     check('根主页与共享层就位（含抬头看板娘）',
@@ -179,23 +177,38 @@ def main():
           config_of(home)['workspace'] == os.path.join(tmp, 'relws'), config_of(home))
 
     # ⑤ 引擎被搬走：root 与预设里的 skills 路径都按当前位置重写
-    moved = os.path.join(tmp, 'moved-repo')
+    moved = os.path.join(tmp, "moved [repo] O'Brien #1")
     os.makedirs(moved)
     shutil.copy(INSTALL, moved)
     shutil.copytree(REPO / 'preset', os.path.join(moved, 'preset'))
     shutil.copytree(REPO / '.dsh' / 'skills', os.path.join(moved, '.dsh', 'skills'))
-    proc = run(home, script=os.path.join(moved, 'install.sh'))
+    proc = run(home, script=os.path.join(moved, INSTALL.name))
     check('引擎搬走后重跑退出码 0', proc.returncode == 0, proc.stderr)
     check('root 重写为新位置', config_of(home)['root'] == moved, config_of(home))
     check('预设里的 skills 路径也重写', preset_skills(home) == os.path.join(moved, '.dsh', 'skills'),
           preset_skills(home))
+    try:
+        moved_rows = preset_tool_rows(home)
+        check('含单引号的引擎路径写入后预设仍是合法 YAML',
+              moved_rows['skill-filesystem']['config']['customSkillDirs'] ==
+              [Path(moved, '.dsh', 'skills').as_posix()])
+    except Exception as exc:
+        check('含单引号的引擎路径写入后预设仍是合法 YAML', False, exc)
+
+    special_workspace = os.path.join(tmp, "work [1] O'Brien # notes")
+    proc = run(home, workspace=special_workspace)
+    check('特殊字符工作区可创建且配置可解析',
+          proc.returncode == 0 and config_of(home)['workspace'] == special_workspace, proc.stderr)
+    proc = run(home)
+    check('再次安装保留特殊字符工作区',
+          proc.returncode == 0 and config_of(home)['workspace'] == special_workspace, proc.stderr)
 
     # ⑥ 仓库不完整：宁可报错，也不要装出一个指不到技能的空预设
     broken = os.path.join(tmp, 'broken-repo')
     os.makedirs(broken)
     shutil.copy(INSTALL, broken)
     shutil.copytree(REPO / 'preset', os.path.join(broken, 'preset'))
-    proc = run(home, script=os.path.join(broken, 'install.sh'))
+    proc = run(home, script=os.path.join(broken, INSTALL.name))
     check('缺 .dsh/skills 时报错退出', proc.returncode != 0 and 'skills' in proc.stderr,
           f'exit={proc.returncode} stderr={proc.stderr.strip()[:120]}')
 

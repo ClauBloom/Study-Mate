@@ -21,11 +21,15 @@ FRONTMATTER = re.compile(r'^---\r?\n(.*?)\r?\n---\r?\n', re.S)
 
 def read_frontmatter(skill_dir):
     path = os.path.join(skill_dir, 'SKILL.md')
-    text = open(path, encoding='utf-8').read()
+    with open(path, encoding='utf-8-sig') as handle:
+        text = handle.read()
     match = FRONTMATTER.match(text)
     if not match:
-        raise SystemExit(f'FAIL {skill_dir}: frontmatter 缺失或格式不对（需以 --- 开头并闭合）')
-    return yaml.safe_load(match.group(1)) or {}
+        raise ValueError('frontmatter 缺失或格式不对（需以 --- 开头并闭合）')
+    meta = yaml.safe_load(match.group(1))
+    if not isinstance(meta, dict):
+        raise ValueError('frontmatter 必须是 YAML 映射')
+    return meta
 
 
 def main(argv):
@@ -35,14 +39,22 @@ def main(argv):
         raise SystemExit(__doc__)
     failed = False
     for skill_dir in dirs:
-        meta = read_frontmatter(skill_dir)
-        expected_name = os.path.basename(skill_dir.rstrip('/'))
+        try:
+            meta = read_frontmatter(skill_dir)
+        except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError) as exc:
+            failed = True
+            print(f'FAIL {skill_dir}: {exc}')
+            continue
+        expected_name = os.path.basename(os.path.normpath(skill_dir))
         problems = []
         if meta.get('name') != expected_name:
             problems.append(f"name={meta.get('name')!r} 与目录名 {expected_name!r} 不一致")
         if not meta.get('description'):
             problems.append('description 缺失')
-        model_invocable = 'disable-model-invocation' not in meta
+        disabled = meta.get('disable-model-invocation', False)
+        if not isinstance(disabled, bool):
+            problems.append('disable-model-invocation 必须是布尔值 true / false')
+        model_invocable = disabled is not True
         if '--expect-model-invocable' in flags and not model_invocable:
             problems.append('本 skill 应允许模型直接调用，但设了 disable-model-invocation')
         if '--expect-role' in flags and model_invocable:

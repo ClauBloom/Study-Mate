@@ -33,6 +33,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -122,6 +123,9 @@ def load_order(subject_path, problems):
         problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
         return None
     nodes = data.get('nodes') if isinstance(data, dict) else None
+    if nodes is not None and not isinstance(nodes, list):
+        problems.add(path, 1, '大纲的 nodes: 必须是列表')
+        return None
     order, duplicated = {}, []
     for node in nodes or []:
         if not (isinstance(node, dict) and node.get('id')):
@@ -219,21 +223,24 @@ def apply_renames(lessons_dir, renames):
 
     direct = [item for item in renames if not os.path.lexists(path_of(item['new']))]
     staged = [item for item in renames if os.path.lexists(path_of(item['new']))]
-    done = []                                         # [当前路径, 原路径]，回滚时反过来改回去
+    done = []                                         # 每次实际改名，回滚时逐步逆序撤销
+    temp_dir = None
     try:
         for item in direct:
             os.rename(path_of(item['old']), path_of(item['new']))
             done.append([path_of(item['new']), path_of(item['old'])])
         pending = []
+        if staged:
+            temp_dir = tempfile.mkdtemp(prefix='.renumber-tmp-', dir=lessons_dir)
         for position, item in enumerate(staged):      # 换位（0002 → 0003、0003 → 0002 这类）
-            temp = path_of(f'.renumber-tmp-{os.getpid()}-{position}')
+            temp = os.path.join(temp_dir, str(position))
             os.rename(path_of(item['old']), temp)
             record = [temp, path_of(item['old'])]
             done.append(record)
             pending.append((record, item))
         for record, item in pending:
             os.rename(record[0], path_of(item['new']))
-            record[0] = path_of(item['new'])
+            done.append([path_of(item['new']), record[0]])
     except OSError as exc:
         for current, original in reversed(done):
             try:
@@ -241,6 +248,12 @@ def apply_renames(lessons_dir, renames):
             except OSError:                           # pragma: no cover - 回滚也失败就只能如实说
                 pass
         return str(exc)
+    finally:
+        if temp_dir is not None:
+            try:
+                os.rmdir(temp_dir)                    # 回滚失败时留下文件，供手工恢复
+            except OSError:
+                pass
     return None
 
 
@@ -262,7 +275,8 @@ def render_nodes(subject_path, node_ids):
         if shown:                                     # 渲染器的 `<文件>:<行> 问题` 原样转出来
             print(shown, file=sys.stderr)
         print(f'{RENDER_REL}:1 节点 {node_id} 渲染失败（退出码 {proc.returncode}）——'
-              '改名已经做完、不回滚；把上面的问题修好后再跑一次（渲染可以重来）', file=sys.stderr)
+              f'改名已经做完、不回滚；修好后直接运行 {RENDER_REL} <科目目录> {node_id} 重渲染',
+              file=sys.stderr)
     return failed
 
 
@@ -283,7 +297,12 @@ def main(argv):
         problems.report()
         return 1
 
-    renames, duplicates, untouched = scan(lessons_dir, order)
+    try:
+        renames, duplicates, untouched = scan(lessons_dir, order)
+    except OSError as exc:
+        problems.add(lessons_dir, 1, f'课件目录读不出来：{exc}')
+        problems.report()
+        return 1
     for node_id, ext, names in duplicates:
         problems.add(os.path.join(lessons_dir, names[0]), 1,
                      f'节点 {node_id} 的 .{ext} 有 {len(names)} 份（{"、".join(names)}）——'
@@ -327,7 +346,7 @@ def main(argv):
 
     if failed:
         print(f'{len(changed)} 个节点改了名，其中 {failed} 个没渲染成功——'
-              '改名不回滚，把问题修好后重跑 `--render` 即可', file=sys.stderr)
+              f'改名不回滚，把问题修好后用 {RENDER_REL} 重渲染上面失败的节点', file=sys.stderr)
         return 1
     return 0
 

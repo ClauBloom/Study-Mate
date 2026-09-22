@@ -47,7 +47,12 @@ def main(argv: list[str]) -> int:
             failed = True
             continue
 
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError) as exc:
+            print(f"  [ERROR] 无法读取 YAML：{exc}")
+            failed = True
+            continue
         if not isinstance(data, dict):
             print("  [ERROR] 顶层不是 mapping")
             failed = True
@@ -62,6 +67,32 @@ def main(argv: list[str]) -> int:
         else:
             print("  [WARN] 未安装 jsonschema，跳过 schema 校验")
 
+        # 结构检查仍会遍历这些字段；schema 报错后不能继续把错误类型当列表/字符串用。
+        # 没装 jsonschema 时也保留这道检查，避免 TypeError 中断其余文件。
+        structure_errors = []
+        for field in ("nodes", "edges"):
+            if not isinstance(data.get(field, []), list):
+                structure_errors.append(f"{field} 必须是数组")
+        if not structure_errors:
+            for n in data.get("nodes", []):
+                if not isinstance(n, dict) or not isinstance(n.get("id"), str):
+                    structure_errors.append("nodes 中每项必须是含字符串 id 的对象")
+                    continue
+                prerequisites = n.get("prerequisites", [])
+                if not isinstance(prerequisites, list) or not all(isinstance(p, str) for p in prerequisites):
+                    structure_errors.append(f"{n['id']}: prerequisites 必须是字符串数组")
+                if n.get("kind") is not None and not isinstance(n["kind"], str):
+                    structure_errors.append(f"{n['id']}: kind 必须是字符串")
+            for e in data.get("edges", []):
+                if not isinstance(e, dict) or not all(isinstance(e.get(k), str) for k in ("from", "to")):
+                    structure_errors.append("edges 中每项必须是含字符串 from/to 的对象")
+        if structure_errors:
+            failed = True
+            print(f"  [FAIL] {len(errors + structure_errors)} 个问题：")
+            for msg in errors + structure_errors:
+                print(f"    - {msg}")
+            continue
+
         nodes = data.get("nodes") or []
         ids = [n.get("id") for n in nodes if isinstance(n, dict)]
         seen: set[str] = set()
@@ -69,6 +100,7 @@ def main(argv: list[str]) -> int:
             if nid in seen:
                 errors.append(f"重复 id: {nid}")
             seen.add(nid)
+        ids = list(dict.fromkeys(ids))
 
         for n in nodes:
             if not isinstance(n, dict):
@@ -130,7 +162,7 @@ def main(argv: list[str]) -> int:
 
         # 孤儿提示
         referenced = {p for n in nodes if isinstance(n, dict) for p in (n.get("prerequisites") or [])}
-        referenced |= {e.get("to") for e in (data.get("edges") or []) if isinstance(e, dict)}
+        referenced |= {e.get("from") for e in (data.get("edges") or []) if isinstance(e, dict)}
         orphans = [i for i in ids if i not in referenced]
         if orphans:
             print(f"  [提示] 没有被任何节点依赖的末端节点: {', '.join(orphans)}")

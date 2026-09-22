@@ -21,7 +21,12 @@
 
 **依赖**：DSH、Python 3.9+、pyyaml、bash、coreutils、sed（Windows 只要 DSH + Python 3.9+ + pyyaml）
 
-两个安装脚本（macOS/Linux 的 `install.sh`、Windows 的 `install.ps1`）都不做依赖检查，缺东西会在中途硬失败。DSH 本身的安装不在本项目范围内。
+**通过 npm 安装**
+
+```bash
+npx @yunmiao/studymate@latest install
+dsh web
+```
 
 **macOS / Linux**
 

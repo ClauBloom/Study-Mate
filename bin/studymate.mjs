@@ -1,0 +1,258 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { adaptSkill } from './skill-compat.mjs';
+
+const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const metadata = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
+const help = `StudyMate ${metadata.version}
+
+用法：studymate [install] [--workspace <目录>]
+      studymate --help | --version
+
+将学习模式和引擎安装到 DSH_HOME（默认 ~/.dsh）。
+工作区优先使用 --workspace、LEARN_WORKSPACE、已有配置，首次默认为 ~/StudyMate。
+需要 Node.js ^22.19.0 或 >=24、dsh >=0.1.5-rc.2、Python 3.9+ 和 PyYAML。
+安装器不会安装或升级 dsh，也不会重启正在运行的会话。`;
+
+function run(command, args, extra = {}) {
+  return spawnSync(command, args, { encoding: 'utf8', timeout: 15000, windowsHide: true, ...extra });
+}
+
+export function supportsDsh(value) {
+  const version = value.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?(?:\+[\w.-]+)?$/);
+  if (!version) return false;
+  const minimum = [0, 1, 5];
+  for (let i = 0; i < minimum.length; i++) {
+    const number = Number(version[i + 1]);
+    if (number !== minimum[i]) return number > minimum[i];
+  }
+  if (!version[4]) return true;
+  const identifiers = version[4].split('.');
+  const baseline = ['rc', '2'];
+  for (let i = 0; i < Math.max(identifiers.length, baseline.length); i++) {
+    const current = identifiers[i], required = baseline[i];
+    if (current === required) continue;
+    if (current === undefined) return false;
+    if (required === undefined) return true;
+    const numeric = /^\d+$/.test(current), otherNumeric = /^\d+$/.test(required);
+    if (numeric && otherNumeric) return Number(current) > Number(required);
+    if (numeric !== otherNumeric) return !numeric;
+    return current > required;
+  }
+  return true;
+}
+
+export function findPython(platform = process.platform, execute = run) {
+  const candidates = [['python3', []], ['python', []]];
+  if (platform === 'win32') candidates.push(['py', ['-3']]);
+  const probe = 'import sys, json; assert sys.version_info >= (3,9); import yaml; print(json.dumps(sys.executable))';
+  for (const [command, prefix] of candidates) {
+    let result = execute(command, [...prefix, '-X', 'utf8', '-c', probe]);
+    if (platform === 'win32' && result.error) {
+      // Probe .cmd/.bat shims using constant arguments only. Later calls use
+      // sys.executable directly, so user paths never pass through cmd.exe.
+      result = execute(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c',
+        `"${command} ${[...prefix, '-X', 'utf8'].join(' ')} -c "${probe}""`],
+      { windowsVerbatimArguments: true });
+    }
+    if (result.status !== 0) continue;
+    try {
+      const executable = JSON.parse(result.stdout);
+      if (typeof executable === 'string' && executable) {
+        return { command: executable, prefix: ['-X', 'utf8'] };
+      }
+    } catch { /* A launcher that did not produce the probe result is not usable. */ }
+  }
+  const checked = candidates.map(([command, prefix]) => [command, ...prefix].join(' ')).join('、');
+  const pip = platform === 'win32' ? 'py -3' : 'python3';
+  throw new Error(`没有找到可用的 Python 3.9+ 和 PyYAML（已检查 ${checked}）。请安装 Python，并用对应解释器运行 ${pip} -m pip install PyYAML。`);
+}
+
+function checkDependencies() {
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  if (!(major >= 24 || (major === 22 && minor >= 19))) {
+    throw new Error('需要 Node.js ^22.19.0 或 >=24，请先升级 Node.js。');
+  }
+  // npm's Windows entry point is dsh.cmd; the shell receives no user input.
+  const dsh = process.platform === 'win32'
+    ? run(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', '"dsh --version"'], { windowsVerbatimArguments: true })
+    : run('dsh', ['--version']);
+  const version = dsh.stdout?.trim();
+  if (dsh.status !== 0 || !version) {
+    throw new Error('找不到可运行的 dsh。请先运行 npm install -g @deepseek-ai/dsh@latest，再重试。');
+  }
+  if (!supportsDsh(version)) {
+    throw new Error(`dsh ${version} 不支持此学习预设，需要 >=0.1.5-rc.2。请运行 npm install -g @deepseek-ai/dsh@latest。`);
+  }
+  return findPython();
+}
+
+function absolute(value) {
+  if (value === '~') return os.homedir();
+  if (/^~[/\\]/.test(value)) return path.resolve(os.homedir(), value.slice(2));
+  return path.resolve(value);
+}
+
+function contained(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+export function realDestination(directory) {
+  if (fs.existsSync(directory)) return fs.realpathSync(directory);
+  const parent = path.dirname(directory);
+  if (parent === directory) throw new Error(`目录所在的磁盘或共享位置不可用：${directory}`);
+  return path.join(realDestination(parent), path.basename(directory));
+}
+
+export function readConfig(file, python) {
+  if (!fs.existsSync(file)) return {};
+  const result = run(python.command, [...python.prefix, '-c', `import json, pathlib, sys, yaml
+value = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+if value is None: value = {}
+if not isinstance(value, dict): raise ValueError('配置必须是 YAML 对象')
+workspace = value.get('workspace')
+if workspace is not None and not isinstance(workspace, str): raise ValueError('workspace 必须是路径字符串')
+print(json.dumps(value, ensure_ascii=True))`, file]);
+  if (result.status !== 0) throw new Error(`无法读取 ${file}，请修正配置后重试。\n${result.stderr?.trim() || result.error?.message || ''}`);
+  return JSON.parse(result.stdout);
+}
+
+function copyPayload(destination) {
+  for (const relative of ['.dsh/skills', 'preset/learning', 'templates', 'schemas']) {
+    fs.cpSync(path.join(source, relative), path.join(destination, relative), {
+      recursive: true,
+      filter: (file) => !['__pycache__', '.DS_Store'].includes(path.basename(file)),
+    });
+  }
+  for (const [directory, extension] of [['scripts', '.py'], ['docs', '.md']]) {
+    fs.mkdirSync(path.join(destination, directory), { recursive: true });
+    for (const entry of fs.readdirSync(path.join(source, directory), { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(extension)) {
+        fs.copyFileSync(path.join(source, directory, entry.name), path.join(destination, directory, entry.name));
+      }
+    }
+  }
+  for (const file of ['package.json', 'LICENSE']) {
+    fs.copyFileSync(path.join(source, file), path.join(destination, file));
+  }
+}
+
+function install(workspaceArg) {
+  const python = checkDependencies();
+  const dshHome = absolute(process.env.DSH_HOME || path.join(os.homedir(), '.dsh'));
+  const configFile = path.join(dshHome, 'studymate-config.yaml');
+  const config = readConfig(configFile, python);
+  const workspace = absolute(workspaceArg || process.env.LEARN_WORKSPACE || config.workspace || path.join(os.homedir(), 'StudyMate'));
+  const engine = path.join(dshHome, 'studymate', 'engine');
+  const preset = path.join(dshHome, '.agent-presets', 'learning');
+  for (const parent of [path.dirname(engine), path.dirname(preset)]) {
+    if (fs.lstatSync(parent, { throwIfNoEntry: false })?.isSymbolicLink()) {
+      throw new Error(`安装目录是符号链接，为避免改动其指向的项目，请先将它改为独立目录：${parent}`);
+    }
+  }
+  for (const managed of [engine, preset]) {
+    if (fs.lstatSync(managed, { throwIfNoEntry: false })?.isSymbolicLink()) {
+      throw new Error(`安装目标是符号链接，请先将它移至其他位置：${managed}`);
+    }
+    if (contained(realDestination(managed), fs.realpathSync(source))) {
+      throw new Error(`安装器源码位于将被替换的目录内，请将源码移到其他位置或从 npx 运行：${managed}`);
+    }
+    if (contained(realDestination(managed), realDestination(workspace))) {
+      throw new Error(`学习工作区不能放在安装器管理的目录内：${managed}`);
+    }
+  }
+  // Build everything before changing the active preset or configuration.
+  fs.mkdirSync(path.dirname(engine), { recursive: true });
+  fs.mkdirSync(path.dirname(preset), { recursive: true });
+  const staging = fs.mkdtempSync(path.join(dshHome, '.studymate-install-'));
+  const replacements = [];
+  let preserveStaging = false;
+  try {
+    const stagedEngine = path.join(staging, 'engine');
+    copyPayload(stagedEngine);
+    const stagedSkills = path.join(stagedEngine, '.dsh', 'skills');
+    for (const entry of fs.readdirSync(stagedSkills, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const skillFile = path.join(stagedSkills, entry.name, 'SKILL.md');
+      if (!fs.existsSync(skillFile)) continue;
+      const skill = fs.readFileSync(skillFile, 'utf8');
+      fs.writeFileSync(skillFile, adaptSkill(skill, {
+        platform: process.platform, pythonExecutable: python.command,
+        configFile, tempDirectory: os.tmpdir(),
+      }));
+    }
+    const stagedPreset = path.join(staging, 'learning');
+    fs.cpSync(path.join(stagedEngine, 'preset', 'learning'), stagedPreset, { recursive: true });
+    const agentFile = path.join(stagedPreset, 'agent.cordis.yml');
+    const agent = fs.readFileSync(agentFile, 'utf8');
+    if (!agent.includes('__STUDYMATE_SKILLS__')) throw new Error('预设缺少 __STUDYMATE_SKILLS__，安装包不完整。');
+    fs.writeFileSync(agentFile, agent.replaceAll('__STUDYMATE_SKILLS__', path.join(engine, '.dsh', 'skills').split(path.sep).join('/').replaceAll("'", "''")));
+
+    fs.mkdirSync(path.join(workspace, '.learning', 'subjects'), { recursive: true });
+    const realWorkspace = fs.realpathSync(workspace);
+    for (const managed of [engine, preset]) {
+      const realManaged = path.join(fs.realpathSync(path.dirname(managed)), path.basename(managed));
+      if (contained(realManaged, realWorkspace)) throw new Error(`学习工作区不能指向安装器管理的目录：${managed}`);
+    }
+    config.workspace = realWorkspace;
+    config.root = engine;
+    const stagedConfig = path.join(staging, 'config.yaml');
+    // JSON objects are also valid YAML; retain unrelated user configuration keys.
+    fs.writeFileSync(stagedConfig, `# StudyMate 学习工作区与引擎项目定位\n${JSON.stringify(config, null, 2)}\n`);
+
+    for (const [staged, target] of [[stagedEngine, engine], [stagedPreset, preset], [stagedConfig, configFile]]) {
+      const backup = path.join(staging, `backup-${replacements.length}`);
+      const existed = fs.existsSync(target);
+      if (existed) fs.renameSync(target, backup);
+      const change = { target, backup, existed, installed: false };
+      replacements.push(change);
+      fs.renameSync(staged, target);
+      change.installed = true;
+    }
+  } catch (error) {
+    try {
+      for (const change of replacements.reverse()) {
+        if (change.installed) fs.rmSync(change.target, { recursive: true, force: true });
+        if (change.existed) fs.renameSync(change.backup, change.target);
+      }
+    } catch (rollbackError) {
+      preserveStaging = true;
+      throw new Error(`${error.message}\n自动恢复失败：${rollbackError.message}；原文件保留在 ${staging}`);
+    }
+    throw error;
+  } finally {
+    if (!preserveStaging) fs.rmSync(staging, { recursive: true, force: true });
+  }
+  console.log(`StudyMate ${metadata.version} 安装完成。\n引擎：${engine}\n学习预设：${preset}\n学习工作区：${config.workspace}\n配置：${configFile}\n请在 dsh 中新建会话并选择“学习模式”；已运行的 dsh 如未显示该模式，请重启。`);
+}
+
+export function main(args = process.argv.slice(2)) {
+  try {
+    if (args.length === 1 && ['--help', '-h'].includes(args[0])) console.log(help);
+    else if (args.length === 1 && ['--version', '-v'].includes(args[0])) console.log(metadata.version);
+    else {
+      if (args[0] === 'install') args.shift();
+      let workspace;
+      if (args.length) {
+        if (args.length !== 2 || args[0] !== '--workspace' || !args[1] || args[1].startsWith('--')) {
+          throw new Error(`不支持的参数：${args.join(' ')}\n${help}`);
+        }
+        workspace = args[1];
+      }
+      install(workspace);
+    }
+  } catch (error) {
+    console.error(`StudyMate：${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
+if (process.argv[1] && fs.existsSync(process.argv[1]) &&
+    fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
+  main();
+}

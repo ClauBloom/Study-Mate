@@ -20,11 +20,11 @@ path, skills = sys.argv[1], sys.argv[2]
 p = pathlib.Path(path)
 t = p.read_text(encoding='utf-8')
 if '__STUDYMATE_SKILLS__' in t:
-    p.write_text(t.replace('__STUDYMATE_SKILLS__', skills), encoding='utf-8')
+    p.write_text(t.replace('__STUDYMATE_SKILLS__', skills.replace("'", "''")), encoding='utf-8')
 elif skills not in t:
     raise SystemExit('预设里既没有占位符 __STUDYMATE_SKILLS__，也没有已写入的 skill 路径')
 PY
-echo "① 预设 → $DEST_PRESET（skill 目录：$ROOT/.dsh/skills）"
+echo "① 预设 → ${DEST_PRESET}（skill 目录：${ROOT}/.dsh/skills）"
 
 # 2) 学习工作区：默认 <root>/workspace/，路径写入配置
 #    已有配置里的 workspace 默认沿用（学生可能已把工作区放到别处）；
@@ -34,7 +34,15 @@ CONFIG="$DSH/studymate-config.yaml"
 WORKSPACE="${LEARN_WORKSPACE:-}"
 KEPT_EXISTING=""
 if [ -z "$WORKSPACE" ] && [ -f "$CONFIG" ]; then
-  WORKSPACE="$(sed -n '/^workspace:/{s/^workspace:[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "$CONFIG")"
+  WORKSPACE="$(python3 - "$CONFIG" <<'PY'
+import pathlib, sys, yaml
+config = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')) or {}
+workspace = config.get('workspace') if isinstance(config, dict) else None
+if workspace is not None and not isinstance(workspace, str):
+    raise SystemExit('配置里的 workspace 必须是路径字符串')
+print(workspace or '')
+PY
+)"
   if [ -n "$WORKSPACE" ]; then
     KEPT_EXISTING=1
   fi
@@ -48,15 +56,18 @@ fi
 WORKSPACE="${WORKSPACE/#\~/$HOME}"
 mkdir -p "$WORKSPACE/.learning/subjects"
 WORKSPACE="$(cd "$WORKSPACE" && pwd)"
-cat > "$CONFIG" <<EOF
-# StudyMate 学习工作区与引擎项目定位
-workspace: $WORKSPACE
-root: $ROOT
-EOF
+python3 - "$CONFIG" "$WORKSPACE" "$ROOT" <<'PY'
+import json, pathlib, sys
+path, workspace, root = sys.argv[1:]
+pathlib.Path(path).write_text(
+    '# StudyMate 学习工作区与引擎项目定位\n'
+    f'workspace: {json.dumps(workspace, ensure_ascii=False)}\n'
+    f'root: {json.dumps(root, ensure_ascii=False)}\n', encoding='utf-8')
+PY
 if [ -n "$KEPT_EXISTING" ]; then
-  echo "② 学习工作区 → $WORKSPACE（沿用已有工作区；配置在 $CONFIG）"
+  echo "② 学习工作区 → ${WORKSPACE}（沿用已有工作区；配置在 ${CONFIG}）"
 else
-  echo "② 学习工作区 → $WORKSPACE（配置在 $CONFIG）"
+  echo "② 学习工作区 → ${WORKSPACE}（配置在 ${CONFIG}）"
 fi
 
 echo "完成（StudyMate v0.1）。现在可在任意目录开会话，选'学习模式'预设开始学习。"

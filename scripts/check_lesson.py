@@ -79,6 +79,7 @@ import os
 import re
 import sys
 from html.parser import HTMLParser
+from urllib.parse import unquote
 
 try:
     import yaml
@@ -174,12 +175,19 @@ class SubjectData:
             self.error = f'{path} 不是合法 YAML（{exc}）'
             return
         nodes = curriculum.get('nodes') if isinstance(curriculum, dict) else None
-        for node in nodes or []:
-            if isinstance(node, dict) and node.get('id'):
-                node_id = str(node['id'])
-                self.kinds[node_id] = str(node.get('kind') or '').strip()
-                if node_id not in self.order:
-                    self.order.append(node_id)
+        if not isinstance(nodes, list):
+            self.error = f'{path} 的 nodes 必须是节点数组'
+            return
+        for position, node in enumerate(nodes, 1):
+            node_id = node.get('id') if isinstance(node, dict) else None
+            if not isinstance(node_id, str) or not re.fullmatch(r'[a-z0-9]+([.-][a-z0-9]+)*', node_id):
+                self.error = f'{path} 的 nodes 第 {position} 项缺少合法的节点 id'
+                return
+            if node_id in self.kinds:
+                self.error = f'{path} 里有重复 id: {node_id}'
+                return
+            self.kinds[node_id] = str(node.get('kind') or '').strip()
+            self.order.append(node_id)
 
     def kind_of(self, node):
         return self.kinds.get(str(node)) or None
@@ -383,7 +391,10 @@ def check_naming_and_nav(text, path, subject, node):
         notes.append('跳过命名与上下节课指针检查：没给 --subject/--node')
         return problems, notes
     if subject.error:
-        notes.append(f'跳过命名与上下节课指针检查：{subject.error}')
+        if yaml is None:
+            notes.append(f'跳过命名与上下节课指针检查：{subject.error}')
+        else:
+            problems.append(f'无法核对课件归属：{subject.error}')
         return problems, notes
 
     index = subject.index_of(node)
@@ -537,13 +548,20 @@ QUIZ_ATTR_AS_WRITTEN_RE = re.compile(r'\bdata-quiz\s*=\s*(["\'])([^>]*)', re.S)
 def data_quiz_delimiter_span(tag):
     """返回 (定界引号, 值片段)；标签里没有 data-quiz 时返回 (None, None)。
 
-    值片段是**按书写原样**从定界引号之后一直取到标签末尾（不含标签的 `>`），
-    所以「裸的同种引号」会留在里面，供 check_quiz_attr_delimiters() 判定。
+    优先取能解码成完整 JSON 的值，避免把后续属性算进题目；畸形值保留到标签末尾，
+    其中「裸的同种引号」供 check_quiz_attr_delimiters() 判定。
     """
     match = QUIZ_ATTR_AS_WRITTEN_RE.search(tag)
     if not match:
         return None, None
-    return match.group(1), match.group(2)
+    delimiter, raw = match.group(1), match.group(2)
+    for end in reversed([index for index, char in enumerate(raw) if char == delimiter]):
+        try:
+            json.loads(html.unescape(raw[:end]))
+        except ValueError:
+            continue
+        return delimiter, raw[:end]
+    return delimiter, raw
 
 
 def bare_delimiter_in_json_strings(raw, delimiter):
@@ -603,11 +621,8 @@ def check_quiz_attr_truncation(tag):
     delimiter, raw = data_quiz_delimiter_span(tag)
     if delimiter != '"' or not raw:
         return []
-    loose = DATA_QUIZ_ATTR_RE.search(tag)
-    if not loose:
-        return []
     try:
-        json.loads(html.unescape(loose.group(2)))       # 宽松取值就解析不了 → 交给「合法 JSON」那条报
+        json.loads(html.unescape(raw))                # 宽松取值就解析不了 → 交给「合法 JSON」那条报
     except ValueError:
         return []
     try:
@@ -654,9 +669,9 @@ def scan_quiz_blocks(text):
     for tag_match in QUIZ_TAG_RE.finditer(text):
         if 'quiz' not in tag_match.group(2).split():
             continue
-        attr_match = DATA_QUIZ_ATTR_RE.search(tag_match.group(0))
-        if attr_match:
-            blocks.append(html.unescape(attr_match.group(2)))
+        delimiter, raw = data_quiz_delimiter_span(tag_match.group(0))
+        if delimiter and DATA_QUIZ_ATTR_RE.search(tag_match.group(0)):
+            blocks.append(html.unescape(raw))
     return blocks
 
 
@@ -720,6 +735,9 @@ def check_quiz(text, required=True):
         problems.append(f'题目块 .quiz 缺少 data-quiz 属性（{scanner.missing} 处）')
 
     blocks = scan_quiz_blocks(text)
+    if blocks and len(blocks) < scanner.found:
+        problems.append(f'有 {scanner.found - len(blocks)} 个题目块的 data-quiz 值取不出来——'
+                        '检查属性值中的裸 >（写成 &gt;）及引号')
     if not blocks:
         if scanner.found:
             # 块在、属性也在（HTMLParser 是浏览器口径），是**检查的取值正则**取不出来：
@@ -844,8 +862,8 @@ def check_images(text, path):
                          f'建议从科目图片库 assets/img/pool/ 挑本地文件引用')
         else:
             target = os.path.normpath(os.path.join(os.path.dirname(path) or '.',
-                                                   value.split('#', 1)[0].split('?', 1)[0]))
-            if not os.path.exists(target):
+                                                   unquote(value.split('#', 1)[0].split('?', 1)[0])))
+            if not os.path.isfile(target):
                 problems.append(f'图片引用了不存在的文件：{value}（解析到 {target}）')
         if not (alt or '').strip():
             notes.append(f'图片缺 alt（{value[:40]}）：裂图时学生只看到空白')

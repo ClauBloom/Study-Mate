@@ -30,6 +30,7 @@
 import os
 import re
 import sys
+from datetime import date
 
 INDEX_REL = os.path.join('assets', 'img', 'pool.md')
 POOL_REL = os.path.join('assets', 'img', 'pool')
@@ -43,7 +44,7 @@ REQUIRED_COLUMNS = ('文件', '主题标签', '一句话说明', '来源 URL', '
 POOL_NAME_CHARS = r'0-9A-Za-z\u4e00-\u9fa5'
 POOL_NAME_EXT = 'png|jpg|jpeg|webp|gif'      # image-scout 只抓这几种位图
 POOL_NAME_RE = re.compile(
-    r'^[{chars}][{chars}-]*(?:-[{chars}-]+){{3}}-\d{{2,}}\.(?:{ext})$'.format(
+    r'^[{chars}]+(?:-[{chars}]+){{3,}}-[0-9]{{2,}}\.(?:{ext})$'.format(
         chars=POOL_NAME_CHARS, ext=POOL_NAME_EXT))
 POOL_NAME_MAX = 60                            # 总长（字符）
 POOL_NAME_SHAPE = '<主题>-<子主题>-<要点>-<来源缩写>-<NN>.<ext>'
@@ -109,6 +110,14 @@ def check_row(cells, index, pool_dir, number):
                          ('抓取日期', '抓取那天，要写成 `YYYY-MM-DD` 这样的日期')):
         if index.get(column) is not None and not cell(column):
             problems.append((number, f'`{column}` 为空（{hint}）'))
+    captured = cell('抓取日期')
+    if captured:
+        try:
+            if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', captured):
+                raise ValueError
+            date.fromisoformat(captured)
+        except ValueError:
+            problems.append((number, '`抓取日期` 要写成有效的 YYYY-MM-DD 日期'))
     if exists:
         size = os.path.getsize(target)
         if size > MAX_BYTES:
@@ -129,8 +138,11 @@ def check_pool(subject_path):
                                 f'它应是图片库目录的兄弟 {INDEX_REL}'))
         return problems, 0
 
-    with open(index_path, 'rb') as handle:
-        raw = handle.read()
+    try:
+        with open(index_path, 'rb') as handle:
+            raw = handle.read()
+    except OSError as error:
+        return [(0, f'索引读不出来：{error}')], 0
     try:
         text = raw.decode('utf-8')
     except UnicodeDecodeError as error:
@@ -163,7 +175,12 @@ def check_pool(subject_path):
         if is_separator(cells):
             continue
         rows += 1
-        problems += check_row(cells, index, pool_dir, number)
+        if len(cells) != len(columns):
+            problems.append((number, f'数据行列数不对：应为 {len(columns)} 列，实际 {len(cells)} 列'))
+        try:
+            problems += check_row(cells, index, pool_dir, number)
+        except OSError as error:
+            problems.append((number, f'图片文件读不出来：{error}'))
     return problems, rows
 
 

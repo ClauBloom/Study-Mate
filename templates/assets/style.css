@@ -235,31 +235,7 @@
   }
   .sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
 
-  @media (max-width: 1024px) {
-    /* Auto-collapse sidebar (unless user explicitly expanded via .collapsed toggle) */
-    .doc-sidebar:not(.collapsed) {
-      width: 44px;
-      padding: var(--syo-space-3) var(--syo-space-1);
-    }
-    .doc-sidebar:not(.collapsed) a {
-      opacity: 0; padding-top: 0; padding-bottom: 0;
-      height: 0; margin: 0; overflow: hidden;
-      border-left: none;
-      transition: opacity 100ms ease, height 0ms linear 100ms,
-                  padding 0ms linear 100ms, margin 0ms linear 100ms;
-    }
-    .doc-sidebar:not(.collapsed) .doc-sidebar-title {
-      justify-content: center; position: relative;
-      margin-top: var(--syo-space-2); margin-bottom: var(--syo-space-2);
-    }
-    .doc-sidebar:not(.collapsed) .doc-sidebar-title span {
-      opacity: 0; position: absolute; pointer-events: none;
-      transition: opacity 100ms ease;
-    }
-    .doc-sidebar:not(.collapsed) .doc-sidebar-title svg { width: 15px; height: 15px; }
-    .doc-sidebar:not(.collapsed) .sidebar-toggle { margin-left: auto; margin-right: auto; }
-    .doc-sidebar:not(.collapsed) .sidebar-toggle svg { transform: rotate(180deg); }
-  }
+  /* ≤1024px 的默认折叠由 lesson-toc.js 设置 .collapsed，点击后可正常展开。 */
 
   /* ═══════════════════════════════════════════════════════════════
      MOBILE: ≤768px
@@ -297,6 +273,7 @@
     .doc-sidebar.mobile-open .doc-sidebar-title svg { width: 13px; height: 13px; }
     .doc-sidebar.mobile-open .sidebar-toggle { margin-left: 0; margin-right: 0; }
     .doc-sidebar.mobile-open .sidebar-toggle svg { transform: rotate(0); }
+    .doc-sidebar.mobile-open .lesson-nav { display: block; }
 
     .sidebar-backdrop { display: block; }
   }

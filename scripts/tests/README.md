@@ -12,7 +12,7 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 
 | 套件 | 钉住什么 |
 |---|---|
-| `test_install.py` | `install.sh`：预设装到哪、占位符换成引擎 skills 路径、**委派工具口径（`tool-subagent-fork` 必须 `disabled: true`、`subagent` 的 `maxDepth` 必须 `1`——fork 会把总控已完成的回合注进角色，角色会反过来当总控）**、预设整份能被 YAML 解析（含 `!!js` 行）、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。另钉 `install.ps1`（Windows 版）与 `install.sh` 的关键动作对齐（本机没 PowerShell，跑不了它，只能钉它没走样）。全部在沙箱 `HOME` 里跑（27 项） |
+| `test_install.py` | `install.sh` / `install.ps1`（按平台实跑）：预设装到哪、占位符换成引擎 skills 路径、**委派工具口径（`tool-subagent-fork` 必须 `disabled: true`、`subagent` 的 `maxDepth` 必须 `1`——fork 会把总控已完成的回合注进角色，角色会反过来当总控）**、预设整份能被 YAML 解析（含 `!!js` 行）、工作区写成**绝对路径**（`~` 展开、相对路径落绝对）、重复跑沿用已有工作区、引擎搬走后 `root`/skills 重写、仓库不完整时报错；另验装完能跑 `gen_home` 出空状态主页。另验含单引号、方括号和 `#` 的路径及重复安装；静态检查两版关键动作对齐。全部在沙箱 `HOME` / `USERPROFILE` 里跑（30 项） |
 | `test_quiz_attr.py` | 检查对 `data-quiz` 属性值写法的判定：9 例矩阵（单引号/双引号包裹 × 引号怎么写），含「实体引号提前闭合 JSON 字符串」与「裸引号把属性截断」两类 |
 | `test_quiz_code.py` | 题面里的 ` ``` ` 代码围栏：成对放行、没闭合即拦（含 `answer` 字段）、行内单个反引号不算围栏（12 例） |
 | `test_lesson_figure.py` | 检查项 9（配图）：本地图存在放行、**不存在即拦**（学生看到裂图；`gen_home` 的链接自检只管它写出的主页，课件页不在其范围内）、外链图与缺 `alt` 只提示、内联 SVG 不需要文件（5 例） |
@@ -21,8 +21,8 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 | `test_lesson_scripts.py` | 总控的两件机械活做成脚本后的回归：`renumber_lessons.py`（大纲插/删节点后按 `nodes:` 顺序重排 `lessons/` 的文件名序号，三件保持一致、冲突即拒、`--dry-run` 不写盘、`--render` 调渲染器重算指针、认不出的名字不动）与 `apply_empty_reasons.py`（把出题人的 `empty_reason` 按 TSV 打进对应 `::: quiz` 块；锚点找不到／同锚点两块／块里已有理由／TSV 重复或空值一律先校验后写、出错一个文件都不动）（21 例） |
 | `test_render_lesson.py` | 课件渲染器 `render_lesson.py`：壳与接线齐全、正文与代码块的 `&<>` 转义且代码原文逐字、表格/列表/围栏/行内标记、题目按锚点合入且 `data-quiz` 单引号包裹与实体正确、锚点无题必须 `empty_reason`（且**只准**出现在 `::: quiz`：写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）、锚点**双向**对账（题库里多出来的孤儿键、同一个锚点被两个题目位置引用，都带行号报错）、用法错误退 2 与坏题库三种形态（非 JSON／非对象／值是空数组）、配图存在性与题注来源、导航序号按大纲算、未知指令与手写 HTML（块首与段落中间、HTML 注释、front matter 的 title、`alt:` 与 `caption:`、`script`/`style`/`link`/`meta` 与 `iframe`/`video`/`form`/`main`/`button`/`canvas` 及 11 个 SVG 名）带行号报错、一级标题与行首 `#include` 不许静默消失、运算符/泛型/落单反引号不误伤、真标签名单是完整 HTML 元素表 + SVG 名且与格式文档和测试里的字面集合逐字一致、名单里每个名字都必须被形状正则捕获（连字符名 `<syo-editor>` 捕不到，只能做成 `:::` 指令）、`::: svg` 的收尾按保留换行的文本判（拆成两行不算闭合）、模板占位符报错指向真实行号、`--check` 不写盘、渲染产物过检查（含 `kind: 实验` 的无题库说明页）且不带模板说明注释（26 例） |
 | `test_skill_rules.py` | 提示词回归：`.dsh/skills/*/SKILL.md` 里 417 条可执行规则逐条在位（压缩/改写时不许丢规则；`evidence-check` 的「原字段名 `evidence`」那条随提示词精简一并移除，映射仍留在 `docs/使用说明.md`） |
-| `quiz_dom_test.js` | `templates/assets/quiz.js`：选择题判分、开放题展开/收起、坏数据兜底、计分，以及围栏 → `<pre><code>` 的渲染与 `textContent` 语义（26 项） |
-| `toc_dom_test.js` | `templates/assets/lesson-toc.js`：侧栏目录、折叠、移动端抽屉、上/下节课指针搬进侧栏（27 项） |
+| `quiz_dom_test.js` | `templates/assets/quiz.js`：选择题判分、开放题展开/收起、坏数据兜底、计分，以及围栏 → `<pre><code>` 的渲染与 `textContent` 语义、异常数据隔离和开头围栏（33 项） |
+| `toc_dom_test.js` | `templates/assets/lesson-toc.js`：侧栏目录、折叠、移动端抽屉、上/下节课指针搬进侧栏、平板默认折叠与展开状态（33 项） |
 
 ## 浏览器套件（`--browser`）
 

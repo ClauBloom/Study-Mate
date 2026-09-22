@@ -78,8 +78,8 @@
     return false;
   }
 
-  function questionText(item, index, total) {
-    return (total > 1 ? (index + 1) + '. ' : '') + (item.q || '');
+  function questionBlock(item, index, total) {
+    return richBlock('quiz__q', item && item.q || '', total > 1 ? (index + 1) + '. ' : '');
   }
 
   /* ── 题面/答案里的代码：```lang 围栏渲染成真代码块 ────────────────
@@ -91,7 +91,7 @@
   var FENCE_RE = /^[ \t]*```[ \t]*([A-Za-z0-9+#.-]*)[ \t]*$/;
 
   function renderRich(el, text) {
-    var lines = String(text == null ? '' : text).split('\n');
+    var lines = String(text == null ? '' : text).split(/\r?\n/);
     var prose = [];
     var code = null;
 
@@ -125,9 +125,10 @@
   }
 
   /* 建块（div 而非 p：代码块是 <pre>，不能塞进 p 里） */
-  function richBlock(className, text) {
+  function richBlock(className, text, prefix) {
     var el = document.createElement('div');
     el.className = className;
+    if (prefix) el.appendChild(document.createTextNode(prefix));
     renderRich(el, text);
     return el;
   }
@@ -142,7 +143,7 @@
 
   /* ── 选择题：点选项即时反馈 ─────────────────────────────────── */
   function buildChoice(block, item, index, total, state) {
-    var question = richBlock('quiz__q', questionText(item, index, total));
+    var question = questionBlock(item, index, total);
     block.appendChild(question);
 
     var opts = document.createElement('div');
@@ -172,7 +173,8 @@
         feedback.hidden = false;
         feedback.className = 'feedback ' + (ok ? 'correct' : 'wrong');
         feedback.textContent = '';
-        renderRich(feedback, (ok ? '✓ 对' : '✗ 再想想') + (item.why ? '　' + item.why : ''));
+        feedback.appendChild(document.createTextNode((ok ? '✓ 对' : '✗ 再想想') + '　'));
+        renderRich(feedback, item.why);
         highlight(feedback);
 
         if (firstAnswer) {
@@ -202,7 +204,7 @@
 
   /* ── 开放题：自己先答，点开对照参考答案与判分要点（不贴回会话）── */
   function buildOpen(block, item, index, total) {
-    var question = richBlock('quiz__q', questionText(item, index, total));
+    var question = questionBlock(item, index, total);
     block.appendChild(question);
 
     var wrap = document.createElement('div');
@@ -244,7 +246,7 @@
 
   /* ── 数据不完整时的兜底 ─────────────────────────────────────── */
   function buildBroken(block, item, index, total) {
-    var question = richBlock('quiz__q', questionText(item, index, total));
+    var question = questionBlock(item, index, total);
     block.appendChild(question);
 
     var hint = document.createElement('p');
@@ -254,14 +256,22 @@
   }
 
   /* ── 题型判定（与检查、分层规范一致：两组字段只能二选一）──────── */
+  function nonEmptyText(value) {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
   function isChoiceItem(item) {
     return !!item && typeof item === 'object' && !Array.isArray(item) &&
-           Array.isArray(item.opts) && typeof item.ans === 'number';
+           nonEmptyText(item.q) && Array.isArray(item.opts) && item.opts.length >= 2 &&
+           typeof item.ans === 'number' && item.ans % 1 === 0 &&
+           item.ans >= 0 && item.ans < item.opts.length && nonEmptyText(item.why) &&
+           !('answer' in item) && !('criteria' in item);
   }
 
   function isOpenItem(item) {
     return !!item && typeof item === 'object' && !Array.isArray(item) &&
-           typeof item.answer === 'string' && typeof item.criteria === 'string';
+           nonEmptyText(item.q) && nonEmptyText(item.answer) && nonEmptyText(item.criteria) &&
+           !('opts' in item) && !('ans' in item);
   }
 
   whenReady(function () {

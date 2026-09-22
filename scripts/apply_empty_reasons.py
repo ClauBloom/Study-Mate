@@ -32,6 +32,7 @@
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -106,10 +107,16 @@ def node_index(subject_path, node_id, problems):
         problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
         return None
     nodes = data.get('nodes') if isinstance(data, dict) else None
+    if nodes is not None and not isinstance(nodes, list):
+        problems.add(path, 1, '大纲的 nodes: 必须是列表')
+        return None
     ids = [str(node['id']) for node in nodes or []
            if isinstance(node, dict) and node.get('id')]
     if not ids:
         problems.add(path, 1, '大纲里没有 nodes:（内容文件的序号按它算）')
+        return None
+    if len(ids) != len(set(ids)):
+        problems.add(path, 1, '大纲的 nodes: 有重复节点 id，先修好大纲再回填理由')
         return None
     if node_id not in ids:
         problems.add(path, 1, f'节点 {node_id} 不在 curriculum.yaml 的 nodes: 里——'
@@ -296,19 +303,33 @@ def main(argv):
         item['line'] = item['at'] + 1 + offset
 
     emit = (lambda line: print(f'[dry-run] {line}')) if dry_run else print
-    for item in inserts:
-        emit(f'插入了 empty_reason: {item["anchor"]} → {md_path}:{item["line"]}')
-    emit(f'{len(inserts)} 处 / 跳过 {skipped} 行')
-
     if inserts and not dry_run:                       # 只在确实有东西要插时才写盘
         for item in reversed(inserts):
-            _, eol = split_line(parts[item['at']])    # 行尾跟收尾 `:::` 那一行一致（CRLF 不掺 LF）
+            # 最后一行 ::: 可能没有换行；此时沿用前一行的 CRLF/LF，避免插入 LF。
+            eol_at = item['at'] if item['at'] < len(parts) - 1 else item['at'] - 1
+            _, eol = split_line(parts[eol_at])
             parts.insert(item['at'], f'{item["indent"]}{EMPTY_REASON}: {item["reason"]}{eol}')
+        temporary = None
         try:
-            Path(md_path).write_bytes('\n'.join(parts).encode('utf-8'))
+            # 先在同目录完整写好，再原子替换；写入失败不能截断原课件。
+            with tempfile.NamedTemporaryFile(dir=os.path.dirname(md_path),
+                                             prefix='.empty-reasons-', delete=False) as handle:
+                temporary = handle.name
+                handle.write('\n'.join(parts).encode('utf-8'))
+            os.chmod(temporary, os.stat(md_path).st_mode)
+            os.replace(temporary, md_path)
         except OSError as exc:
             print(f'{md_path}:1 写盘失败：{exc}', file=sys.stderr)
             return 1
+        finally:
+            if temporary is not None and os.path.exists(temporary):
+                try:
+                    os.unlink(temporary)
+                except OSError as exc:
+                    print(f'{temporary}:1 临时文件清理失败：{exc}', file=sys.stderr)
+    for item in inserts:
+        emit(f'插入了 empty_reason: {item["anchor"]} → {md_path}:{item["line"]}')
+    emit(f'{len(inserts)} 处 / 跳过 {skipped} 行')
     return 0
 
 

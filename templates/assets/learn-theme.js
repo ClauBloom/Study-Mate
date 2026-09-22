@@ -97,9 +97,9 @@
   var LANGS = {
     /* C++：课件里的源码、题解代码 */
     cpp: function (html, t) {
-      html = html.replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, function (m) { return t('syn-comment', m); });
+      html = html.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g,
+        function (m) { return t(m[0] === '/' ? 'syn-comment' : 'syn-string', m); });
       html = html.replace(/(^|\n)([ \t]*)(#[ \t]*[a-z]+)/g, function (m, a, b, c) { return a + b + t('syn-macro', c); });
-      html = html.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')/g, function (m) { return t('syn-string', m); });
       html = html.replace(/\b(if|else|for|while|do|switch|case|default|break|continue|return|goto|try|catch|throw|new|delete|using|namespace|template|typename|class|struct|union|enum|public|private|protected|virtual|static|const|constexpr|inline|explicit|friend|operator|sizeof|typedef|auto|nullptr|true|false|this|override|noexcept|mutable|extern)\b/g, function (m) { return t('syn-keyword', m); });
       html = html.replace(/\b(int|long|short|char|float|double|void|bool|unsigned|signed|size_t|string|vector|map|set|unordered_map|unordered_set|pair|queue|stack|deque|priority_queue|array|tuple|list|bitset|istream|ostream|iostream|ifstream|ofstream|stringstream|iterator|int32_t|int64_t|uint32_t|uint64_t|cout|cin|cerr|endl)\b/g, function (m) { return t('syn-type', m); });
       html = html.replace(/(&lt;&lt;|&gt;&gt;|&lt;=|&gt;=|==|!=|&amp;&amp;|\|\||\+\+|--|\+=|-=|\*=|\/=|->|::)/g, function (m) { return t('syn-operator', m); });
@@ -110,9 +110,8 @@
 
     /* shell：课件里的命令、脚本（命令行为紫色，选项为蓝色，变量为橙色） */
     sh: function (html, t) {
-      html = html.replace(/(^|\n)([ \t]*)(#[^\n]*)/g, function (m, a, b, c) { return a + b + t('syn-comment', c); });
-      html = html.replace(/([ \t])(#[^\n]*)/g, function (m, a, b) { return a + t('syn-comment', b); });
-      html = html.replace(/("(?:[^"\\\n]|\\.)*"|'[^'\n]*')/g, function (m) { return t('syn-string', m); });
+      html = html.replace(/("(?:[^"\\\n]|\\.)*"|'[^'\n]*'|(^|[ \t])(#[^\n]*))/gm,
+        function (m, token, space, comment) { return comment ? space + t('syn-comment', comment) : t('syn-string', m); });
       html = html.replace(/(^|\n)([ \t]*)((?:\.{0,2}\/|~\/)?[A-Za-z_][\w.+-]*)/g, function (m, a, b, c) { return a + b + t('syn-func', c); });
       html = html.replace(/(&amp;&amp;|\|\||(?<!&[a-z]{1,6});|\|)([ \t]*)((?:\.{0,2}\/|~\/)?[A-Za-z_][\w.+-]*)/g, function (m, a, b, c) { return a + b + t('syn-func', c); });
       html = html.replace(/([ \t])(-{1,2}[A-Za-z][\w-]*)/g, function (m, a, b) { return a + t('syn-operator', b); });
@@ -142,8 +141,8 @@
 
     /* JS / TS */
     js: function (html, t) {
-      html = html.replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, function (m) { return t('syn-comment', m); });
-      html = html.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, function (m) { return t('syn-string', m); });
+      html = html.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g,
+        function (m) { return t(m[0] === '/' ? 'syn-comment' : 'syn-string', m); });
       html = html.replace(/\b(const|let|var|function|return|if|else|for|while|do|of|in|await|async|class|extends|super|new|this|typeof|instanceof|true|false|null|undefined|import|export|from|default|switch|case|break|continue|try|catch|finally|throw|yield|static|get|set|interface|type|enum|implements|public|private|readonly|declare|as|satisfies)\b/g, function (m) { return t('syn-keyword', m); });
       html = html.replace(/(?<!&#)\b(\d+(?:\.\d+)?)\b/g, function (m) { return t('syn-number', m); });
       html = html.replace(/\b([A-Za-z_$][\w$]*)(?=\s*\()/g, function (m) { return t('syn-func', m); });
@@ -192,7 +191,8 @@
       return '\u0000K' + (tokens.length - 1) + '\u0000';
     }
     var html = LANGS[lang](el.innerHTML, tok);
-    for (var i = 0; i < tokens.length; i++) {
+    // 后生成的 token 可能包含早先的占位符，先还原外层才能完整还原原文。
+    for (var i = tokens.length - 1; i >= 0; i--) {
       html = html.split('\u0000K' + i + '\u0000').join(tokens[i]);
     }
     el.innerHTML = html;
@@ -202,7 +202,7 @@
   function langOf(block, holder) {
     var scope = block.closest('[data-lang]') || holder.closest('[data-lang]');
     var attr = scope && scope.getAttribute('data-lang');
-    if (attr) return LANGS[attr] ? attr : null;   /* text 及未知值 = 不上色 */
+    if (attr) return Object.prototype.hasOwnProperty.call(LANGS, attr) ? attr : null;   /* text 及未知值 = 不上色 */
     return detect((holder.textContent || ''));
   }
 
