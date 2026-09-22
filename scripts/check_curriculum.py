@@ -8,6 +8,7 @@
   - id 重复
   - prerequisites / edges 引用了不存在的节点
   - 实验课 (kind: 实验) 的 prerequisites 是否列了它要验收的普通课
+  - 依赖指到了排在它后面的节点（nodes 顺序即教学位次，倒挂会让学生学到还没讲的课）
   - 有向图存在环（prerequisites + edges 合成；DAG 是硬要求）
   - 存在未被任何后续节点依赖的孤儿节点（提示，不算错误）
 
@@ -116,6 +117,24 @@ def main(argv: list[str]) -> int:
             for key in ("from", "to"):
                 if e.get(key) not in seen:
                     errors.append(f"edge {e.get('from')} -> {e.get('to')}: {key} 指向不存在的节点 {e.get(key)}")
+
+        # 位次倒挂：nodes 的书写顺序就是教学位次（课件文件名 `<序号>-<节点id>.md` 的序号按它算），
+        # 所以依赖只能指向前面的节点；指向后面 = 学生还没学就被要求用它。
+        pos = {nid: i for i, nid in enumerate(ids)}
+        inverted: dict[tuple[str, str], None] = {}
+        for n in nodes:
+            if not isinstance(n, dict) or n.get("id") not in pos:
+                continue
+            for pre in n.get("prerequisites") or []:
+                if pre in pos and pos[pre] > pos[n["id"]]:
+                    inverted.setdefault((n["id"], pre), None)
+        for e in data.get("edges") or []:
+            if isinstance(e, dict) and e.get("from") in pos and e.get("to") in pos:
+                if pos[e["from"]] > pos[e["to"]]:
+                    inverted.setdefault((e["to"], e["from"]), None)
+        for dep, pre in inverted:
+            errors.append(f"{dep}（第 {pos[dep] + 1} 位）依赖 {pre}（第 {pos[pre] + 1} 位）——"
+                          f"nodes 顺序即教学位次，依赖只能指向前面的节点")
 
         # 实验课必须有非空 prerequisites
         for n in nodes:
