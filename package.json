@@ -1,0 +1,41 @@
+{
+  "name": "@yunmiao/studymate",
+  "version": "0.1.1",
+  "description": "Install the StudyMate learning preset, skills and lesson engine for DeepSeek Harness.",
+  "bin": {
+    "studymate": "bin/studymate.mjs"
+  },
+  "files": [
+    "bin/*.mjs",
+    ".dsh/skills/**",
+    "preset/learning/**",
+    "scripts/*.py",
+    "schemas/*.json",
+    "templates/**",
+    "docs/*.md",
+    "docs/images/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test:installer": "node --test scripts/tests/test_npm_compat.mjs"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "license": "MIT",
+  "author": "Cattofu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Miaotofu01/Study-Mate.git"
+  },
+  "homepage": "https://github.com/Miaotofu01/Study-Mate#readme",
+  "bugs": {
+    "url": "https://github.com/Miaotofu01/Study-Mate/issues"
+  },
+  "keywords": ["dsh", "deepseek-harness", "studymate", "learning", "education"],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}
