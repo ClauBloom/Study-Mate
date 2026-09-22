@@ -201,4 +201,16 @@ bash scripts/tests/run_tests.sh                                               # 
 
 MIT（见 [LICENSE](LICENSE)，版权 Cattofu）。
 
+## Star 趋势
+
+<p align="center">
+  <a href="https://star-history.com/#miaotofu01/study-mate&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=miaotofu01/study-mate&type=date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=miaotofu01/study-mate&type=date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=miaotofu01/study-mate&type=date" />
+    </picture>
+  </a>
+</p>
+
 
