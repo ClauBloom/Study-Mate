@@ -5,7 +5,17 @@
   "bin": {
     "studymate": "bin/studymate.mjs"
   },
+  "exports": {
+    ".": "./bin/dsh-plugin.mjs",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "files": [
+    "cordis.patch.yml",
     "bin/*.mjs",
     ".dsh/skills/**",
     "preset/learning/**",
@@ -19,7 +29,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test:installer": "node --test scripts/tests/test_installer.mjs"
+    "test:installer": "node --test scripts/tests/test_installer.mjs scripts/tests/test_bundle.mjs"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

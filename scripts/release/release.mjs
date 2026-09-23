@@ -169,13 +169,13 @@ function requireWorkflow() {
 export function validatePack(pack) {
   if (pack.name !== PACKAGE || !VERSION.test(pack.version)) throw new Error('Unexpected npm package identity.');
   const files = pack.files.map(file => file.path);
-  const allowed = /^(?:package\.json|README\.md|LICENSE|CHANGELOG\.md|bin\/[^/]+\.mjs|\.dsh\/skills\/.+|preset\/learning\/.+|scripts\/[^/]+\.py|schemas\/[^/]+\.json|templates\/.+|docs\/[^/]+\.md|docs\/images\/.+)$/;
+  const allowed = /^(?:package\.json|cordis\.patch\.yml|README\.md|LICENSE|CHANGELOG\.md|bin\/[^/]+\.mjs|\.dsh\/skills\/.+|preset\/learning\/.+|scripts\/[^/]+\.py|schemas\/[^/]+\.json|templates\/.+|docs\/[^/]+\.md|docs\/images\/.+)$/;
   for (const file of files) {
     if (!allowed.test(file) || /(^|\/)(?:\.env(?:\..*)?|\.npmrc|\.git|node_modules|__pycache__|\.DS_Store|[^/]+\.pyc)(\/|$)/.test(file)) {
       throw new Error(`Unexpected or private file in npm tarball: ${file}`);
     }
   }
-  for (const required of ['bin/studymate.mjs', 'bin/skill-compat.mjs', 'preset/learning/agent.cordis.yml', 'scripts/install_preset.py', 'scripts/gen_home.py', '.dsh/skills/learning-system/SKILL.md']) {
+  for (const required of ['cordis.patch.yml', 'bin/dsh-plugin.mjs', 'bin/studymate.mjs', 'bin/skill-compat.mjs', 'preset/learning/agent.cordis.yml', 'scripts/install_preset.py', 'scripts/gen_home.py', '.dsh/skills/learning-system/SKILL.md']) {
     if (!files.includes(required)) throw new Error(`npm tarball is missing ${required}.`);
   }
   for (const prefix of ['schemas/', 'templates/', 'docs/']) if (!files.some(file => file.startsWith(prefix))) throw new Error(`npm tarball is missing ${prefix}.`);

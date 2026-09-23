@@ -121,7 +121,7 @@ test('npm status distinguishes unpublished from registry failure and immutable c
 });
 
 test('tarball inspection rejects personal workspace, credentials and incomplete payloads', () => {
-  const files = ['package.json', 'README.md', 'bin/studymate.mjs', 'bin/skill-compat.mjs',
+  const files = ['package.json', 'README.md', 'cordis.patch.yml', 'bin/dsh-plugin.mjs', 'bin/studymate.mjs', 'bin/skill-compat.mjs',
     'preset/learning/agent.cordis.yml', 'scripts/install_preset.py', 'scripts/gen_home.py', '.dsh/skills/learning-system/SKILL.md',
     'schemas/subject.json', 'templates/home.html', 'docs/使用说明.md'];
   const pack = { name, version: '0.1.2', files: files.map(path => ({ path })) };
@@ -130,6 +130,10 @@ test('tarball inspection rejects personal workspace, credentials and incomplete 
     assert.throws(() => validatePack({ ...pack, files: [...pack.files, { path }] }), /Unexpected or private/);
   }
   assert.throws(() => validatePack({ ...pack, files: pack.files.filter(file => !file.path.startsWith('schemas/')) }), /missing schemas/);
+  for (const required of ['cordis.patch.yml', 'bin/dsh-plugin.mjs']) {
+    assert.throws(() => validatePack({ ...pack, files: pack.files.filter(file => file.path !== required) }),
+      error => error.message === `npm tarball is missing ${required}.`);
+  }
 });
 
 test('release CLI refuses local runs before touching repository or contacting registries', () => {

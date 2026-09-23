@@ -143,23 +143,27 @@ function copyPayload(destination) {
   }
 }
 
-function install(workspaceArg, profile) {
+// Shared by the CLI and the DSH bundle. Native loading already runs inside DSH;
+// it must not launch a second, possibly different dsh executable from PATH.
+export function installPayload({ workspaceArg, profile = 'web', python, version,
+  dshHome = absolute(process.env.DSH_HOME || path.join(os.homedir(), '.dsh')), native = false }) {
   if (!profile || /[/\\\0]/.test(profile) || ['.', '..', 'node_modules', 'desktop'].includes(profile)) {
     throw new Error('--profile 必须是单个 DSH 配置名称，不能使用路径或保留名称。');
   }
-  const { python, version } = checkDependencies();
-  const dshHome = absolute(process.env.DSH_HOME || path.join(os.homedir(), '.dsh'));
+  python ??= findPython();
+  dshHome = absolute(dshHome);
   const configFile = path.join(dshHome, 'studymate-config.yaml');
   const config = readConfig(configFile, python);
   const workspace = absolute(workspaceArg || process.env.LEARN_WORKSPACE || config.workspace || path.join(os.homedir(), 'StudyMate'));
   const engine = path.join(dshHome, 'studymate', 'engine');
   const preset = path.join(dshHome, '.agent-presets', 'learning');
-  for (const parent of [path.dirname(engine), path.dirname(preset)]) {
+  const managedDirectories = native ? [engine] : [engine, preset];
+  for (const parent of managedDirectories.map(directory => path.dirname(directory))) {
     if (fs.lstatSync(parent, { throwIfNoEntry: false })?.isSymbolicLink()) {
       throw new Error(`安装目录是符号链接，为避免改动其指向的项目，请先将它改为独立目录：${parent}`);
     }
   }
-  for (const managed of [engine, preset]) {
+  for (const managed of managedDirectories) {
     if (fs.lstatSync(managed, { throwIfNoEntry: false })?.isSymbolicLink()) {
       throw new Error(`安装目标是符号链接，请先将它移至其他位置：${managed}`);
     }
@@ -172,7 +176,7 @@ function install(workspaceArg, profile) {
   }
   // Build everything before changing the active preset or configuration.
   fs.mkdirSync(path.dirname(engine), { recursive: true });
-  fs.mkdirSync(path.dirname(preset), { recursive: true });
+  if (!native) fs.mkdirSync(path.dirname(preset), { recursive: true });
   const staging = fs.mkdtempSync(path.join(dshHome, '.studymate-install-'));
   const replacements = [];
   let preserveStaging = false;
@@ -203,13 +207,14 @@ function install(workspaceArg, profile) {
     const stagedPatch = path.join(staging, 'cordis.patch.yml');
     const prepare = run(python.command, [...python.prefix, path.join(source, 'scripts', 'install_preset.py'),
       '--preset-dir', stagedPreset, '--preset-target', preset, '--dsh-home', dshHome,
-      '--profile', profile, '--dsh-version', version, '--patch-output', stagedPatch]);
+      '--profile', profile, '--patch-output', stagedPatch,
+      ...(native ? ['--bundle'] : ['--dsh-version', version])]);
     if (prepare.status !== 0) throw new Error(prepare.stderr?.trim() || prepare.error?.message || '无法注册学习预设。');
     registration = JSON.parse(prepare.stdout);
 
     fs.mkdirSync(path.join(workspace, '.learning', 'subjects'), { recursive: true });
     const realWorkspace = fs.realpathSync(workspace);
-    for (const managed of [engine, preset]) {
+    for (const managed of managedDirectories) {
       const realManaged = path.join(fs.realpathSync(path.dirname(managed)), path.basename(managed));
       if (contained(realManaged, realWorkspace)) throw new Error(`学习工作区不能指向安装器管理的目录：${managed}`);
     }
@@ -219,7 +224,8 @@ function install(workspaceArg, profile) {
     // JSON objects are also valid YAML; retain unrelated user configuration keys.
     fs.writeFileSync(stagedConfig, `# StudyMate 学习工作区与引擎项目定位\n${JSON.stringify(config, null, 2)}\n`);
 
-    const targets = [[stagedEngine, engine], [stagedPreset, preset], [stagedConfig, configFile]];
+    const targets = [[stagedEngine, engine], [stagedConfig, configFile]];
+    if (!native) targets.push([stagedPreset, preset]);
     if (registration.patchChanged) {
       const profilePatch = path.join(dshHome, 'profiles', profile, 'cordis.patch.yml');
       if (fs.lstatSync(profilePatch, { throwIfNoEntry: false })?.isSymbolicLink()) {
@@ -251,8 +257,15 @@ function install(workspaceArg, profile) {
   } finally {
     if (!preserveStaging) fs.rmSync(staging, { recursive: true, force: true });
   }
-  const registered = registration.mode === 'declarative' ? `\n已注册到 DSH profile：${profile}` : '';
-  console.log(`StudyMate ${metadata.version} 安装完成。\n引擎：${engine}\n学习预设：${preset}${registered}\n学习工作区：${config.workspace}\n配置：${configFile}\n请在 dsh 中新建会话并选择“学习模式”；已运行的 dsh 如未显示该模式，请重启。`);
+  return { registration, engine, preset, configFile, workspace: config.workspace };
+}
+
+function install(workspaceArg, profile) {
+  const { python, version } = checkDependencies();
+  const { registration, engine, preset, configFile, workspace } = installPayload({ workspaceArg, profile, python, version });
+  const registered = registration.mode === 'bundle' ? `\n学习模式由 DSH 插件管理：${profile}`
+    : registration.mode === 'declarative' ? `\n已注册到 DSH profile：${profile}` : '';
+  console.log(`StudyMate ${metadata.version} 安装完成。\n引擎：${engine}\n学习预设：${preset}${registered}\n学习工作区：${workspace}\n配置：${configFile}\n请在 dsh 中新建会话并选择“学习模式”；已运行的 dsh 如未显示该模式，请重启。`);
 }
 
 export function main(args = process.argv.slice(2)) {

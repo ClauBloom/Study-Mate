@@ -15,6 +15,7 @@ BEGIN = '# BEGIN STUDYMATE LEARNING PRESET'
 END = '# END STUDYMATE LEARNING PRESET'
 PLUGIN = '@deepseek-ai/dsh-agent-preset'
 ENTRY_ID = 'studymate-learning-preset'
+BUNDLE = '@yunmiao/studymate'
 
 
 class PatchLoader(yaml.SafeLoader):
@@ -149,10 +150,25 @@ def atomic_write(path, text):
             temporary.unlink()
 
 
+def bundle_selected(profile_dir):
+    manifest = profile_dir / 'package.json'
+    if not manifest.exists():
+        return False
+    try:
+        data = json.loads(read(manifest))
+        bundles = data.get('dsh', {}).get('profile', {}).get('bundles', [])
+    except (ValueError, AttributeError) as error:
+        raise ValueError(f'无法解析 {manifest}，未修改配置') from error
+    if not isinstance(bundles, list) or any(not isinstance(name, str) for name in bundles):
+        raise ValueError(f'{manifest} 的 dsh.profile.bundles 必须是包名列表；未修改配置')
+    return BUNDLE in bundles
+
+
 def install(args):
-    version = args.dsh_version if args.dsh_version is not None else installed_version()
-    modern = version is not None and at_least(version, '0.1.7-alpha.1')
-    workflow = 'ptc' if version is not None and at_least(version, '0.1.6-alpha.1') else 'worker-thread'
+    native = args.bundle
+    version = None if native else args.dsh_version if args.dsh_version is not None else installed_version()
+    modern = native or version is not None and at_least(version, '0.1.7-alpha.1')
+    workflow = 'ptc' if native or version is not None and at_least(version, '0.1.6-alpha.1') else 'worker-thread'
     home = Path(args.dsh_home).expanduser().absolute()
     profile = args.profile
     if not profile or '/' in profile or '\\' in profile or '\x00' in profile or profile.lower() in ('.', '..', 'node_modules', 'desktop'):
@@ -162,6 +178,7 @@ def install(args):
     agent = re.sub(r'(@deepseek-ai/dsh-workflow-|\bid: workflow-)(?:worker-thread|ptc)\b',
                    lambda match: match.group(1) + workflow, agent)
     patch = home / 'profiles' / profile / 'cordis.patch.yml'
+    bundle = native or modern and bundle_selected(patch.parent)
     original = read(patch)
     clean = without_managed(original)
     updated = clean
@@ -172,23 +189,28 @@ def install(args):
             raise ValueError(f'{home_patch} 已声明 learning 预设，请先处理该全局声明；未修改配置')
         data, node = parse_patch(clean, patch)
         existing = learning_rows(data)
+        if bundle and existing:
+            raise ValueError(f'{patch} 已手动声明 learning 预设，与 StudyMate 插件重复；请先移除该声明，未修改配置')
         if len(existing) > 1:
             raise ValueError(f'{patch} 有多个 learning 声明，请先消除重复；未修改配置')
         if existing and (not isinstance(existing[0].get('id'), str) or not existing[0]['id'].strip()):
             raise ValueError(f'{patch} 的 learning 声明缺少稳定的 Loader id，无法安全复用')
-        if not existing and any(row.get('id') == ENTRY_ID for row in rows(data)):
+        if not bundle and not existing and any(row.get('id') == ENTRY_ID for row in rows(data)):
             raise ValueError(f'{patch} 的 {ENTRY_ID} 已被其他配置使用；未修改配置')
         metadata = yaml.safe_load(read(Path(args.preset_dir) / 'preset.yml')) or {}
+        if not isinstance(metadata, dict):
+            raise ValueError('学习预设元数据必须是对象；未修改配置')
         config = {key: metadata[key] for key in ('name', 'description', 'order') if key in metadata}
         plugins = yaml.load(agent, Loader=PresetLoader)
         if not isinstance(plugins, list):
             raise ValueError('学习预设必须是插件列表；未修改配置')
         config.update(id='learning', plugins=plugins)
-        declaration = {'id': existing[0]['id'] if existing else ENTRY_ID, 'config': config}
-        if not existing:
-            declaration['name'] = PLUGIN
-        row = declaration if existing else {'insert': [declaration]}
-        updated = insert_managed(clean, node, row)
+        if not bundle:
+            declaration = {'id': existing[0]['id'] if existing else ENTRY_ID, 'config': config}
+            if not existing:
+                declaration['name'] = PLUGIN
+            row = declaration if existing else {'insert': [declaration]}
+            updated = insert_managed(clean, node, row)
         parse_patch(updated, patch)
     # Do not touch active profile configuration when the npm installer stages an update.
     changed = updated != original
@@ -198,8 +220,11 @@ def install(args):
     atomic_write(preset, agent)
     if changed:
         atomic_write(output, updated)
-    return {'patchPath': str(output) if changed else None, 'patchChanged': changed,
-            'mode': 'declarative' if modern else 'legacy'}
+    result = {'patchPath': str(output) if changed else None, 'patchChanged': changed,
+              'mode': 'bundle' if bundle else 'declarative' if modern else 'legacy'}
+    if bundle:
+        result['config'] = config
+    return result
 
 
 def main():
@@ -210,6 +235,7 @@ def main():
     parser.add_argument('--profile', default='web')
     parser.add_argument('--dsh-version')
     parser.add_argument('--patch-output')
+    parser.add_argument('--bundle', action='store_true', help='由 DSH 插件注册预设，不写入独立声明')
     try:
         print(json.dumps(install(parser.parse_args()), ensure_ascii=False))
     except (ValueError, OSError, subprocess.SubprocessError, yaml.YAMLError) as error:

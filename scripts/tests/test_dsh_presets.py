@@ -159,6 +159,101 @@ class PresetTests(unittest.TestCase):
         self.assertFalse(result['patchChanged'])
         self.assertFalse(self.patch.exists())
 
+    def test_bundle_reads_definition_without_dsh_or_profile_writes(self):
+        result = self.invoke(version=None, extra=['--bundle'],
+                             env={'PATH': str(self.home / 'no-programs')})
+        self.assertEqual(result['mode'], 'bundle')
+        self.assertFalse(result['patchChanged'])
+        self.assertFalse(self.patch.exists())
+        config = result['config']
+        self.assertEqual(config['id'], 'learning')
+        self.assertEqual(config['name'], '学习模式')
+        bash = next(row for row in config['plugins'] if row['id'] == 'tool-bash')
+        self.assertEqual(bash['disabled'], {'__jsExpr': "process.platform === 'win32'"})
+        delegation = next(row for row in config['plugins'] if row['id'] == 'delegation')
+        self.assertTrue(any(row['name'] == '@deepseek-ai/dsh-workflow-ptc'
+                            for row in delegation['config']))
+
+    def test_bundle_migration_stages_only_the_managed_block_removal(self):
+        for original in ['# retained\n[]\n',
+                         '\ufeff# retained\r\n[{id: other, disabled: !!js "false"}]\r\n',
+                         '# retained\n- id: other\n  disabled: !!js false\n']:
+            with self.subTest(patch=original):
+                self.patch.write_bytes(original.encode('utf-8'))
+                self.invoke()
+                registered = self.patch.read_bytes()
+                output = self.home / 'bundle.patch.yml'
+                result = self.invoke(extra=['--bundle', '--patch-output', str(output)])
+                self.assertEqual(result['mode'], 'bundle')
+                self.assertTrue(result['patchChanged'])
+                self.assertEqual(self.patch.read_bytes(), registered)
+                expected = yaml.load(original, Loader=CordisLoader) or []
+                self.assertEqual(self.parsed(output) or [], expected)
+                self.assertNotIn(BEGIN, output.read_text(encoding='utf-8'))
+                self.assertIn(b'# retained', output.read_bytes())
+                if '\r\n' in original:
+                    self.assertIn(b'# retained\r\n', output.read_bytes())
+                if '!!js' in original:
+                    self.assertIn(b'!!js', output.read_bytes())
+                self.patch.write_bytes(output.read_bytes())
+                before = self.patch.read_bytes()
+                self.assertFalse(self.invoke(extra=['--bundle'])['patchChanged'])
+                self.assertEqual(self.patch.read_bytes(), before)
+
+    def test_cli_defers_registration_to_selected_bundle(self):
+        self.invoke()
+        manifest = self.patch.parent / 'package.json'
+        manifest.write_text(json.dumps({'dsh': {'profile': {'bundles': [
+            '@deepseek-ai/dsh-base', '@yunmiao/studymate']}}}), encoding='utf-8')
+        result = self.invoke()
+        self.assertEqual(result['mode'], 'bundle')
+        self.assertTrue(result['patchChanged'])
+        self.assertNotIn(BEGIN, self.patch.read_text(encoding='utf-8'))
+        self.assertEqual(result['config']['id'], 'learning')
+        self.assertFalse(self.invoke()['patchChanged'])
+        # Merely installing a dependency does not enable its bundle.
+        manifest.write_text(json.dumps({'dependencies': {'@yunmiao/studymate': '*'},
+                                        'dsh': {'profile': {'bundles': []}}}), encoding='utf-8')
+        self.assertEqual(self.invoke()['mode'], 'declarative')
+        self.assertEqual(self.invoke('0.1.5-rc.2')['mode'], 'legacy')
+
+    def test_bundle_refuses_manual_declarations_without_writes(self):
+        declaration = (f'- insert:\n  - id: user-learning\n    name: "{PLUGIN}"\n'
+                       '    config: {id: learning, name: Custom, plugins: []}\n')
+        for global_patch in [False, True]:
+            for native in [False, True]:
+                with self.subTest(global_patch=global_patch, native=native):
+                    self.patch.write_text('[]\n', encoding='utf-8')
+                    home_patch = self.home / 'cordis.patch.yml'
+                    home_patch.write_text('[]\n', encoding='utf-8')
+                    conflict = home_patch if global_patch else self.patch
+                    conflict.write_text(declaration, encoding='utf-8')
+                    (self.patch.parent / 'package.json').write_text(json.dumps({
+                        'dsh': {'profile': {'bundles': ['@yunmiao/studymate']}}}), encoding='utf-8')
+                    before = (self.preset / 'agent.cordis.yml').read_bytes()
+                    output = self.home / 'blocked.patch.yml'
+                    error = self.invoke(extra=(["--bundle"] if native else []) +
+                                        ['--patch-output', str(output)], success=False)
+                    self.assertIn('learning', error)
+                    self.assertEqual(conflict.read_text(encoding='utf-8'), declaration)
+                    self.assertEqual((self.preset / 'agent.cordis.yml').read_bytes(), before)
+                    self.assertFalse(output.exists())
+
+    def test_invalid_bundle_manifest_or_patch_fails_without_writes(self):
+        manifest = self.patch.parent / 'package.json'
+        self.patch.write_text('[]\n', encoding='utf-8')
+        for value in ['{broken', '[]', '{"dsh": null}',
+                      '{"dsh":{"profile":{"bundles":"@yunmiao/studymate"}}}',
+                      '{"dsh":{"profile":{"bundles":[null]}}}']:
+            with self.subTest(manifest=value):
+                manifest.write_text(value, encoding='utf-8')
+                before = (self.preset / 'agent.cordis.yml').read_bytes()
+                self.assertIn('package.json', self.invoke(success=False))
+                self.assertEqual(self.patch.read_text(encoding='utf-8'), '[]\n')
+                self.assertEqual((self.preset / 'agent.cordis.yml').read_bytes(), before)
+        self.patch.write_text(BEGIN + '\n- id: incomplete\n', encoding='utf-8')
+        self.assertIn('标记', self.invoke(extra=['--bundle'], success=False))
+
 
 if __name__ == '__main__':
     unittest.main()
