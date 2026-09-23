@@ -159,7 +159,7 @@ export function apply(ctx){
         const learning=registry.livePresetMounts().filter(row=>row.presetId==='learning');
         assert.equal(learning.length,1);
         if(isModern)assert.deepEqual(await registry.auditRows(learning[0].tree),{failed:[],pending:[]});
-        else assert.deepEqual(registry.inactiveRows(learning[0].tree),[]);
+        else assert.deepEqual(await registry.inactiveRows(learning[0].tree),[]);
         const workflow=[...learning[0].tree.entries()].find(row=>row.options.name==='@deepseek-ai/dsh-workflow-'+process.env.STUDYMATE_CLI_WORKFLOW);
         assert.equal(workflow?.fiber?.state,2);
       }

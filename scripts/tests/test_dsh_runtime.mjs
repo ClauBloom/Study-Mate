@@ -108,7 +108,7 @@ async function probe() {
       const mounts = registry.livePresetMounts(app.ctx.fiber).filter(mount => mount.presetId === 'learning');
       assert.equal(mounts.length, 1, 'There must be exactly one learning composition');
       if (isModern) assert.deepEqual(await registry.auditRows(mounts[0].tree), { failed: [], pending: [] });
-      else assert.deepEqual(registry.inactiveRows(mounts[0].tree), []);
+      else assert.deepEqual(await registry.inactiveRows(mounts[0].tree), []);
       const workflowName = `@deepseek-ai/dsh-workflow-${atLeastRelease(manifest.version, 1, 6) ? 'ptc' : 'worker-thread'}`;
       const workflow = [...mounts[0].tree.entries()].find(entry => entry.options.name === workflowName);
       assert.equal(workflow?.fiber?.state, 2, 'The correct workflow must be Active');
