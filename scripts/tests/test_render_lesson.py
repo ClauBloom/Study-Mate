@@ -122,7 +122,7 @@ def render(subject, number, node_id, *args):
 
 def run_raw(*args):
     """直接跑渲染器的命令行入口，返回 (exit_code, stdout+stderr)——用法错误只能这样测。"""
-    proc = subprocess.run(['python3', str(fixtures.RENDER), *args],
+    proc = subprocess.run([sys.executable, str(fixtures.RENDER), *args],
                           capture_output=True, text=True)
     return proc.returncode, proc.stdout + proc.stderr
 
