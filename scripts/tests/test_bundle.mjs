@@ -120,7 +120,20 @@ test('unavailable Python reports the prerequisite on every supported platform', 
   }
 });
 
-test('an old host receives a clear compatibility error before filesystem changes', async () => {
+test('an old host skips unsupported native loading without blocking startup', async () => {
   const { apply } = await import(plugin);
-  await assert.rejects(() => apply({ get: () => undefined }), /0\.1\.7-alpha\.1/);
+  const warnings = [];
+  const previousWarn = console.warn;
+  console.warn = message => warnings.push(String(message));
+  try {
+    await apply({});
+    await apply({ get: () => ({ name: 'web', home: '/unused' }) });
+  } finally {
+    console.warn = previousWarn;
+  }
+  assert.equal(warnings.length, 2);
+  for (const warning of warnings) {
+    assert.match(warning, /0\.1\.7-alpha\.1/);
+    assert.match(warning, /npx @yunmiao\/studymate install/);
+  }
 });
