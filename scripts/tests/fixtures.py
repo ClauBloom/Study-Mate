@@ -40,6 +40,12 @@ DEFAULT_NODES = [
 VALID_QUIZ = ('<div class="quiz" data-quiz=\'[{"q":"这是题面？","opts":["A","B"],'
               '"ans":0,"why":"一句解释"}]\'></div>')
 
+# 课件引用的共享层与科目组件：检查项 10 会核对它们真实存在，所以 fixture 要落一份占位文件。
+# 课件的相对路径按**真实布局**写：`<root>/.learning/subjects/<slug>/lessons/x.html`
+#   → 共享层 `../../../assets/…`（= `<root>/.learning/assets/`）、科目组件 `../assets/…`。
+SHARED_STUBS = ('sayo/sayo.css', 'sayo/sayo.js', 'learn-theme.css', 'learn-theme.js')
+COMPONENT_STUBS = ('style.css', 'quiz.js', 'lesson-toc.js')
+
 # 能过检查的最小课件：两类引用齐全、有主题开关与接线、有一个合法题目块、没有题目位置残留。
 # 相对路径按 lessons/<file>.html → 共享层 ../../../assets/、科目组件 ../assets/ 写。
 LESSON_TEMPLATE = '''<!DOCTYPE html>
@@ -99,22 +105,36 @@ LESSON_TEMPLATE = '''<!DOCTYPE html>
 
 
 def write_subject(root, nodes=None, name=None):
-    """在 root 下造一个科目目录（curriculum.yaml + lessons/），返回科目路径。
+    """在 root 下造一个科目目录（按真实布局 `<root>/.learning/subjects/<slug>/`），返回科目路径。
+
+    布局与真实工作区一致**是必须的**：课件的共享层引用写作 `../../../assets/…`（解析到
+    `<root>/.learning/assets/`），科目组件写作 `../assets/…`。检查项 10 会核对这些引用真实可达，
+    所以共享层、科目组件与科目主页都放一份占位文件——真实工作区里它们由 `gen_home.py` 与建课流程
+    产出，占位内容检查不解码。
 
     `name` 给了才写 subject.yaml——渲染器读它的 `name` 填顶栏与 `<title>`（缺文件时退回目录名）。
     """
     nodes = nodes or DEFAULT_NODES
-    subject = os.path.join(str(root), 'subject')
-    os.makedirs(os.path.join(subject, 'lessons'), exist_ok=True)
+    workspace = Path(root) / '.learning'
+    subject = workspace / 'subjects' / 'subject'
+    (subject / 'lessons').mkdir(parents=True, exist_ok=True)
+    for relative in SHARED_STUBS:
+        stub = workspace / 'assets' / relative
+        stub.parent.mkdir(parents=True, exist_ok=True)
+        stub.write_text('/* 测试占位：真实工作区里由 gen_home.py 铺共享层 */\n', encoding='utf-8')
+    for relative in COMPONENT_STUBS:
+        stub = subject / 'assets' / relative
+        stub.parent.mkdir(parents=True, exist_ok=True)
+        stub.write_text('/* 测试占位：真实科目里是 templates/assets/ 的副本 */\n', encoding='utf-8')
+    (subject / 'index.html').write_text('<!DOCTYPE html><title>科目主页占位</title>\n', encoding='utf-8')
     lines = ['nodes:']
     for node_id, kind, title in nodes:
         lines += [f'- id: {node_id}', f'  title: {title}', f'  kind: {kind}']
-    with open(os.path.join(subject, 'curriculum.yaml'), 'w', encoding='utf-8') as handle:
-        handle.write('\n'.join(lines) + '\n')
+    (subject / 'curriculum.yaml').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     if name:
-        with open(os.path.join(subject, 'subject.yaml'), 'w', encoding='utf-8') as handle:
-            handle.write(f'name: "{name}"\nslug: "test-subject"\nstatus: 进行中\n')
-    return subject
+        (subject / 'subject.yaml').write_text(
+            f'name: "{name}"\nslug: "test-subject"\nstatus: 进行中\n', encoding='utf-8')
+    return str(subject)
 
 
 def clear_lessons(subject):

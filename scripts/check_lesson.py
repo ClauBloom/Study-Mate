@@ -51,6 +51,11 @@
     9 图片：<img> 引用的**本地**文件必须真实存在——学生看到裂图是工程缺陷，必须拦。
        gen_home 的链接自检只管它自己写出的主页（根主页 + 科目主页），课件页不在它范围内。
        内联 <svg> 不引用文件，这条不管。
+   10 本地引用可达：页面里所有 href/src 的**本地**目标必须真实存在——组件、图片、正文里的
+       链接、lab 链接都算。第 9 项只管 <img>，这条管其余全部：页面缺了组件文件、或正文里那条
+       lab 链接指错了文件名，检查照样全绿而学生点开是白板 / 404。
+       跳过三类：外链与锚点（http(s)、协议相对 //、mailto:、data:、`#…`）；HTML 注释里的
+       示例路径；上/下节课指针（落空是设计内的，第 8 项只提示）。
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
     · 题面/答案的散文里出现 Markdown/HTML 标记（`**加粗**`、行内反引号、`# 标题`、`- 列表`、
       `<b>`）：字段是**纯文本**，这些会原样显示（换行用 `\n`、代码用 ``` 围栏）。
@@ -109,8 +114,8 @@ MARKDOWN_RE = (
     re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*[ >/]'),  # <b> 之类
 )
 
-# 检查项 9：图片 src 是否外链（任何 scheme: 或协议相对 //，与 gen_home 的 SCHEME_RE 同口径）
-IMG_SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
+# 检查项 9/10：引用是否外链（任何 scheme: 或协议相对 //，与 gen_home 的 SCHEME_RE 同口径）
+SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 
 # 检查项 4：题目结构里的 ``` 围栏（与 templates/assets/quiz.js 的渲染口径一致）
 # 围栏行 = 行首可有缩进 + 三个反引号 + 可选语言标签；行内的单个反引号不算。
@@ -145,6 +150,20 @@ def strip_comments(text):
 def ref_values(text):
     """取出所有 href/src 属性值，供引用类检查比对。"""
     return REF_ATTR_RE.findall(text)
+
+
+def local_target(path, value):
+    """把页面里的引用值解析成磁盘路径；外链、锚点、空值返回 None。
+
+    与检查项 9 同口径：先去掉 `#…` 与 `?…`，`%xx` 解码，再按页面所在目录解析。
+    """
+    raw = html.unescape(value).strip()
+    if not raw or raw.startswith('#') or SCHEME_RE.match(raw):
+        return None
+    relative = unquote(raw.split('#', 1)[0].split('?', 1)[0])
+    if not relative:
+        return None
+    return os.path.normpath(os.path.join(os.path.dirname(path) or '.', relative))
 
 
 # ── 科目数据：节点的课型（curriculum.yaml 的 kind）──────────────────────────
@@ -857,7 +876,7 @@ def check_images(text, path):
         if not value:
             problems.append('<img> 没有 src')
             continue
-        if IMG_SCHEME_RE.match(value):
+        if SCHEME_RE.match(value):
             notes.append(f'图片用了外链（{value[:60]}）——离线打开会裂；'
                          f'建议从科目图片库 assets/img/pool/ 挑本地文件引用')
         else:
@@ -868,6 +887,31 @@ def check_images(text, path):
         if not (alt or '').strip():
             notes.append(f'图片缺 alt（{value[:40]}）：裂图时学生只看到空白')
     return problems, notes
+
+
+def check_local_refs(text, path):
+    """检查项 10：页面里所有本地 href/src 都要能落到真实文件。
+
+    gen_home 的断链自检只管它自己写出的主页，课件页不在它的范围内——没有这道，页面缺组件、
+    正文里的 lab 链接指错文件，检查全绿而学生点开是白板或 404。
+
+    跳过：外链与锚点（任何 scheme: 或协议相对 //、`#…`）；上/下节课指针（落空是设计内的，
+    检查项 8 单独提示）。注释里的路径不会走到这里——`check_file` 传进来的已经是剥过注释的文本。
+    """
+    allowed = {value for value in nav_links(text).values() if value}
+    problems = []
+    seen = set()
+    for value in ref_values(text):
+        raw = html.unescape(value).strip()
+        if not raw or raw in allowed or raw in seen:
+            continue
+        target = local_target(path, raw)
+        if target is None:
+            continue
+        seen.add(raw)
+        if not os.path.exists(target):
+            problems.append(f'引用了不存在的本地文件：{raw}（解析到 {target}）')
+    return problems
 
 
 def check_theme_toggle(text):
@@ -913,6 +957,7 @@ def check_file(path, subject=None, node=None):
     problems += nav_problems
     img_problems, img_notes = check_images(text, path)
     problems += img_problems
+    problems += check_local_refs(text, path)
     problems += check_theme_toggle(text)
     problems += check_placeholder(raw, path)
     return problems, notes + lab_notes + nav_notes + img_notes
