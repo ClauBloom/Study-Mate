@@ -1,136 +1,125 @@
-"""StudyMate · 实操 0003-system-elimination 的参考解（做完再对照）
+"""StudyMate · 实操 0003-system-elimination 的**参考解**（做完任务再对照）
 
-把本文件拷进任务目录（覆盖 ``0003-system-elimination/gauss.py``），再在那个目录里跑
-``python3 -m unittest -v``：22 条应当全绿（任务目录里那些 error 就是被它替掉的留白）。
+与任务目录的 ``gauss.py`` 是同一套接口，四个函数都已实现：``rref`` 化最简行阶梯形、
+``pivot_columns`` 给主元列、``rank`` 数主元、``solve`` 读解的结构。整份文件只用
+``fractions`` 一个标准库模块，全程精确算术，不做浮点比较。
 
-实现要点（与课件第 3 课一一对应）
+跑法：在本文件所在目录执行
 
-* ``rref``：逐列找主元 → 换到当前行 → 化成 1 → 用它把**其他所有行**的这一列消成 0。
-  内存里全程用 ``Fraction``，不会出现 ``0.9999999`` 这种浮点误差。
-* ``solve``：把 b 并到矩阵最右边当最后一列，化成最简行阶梯形后只看两件事——
-  有没有 ``[0 … 0 | 非零]`` 的矛盾行；主元有几个。
-* 解的结构：特解取「全部自由变量为 0」，零空间的基取「某个自由变量为 1、其余自由变量为 0」，
-  每一列（每个未知量）恰好贡献一个方向。
+    python3 -m unittest -v
+
+全部断言通过（退出码 0）。对照时先看自己卡住的那一个函数，别整份抄——这份实现里的
+循环顺序与变量名不是唯一写法，你自己的写法只要断言全绿就成立。
 """
 
 from fractions import Fraction
 
 
-class InconsistentSystemError(ValueError):
-    """方程组无解时由 solve() 抛出（solve 正常返回时不会抛）。"""
-
-
-def _copy_matrix(A):
-    """校验 A 的形状并拷一份，元素一律转成 Fraction（不改调用方的列表）。"""
-    if len(A) == 0:
-        raise ValueError('矩阵不能为空：至少要有一行')
-    width = None
-    rows = []
-    for index, row in enumerate(A):
-        if len(row) == 0:
-            raise ValueError(f'第 {index} 行是空的：每一行至少要有一个数')
-        if width is None:
-            width = len(row)
-        elif len(row) != width:
-            raise ValueError(f'第 {index} 行有 {len(row)} 个数，第一行有 {width} 个：各行长度要一致')
-        rows.append([Fraction(value) for value in row])
-    return rows
+def augment(A, b):
+    """把系数矩阵 A 与右端项 b 拼成增广矩阵（与任务文件同一份教程代码）。"""
+    if len(A) != len(b):
+        raise ValueError(f'A 有 {len(A)} 行，b 有 {len(b)} 个数，两者必须一样多')
+    return [list(row) + [rhs] for row, rhs in zip(A, b)]
 
 
 def rref(A):
-    """把矩阵化成最简行阶梯形（主元为 1，主元列其余位置为 0）。
+    """把矩阵化成最简行阶梯形：主元为 1、主元列其余为 0、主元逐行右移、全零行垫底。
 
-    ``rref([])`` 返回 ``[]``；其余情况按行扫描：每一列找一个非零元当主元，换到当前行后
-    化成 1，再消掉这一列在别的行里的所有非零元。返回新矩阵，入参不动。
+    逐列扫描：在当前列里从 ``pivot_row`` 往下找第一个非零元，换上来当主元，整行除以它
+    变成 1，再用这一行把同列的其他行全部消成 0。找不到非零元就说明这一列没有主元，
+    留给自由变量，直接换下一列。
     """
-    if len(A) == 0:
+    if not A:
         return []
-    M = _copy_matrix(A)
-    rows, cols = len(M), len(M[0])
-    r = 0
-    for c in range(cols):
-        pivot = next((i for i in range(r, rows) if M[i][c] != 0), None)
-        if pivot is None:
-            continue
-        M[r], M[pivot] = M[pivot], M[r]
-        divisor = M[r][c]
-        M[r] = [value / divisor for value in M[r]]
-        for i in range(rows):
-            if i != r and M[i][c] != 0:
-                factor = M[i][c]
-                M[i] = [a - factor * b for a, b in zip(M[i], M[r])]
-        r += 1
-        if r == rows:
+    matrix = [[Fraction(value) for value in row] for row in A]
+    row_count = len(matrix)
+    column_count = len(matrix[0])
+    pivot_row = 0
+    for column in range(column_count):
+        if pivot_row >= row_count:
             break
-    return M
-
-
-def _pivots(M):
-    """最简行阶梯形里 (列下标, 行下标) 的列表，按列升序。
-
-    最简行阶梯形里每个非零行的第一个非零元就是主元，且主元逐行右移，所以按行扫一遍
-    拿到的列下标天然递增。全零行跳过。
-    """
-    pivots = []
-    for i, row in enumerate(M):
-        for j, value in enumerate(row):
-            if value != 0:
-                pivots.append((j, i))
+        chosen = None
+        for row in range(pivot_row, row_count):
+            if matrix[row][column] != 0:
+                chosen = row
                 break
-    return pivots
+        if chosen is None:
+            continue
+        matrix[pivot_row], matrix[chosen] = matrix[chosen], matrix[pivot_row]
+        divisor = matrix[pivot_row][column]
+        matrix[pivot_row] = [value / divisor for value in matrix[pivot_row]]
+        for row in range(row_count):
+            if row == pivot_row:
+                continue
+            factor = matrix[row][column]
+            if factor == 0:
+                continue
+            matrix[row] = [value - factor * pivot
+                           for value, pivot in zip(matrix[row], matrix[pivot_row])]
+        pivot_row += 1
+    return matrix
 
 
 def pivot_columns(A):
-    """主元所在列的下标（从 0 开始，升序）；空矩阵返回 []。"""
-    if len(A) == 0:
-        return []
-    return [column for column, _ in _pivots(rref(A))]
+    """主元所在列的下标（升序）。最简行阶梯形里每个非零行的第一个非零元就是主元。"""
+    matrix = rref(A)
+    columns = []
+    for row in matrix:
+        for index, value in enumerate(row):
+            if value != 0:
+                columns.append(index)
+                break
+    return sorted(columns)
 
 
 def rank(A):
-    """矩阵的秩 = 主元的个数。"""
+    """矩阵的秩：主元的个数，也等于线性无关的列数、变换后剩下的维数。"""
     return len(pivot_columns(A))
 
 
 def solve(A, b):
-    """解 Ax = b，返回解的结构：unique / none / infinite（约定见 gauss.py 的 docstring）。"""
-    if len(A) == 0:
-        raise ValueError('系数矩阵 A 不能为空')
+    """解线性方程组 Ax = b，返回解的结构（键的约定见任务文件的模块 docstring）。"""
+    if not A or any(len(row) == 0 for row in A):
+        raise ValueError('系数矩阵为空或存在空行：没有未知量，谈不上解方程组')
     if len(A) != len(b):
-        raise ValueError(f'A 有 {len(A)} 行，b 有 {len(b)} 个数，两者必须一样多')
-    b = [Fraction(value) for value in b]
-    augmented = _copy_matrix(A)
-    for row, rhs in zip(augmented, b):
-        row.append(rhs)
+        raise ValueError(f'系数矩阵有 {len(A)} 行，右端项有 {len(b)} 个数，两者必须一样多')
 
-    reduced = rref(augmented)
-    columns = len(A[0])
-    pivots = _pivots(reduced)
+    unknown_count = len(A[0])
+    augmented = rref(augment(A, b))
 
-    for row in reduced:
-        if all(value == 0 for value in row[:columns]) and row[columns] != 0:
+    for row in augmented:
+        coefficients = row[:unknown_count]
+        if all(value == 0 for value in coefficients) and row[unknown_count] != 0:
             return {'kind': 'none'}
 
-    pivot_at = {column: row for column, row in pivots}
+    pivots = pivot_columns(augmented)
+    pivot_row_of = {}
+    for row in augmented:
+        for index, value in enumerate(row[:unknown_count]):
+            if value != 0:
+                pivot_row_of[index] = row
+                break
 
-    if len(pivots) == columns:
-        return {'kind': 'unique', 'solution': [reduced[pivot_at[c]][columns] for c in range(columns)]}
+    if len(pivots) == unknown_count:
+        solution = [pivot_row_of[column][unknown_count] for column in pivots]
+        return {'kind': 'unique', 'solution': solution}
 
-    # 特解：全部自由变量取 0，此时每个主元变量的值就是该行最右边的数
-    particular = [Fraction(0)] * columns
-    for column, row in pivots:
-        particular[column] = reduced[row][columns]
+    free_columns = [column for column in range(unknown_count) if column not in pivots]
+    particular = [Fraction(0)] * unknown_count
+    for column in pivots:
+        particular[column] = pivot_row_of[column][unknown_count]
 
-    # 零空间的基：每个自由变量取 1，主元变量随之取该行系数的相反数
-    basis = []
-    for free in range(columns):
-        if free in pivot_at:
-            continue
-        vector = [Fraction(0)] * columns
+    null_basis = []
+    for free in free_columns:
+        vector = [Fraction(0)] * unknown_count
         vector[free] = Fraction(1)
-        for column, row in pivots:
-            vector[column] = -reduced[row][free]
-        basis.append(vector)
+        for column in pivots:
+            vector[column] = -pivot_row_of[column][free]
+        null_basis.append(vector)
 
-    return {'kind': 'infinite', 'particular': particular, 'null_basis': basis,
-            'free_count': columns - len(pivots)}
+    return {'kind': 'infinite', 'particular': particular,
+            'null_basis': null_basis, 'free_count': len(free_columns)}
+
+
+if __name__ == '__main__':
+    print('把本文件当模块用：python3 -m unittest -v（见模块 docstring 的「跑法」）')
