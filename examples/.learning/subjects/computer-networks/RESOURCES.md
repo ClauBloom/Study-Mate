@@ -5,37 +5,41 @@
 
 ## Knowledge
 
-- [RFC 9293 · Transmission Control Protocol](https://www.rfc-editor.org/rfc/rfc9293.html)
-  一行说明：TCP 的现行标准全文（2022 年取代 RFC 793）；核对三次握手、确认与重传、窗口字段的原文定义时用它，不要背二手教材的说法。
-- [RFC 791 · Internet Protocol](https://www.rfc-editor.org/rfc/rfc791.html)
-  一行说明：IPv4 首部逐字段的原始定义；核对首部长度、TTL、分片字段的语义时用它。
-- [RFC 1918 · 私有网络地址分配](https://www.rfc-editor.org/rfc/rfc1918.html)
-  一行说明：`10/8`、`172.16/12`、`192.168/16` 三段私有地址的出处；核对"这个地址能不能出现在公网上"。
-- [RFC 826 · ARP](https://www.rfc-editor.org/rfc/rfc826.html)
-  一行说明：由 IP 地址找 MAC 地址的原始规范；核对 ARP 请求为什么用广播、应答为什么用单播。
-- [RFC 894 · IP over Ethernet](https://www.rfc-editor.org/rfc/rfc894.html)
-  一行说明：IP 包怎么装进以太网帧（类型字段、最小帧长）；核对帧格式与 MTU 的来源。
-- [MDN · HTTP 概览](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Overview)
-  一行说明：应用层那一端的权威中文说明；核对请求/响应报文与状态码的现行语义。
-- [Python 官方文档 · ipaddress](https://docs.python.org/zh-cn/3/library/ipaddress.html)
-  一行说明：标准库里的地址与网段对象；lab 用它当算网段的对照答案，也是以后写脚本查地址的现成工具。
-- [Python 官方文档 · socket](https://docs.python.org/zh-cn/3/library/socket.html)
-  一行说明：实验课写 TCP 回显客户端要用的接口；核对 `connect`/`sendall`/`recv` 与超时参数的现行行为。
+- [RFC 9293: Transmission Control Protocol](https://www.rfc-editor.org/rfc/rfc9293.html)
+  核对 TCP 首部字段、三次握手与状态机；2022 年取代 RFC 793，第 4 课的术语以它为准。
+- [RFC 791: Internet Protocol](https://www.rfc-editor.org/rfc/rfc791.html)
+  核对 IPv4 首部字段（版本、TTL、协议号）与分片规则；第 1、3 课讲的「IP 头 20 字节」出自这里。
+- [RFC 4632: CIDR 与路由聚合](https://www.rfc-editor.org/rfc/rfc4632.html)
+  核对「前缀长度」「网络地址」「广播地址」的正式定义，以及为什么废掉 A/B/C 类划分。
+- [RFC 3021: 点对点链路上的 /31 前缀](https://www.rfc-editor.org/rfc/rfc3021.html)
+  核对第 3 课 lab 的边界用例：/31 只有两个地址、两个都能用，与 /30 的算法不同。
+- [RFC 826: 地址解析协议 ARP](https://www.rfc-editor.org/rfc/rfc826.html)
+  核对 IP 地址解析到 MAC 地址的过程；第 2 课讲「同一网段内怎么找到对方」时对照。
+- [IEEE 802.3 以太网工作组](https://www.ieee802.org/3/)
+  核对以太网帧格式、最小帧长与 CSMA/CD 的现行标准入口；标准正文收费，先用这里的公开概览。
+- [MDN: HTTP 概述](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Overview)
+  核对一次请求/响应报文的组成与常见首部，用来确定第 1 课里「应用层载荷」的边界。
 - [Wireshark 用户指南](https://www.wireshark.org/docs/wsug_html_chunked/)
-  一行说明：抓包工具的官方手册（含显示过滤器语法）；核对某个字段在哪一层、过滤器怎么写。
+  第 5 课实验的抓包与显示过滤器用法；「Follow TCP Stream」一节的步骤照它做。
 - [tcpdump 手册页](https://www.tcpdump.org/manpages/tcpdump.1.html)
-  一行说明：命令行抓包的官方文档；核对抓包过滤表达式与 `-i`、`-w` 这类参数。
-- [iproute2 · ip(8) 手册](https://man7.org/linux/man-pages/man8/ip.8.html)
-  一行说明：`ip addr` / `ip route` / `ip neigh` 的官方说明；核对本机地址、路由表与 ARP 缓存的读法（发行版之间输出略有差异）。
+  核对命令行抓包的选项（`-i`、`-n`、`-w`、`-r`）与过滤表达式写法。
+- [Python ipaddress 模块](https://docs.python.org/zh-cn/3/library/ipaddress.html)
+  第 3 课 lab 的对照实现：手算完用 `ip_network()` 复核，`hosts()` 的边界行为也在这里查。
+- [Cisco: IP Addressing and Subnetting for New Users](https://www.cisco.com/c/en/us/support/docs/ip/routing-information-protocol-rip/13788-3.html)
+  厂商文档 · 子网划分的算例与掩码速查表，卡住时换一种排版看同一件事。
+- [Computer Networking: A Top-Down Approach 作者站（Kurose 与 Ross）](https://gaia.cs.umass.edu/kurose_ross/index.php)
+  书 · 配套站上有 Wireshark Labs 与章节讲义；第 5 课实验的题目可以照它的 Wireshark Lab 改，讲义用来换一种讲法看同一件事。
 
 ## Wisdom (Communities)
 
+- [Server Fault](https://serverfault.com/)
+  排障类提问（"这个端口为什么连不上"）；附上抓包片段与 `ip addr` 输出更容易得到答复。
 - [Network Engineering Stack Exchange](https://networkengineering.stackexchange.com/)
-  一行说明：问"为什么这里要这样设计"这类实践问题；回答常带抓包与 RFC 引用，先看有没有引用原文。
-- [Wireshark 问答（Ask）](https://ask.wireshark.org/)
-  一行说明：抓包文件读不懂时问；贴包比贴截图有用，官方开发者会回。
+  协议行为与设备配置的问答；查「同一个现象在标准里怎么规定」时比论坛靠谱。
+- [Wireshark Q&A](https://ask.wireshark.org/)
+  抓包文件看不懂时贴上去问；问之前先自己用显示过滤器缩到一条流。
 
 ## Gaps
 
-- 缺一份把「家用路由器 + 运营商 + 云厂商」三段链路串起来讲的中文资料；目前只有各厂商自己的帮助页，讲法不一致。
-- 缺一套中文的抓包练习包（pcap 样本）：本课先用自己机器上抓到的真实流量，样本不通用。
+- 缺中文的、以抓包为主线按「一次请求的时间线」组织的入门材料；目前靠 Wireshark 用户指南与教材第 1 章互补。
+- 无线侧（802.11 的帧格式与管理帧）没找到合适的免费一手资料，本轮不深入，第 2 课只讲「无线帧会被翻译成以太网帧」这一层结论。

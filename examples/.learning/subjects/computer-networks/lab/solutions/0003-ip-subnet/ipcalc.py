@@ -1,125 +1,142 @@
-#!/usr/bin/env python3
-"""StudyMate · 实操 0003-ip-subnet —— 参考解（做完自己的版本再对照）
-节点：net.ip　载体：源码 + 测试（只用标准库：unittest + ipaddress）
-═══════════════════════════════════════════════════════════════
-怎么用这份参考解：
-  cp ../solutions/0003-ip-subnet/ipcalc.py ipcalc.py && python3 -m unittest -v
-（在 0003-ip-subnet/ 里执行；先备份你自己写的那份，或者先做完再看。）
+"""第 3 课 lab · 子网计算器（参考解）。
 
-本目录里也放了一份 test_ipcalc.py 的副本，所以可以直接在这里跑：
-  cd ../solutions/0003-ip-subnet && python3 -m unittest -v     # 应全绿
-
-三个任务函数的实现思路：
-  · 块大小 1 << (32 - prefix)：主机位的容量，网络地址一定是它的整数倍
-  · network   = address & ~(block - 1)   把主机位清零
-  · broadcast = network | (block - 1)    把主机位全置 1
-  · 同网段的判断就是"两个地址右移掉主机位之后相等"
-  · 等分网段：子网个数 2 ** (new_prefix - prefix)，相邻子网网络地址相差 1 << (32 - new_prefix)
-═══════════════════════════════════════════════════════════════
+只用位运算与内置函数，不 import ipaddress——对照答案由测试现算。
+跟自己的实现比一比就行，测试全绿就算完成。
 """
 
+FULL_MASK = 0xFFFFFFFF
 
-# ─────────────────────────────────────────────────────────────
-# 一、教程部分（与任务目录里的版本一致）
-# ─────────────────────────────────────────────────────────────
+
+def mask_of(prefix):
+    """前缀长度 → 掩码：前 prefix 位是 1，其余是 0。"""
+    if isinstance(prefix, bool) or not isinstance(prefix, int) or not 0 <= prefix <= 32:
+        raise ValueError(f"前缀长度要写 0~32 的整数：{prefix!r}")
+    return (FULL_MASK << (32 - prefix)) & FULL_MASK
+
 
 def ip_to_int(text):
-    """把点分十进制的 IPv4 地址转成 32 位整数："192.168.1.70" → 3232235846。"""
-    parts = text.split(".")
+    """把点分十进制地址转成 32 位整数（T1）。
+
+    >>> ip_to_int("192.168.1.100")
+    3232235876
+    """
+    parts = str(text).split(".")
     if len(parts) != 4:
-        raise ValueError(f"IPv4 地址要写成四段（a.b.c.d）：{text!r}")
+        raise ValueError(f"IPv4 地址要写成四组数字：{text!r}")
     value = 0
     for part in parts:
-        if not part.isdigit():
-            raise ValueError(f"这一段不是十进制数字：{part!r}（地址 {text!r}）")
-        number = int(part)
-        if not 0 <= number <= 255:
-            raise ValueError(f"这一段超出 0~255：{part!r}（地址 {text!r}）")
-        value = value * 256 + number
+        if not (part.isascii() and part.isdigit()) or int(part) > 255:
+            raise ValueError(f"每一组都要是 0~255 的十进制数字：{text!r}")
+        value = (value << 8) | int(part)
     return value
 
 
 def int_to_ip(value):
-    """把 32 位整数转回点分十进制的 IPv4 地址：3232235846 → "192.168.1.70"。"""
-    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < 2 ** 32:
-        raise ValueError(f"要转换的整数必须落在 0 ~ 2^32-1：{value!r}")
-    parts = []
-    for _ in range(4):
-        parts.append(str(value & 255))
-        value >>= 8
-    return ".".join(reversed(parts))
+    """把 32 位整数转回点分十进制（T1）。
 
-
-def mask_of(prefix):
-    """把前缀长度写成点分十进制的掩码：26 → "255.255.255.192"。"""
-    if not isinstance(prefix, int) or isinstance(prefix, bool) or not 0 <= prefix <= 32:
-        raise ValueError(f"前缀长度必须在 0 ~ 32 之间：{prefix!r}")
-    return int_to_ip(((1 << prefix) - 1) << (32 - prefix))
-
-
-# ─────────────────────────────────────────────────────────────
-# 二、任务部分（参考实现）
-# ─────────────────────────────────────────────────────────────
-
-def _split_cidr(text):
-    """内部工具：把 "192.168.1.70/26" 拆成 (地址整数, 前缀长度)，不合法就抛 ValueError。
-
-    只允许恰好一个斜杠；前缀必须写成 0~32 的十进制整数（"-1"、"3.5"、"abc" 都不行）。
+    >>> int_to_ip(3232235876)
+    '192.168.1.100'
     """
-    if not isinstance(text, str) or text.count("/") != 1:
-        raise ValueError(f"CIDR 要写成 地址/前缀 的形式：{text!r}")
-    address_text, prefix_text = text.split("/")
-    prefix_text = prefix_text.strip()
-    if not prefix_text.isdigit():
-        raise ValueError(f"前缀长度要写成 0~32 的整数：{text!r}")
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= FULL_MASK:
+        raise ValueError(f"32 位整数要落在 0~{FULL_MASK} 之间：{value!r}")
+    return ".".join(str((value >> shift) & 0xFF) for shift in (24, 16, 8, 0))
+
+
+def parse_cidr(text):
+    """把 "地址/前缀长度" 拆成 (地址, 前缀长度)（T2）。
+
+    >>> parse_cidr("192.168.1.100/26")
+    ('192.168.1.100', 26)
+    """
+    address, slash, prefix_text = str(text).partition("/")
+    if not slash or not (prefix_text.isascii() and prefix_text.isdigit()):
+        raise ValueError(f"要写成 地址/前缀长度，前缀是 0~32 的整数：{text!r}")
     prefix = int(prefix_text)
-    if not 0 <= prefix <= 32:
-        raise ValueError(f"前缀长度要在 0~32 之间：{text!r}")
-    return ip_to_int(address_text), prefix
+    if prefix > 32:
+        raise ValueError(f"前缀长度要写 0~32 的整数：{text!r}")
+    ip_to_int(address)          # 地址本身的合法性交给它校验
+    return address, prefix
 
 
-def parse_cidr(s):
-    """把一个 CIDR 写法拆成一个网段的网络地址、广播地址与可用范围。"""
-    address, prefix = _split_cidr(s)
-    block = 1 << (32 - prefix)              # 主机位的容量，也就是块大小
-    network = address & ~(block - 1)        # 主机位清零
-    broadcast = network | (block - 1)       # 主机位全 1
+def network_of(cidr):
+    """网络地址：IP 与掩码按位与，主机位清零（T3）。
 
-    if prefix <= 30:
-        first, last, usable = network + 1, broadcast - 1, block - 2
-    else:
-        # /31 与 /32：主机位不足两位，没有"去掉首尾还能用"的地址
-        first = last = network
-        usable = 0
-
-    return {
-        "network": int_to_ip(network),
-        "broadcast": int_to_ip(broadcast),
-        "first": int_to_ip(first),
-        "last": int_to_ip(last),
-        "usable": usable,
-    }
+    >>> network_of("192.168.1.100/26")
+    '192.168.1.64'
+    """
+    address, prefix = parse_cidr(cidr)
+    return int_to_ip(ip_to_int(address) & mask_of(prefix))
 
 
-def same_subnet(ip1, ip2, prefix):
-    """两个地址在前缀 prefix 下是否属于同一网段。"""
-    if not isinstance(prefix, int) or isinstance(prefix, bool) or not 0 <= prefix <= 32:
-        raise ValueError(f"前缀长度要在 0~32 之间：{prefix!r}")
-    shift = 32 - prefix
-    # 右移掉主机位再比：等价于各自与掩码做与运算
-    return (ip_to_int(ip1) >> shift) == (ip_to_int(ip2) >> shift)
+def broadcast_of(cidr):
+    """广播地址：网络地址不动，主机位全部置 1（T3）。
+
+    >>> broadcast_of("192.168.1.100/26")
+    '192.168.1.127'
+    """
+    address, prefix = parse_cidr(cidr)
+    host_mask = FULL_MASK >> prefix          # 主机位是 1、其余是 0
+    return int_to_ip((ip_to_int(address) & mask_of(prefix)) | host_mask)
 
 
-def split_subnet(cidr, new_prefix):
-    """把一个网段按更长的前缀等分成若干子网，返回 "网络地址/新前缀" 的列表。"""
-    if not isinstance(new_prefix, int) or isinstance(new_prefix, bool):
-        raise ValueError(f"新前缀要写成整数：{new_prefix!r}")
-    address, prefix = _split_cidr(cidr)
-    if not prefix < new_prefix <= 32:
-        raise ValueError(f"新前缀要大于原前缀 {prefix} 且不超过 32：{new_prefix!r}")
+def host_count(prefix):
+    """这个前缀长度下可分配给主机的地址个数（T3）。
 
-    block = 1 << (32 - prefix)
-    network = address & ~(block - 1)
-    step = 1 << (32 - new_prefix)           # 相邻子网的网络地址之差
-    count = 1 << (new_prefix - prefix)      # 子网个数
-    return [f"{int_to_ip(network + index * step)}/{new_prefix}" for index in range(count)]
+    >>> host_count(26)
+    62
+    >>> host_count(31)
+    2
+    """
+    if isinstance(prefix, bool) or not isinstance(prefix, int) or not 0 <= prefix <= 32:
+        raise ValueError(f"前缀长度要写 0~32 的整数：{prefix!r}")
+    total = 1 << (32 - prefix)
+    return total if total <= 2 else total - 2      # /31 与 /32 是例外，不减 2
+
+
+def usable_range(cidr):
+    """可分配地址的首尾（T4）。
+
+    >>> usable_range("192.168.1.100/26")
+    ('192.168.1.65', '192.168.1.126')
+    >>> usable_range("10.0.0.0/31")
+    ('10.0.0.0', '10.0.0.1')
+    """
+    address, prefix = parse_cidr(cidr)
+    first = ip_to_int(address) & mask_of(prefix)
+    total = 1 << (32 - prefix)
+    if total == 1:                       # /32：就这一台主机
+        return int_to_ip(first), int_to_ip(first)
+    if total == 2:                       # /31：RFC 3021，两个地址都能用
+        return int_to_ip(first), int_to_ip(first + 1)
+    return int_to_ip(first + 1), int_to_ip(first + total - 2)
+
+
+def same_subnet(a, b):
+    """两个带前缀长度的地址是否属于同一个网段（T5）。
+
+    >>> same_subnet("192.168.1.65/26", "192.168.1.126/26")
+    True
+    >>> same_subnet("192.168.1.100/26", "192.168.1.130/26")
+    False
+    """
+    _, prefix_a = parse_cidr(a)
+    _, prefix_b = parse_cidr(b)
+    if prefix_a != prefix_b:
+        raise ValueError(f"两个地址的前缀长度要一致才能比较：/{prefix_a} 与 /{prefix_b}")
+    return network_of(a) == network_of(b)
+
+
+def split(cidr, new_prefix):
+    """把一个网段切成等长的子网，返回子网的 CIDR 列表（T5）。
+
+    >>> split("192.168.1.0/24", 26)
+    ['192.168.1.0/26', '192.168.1.64/26', '192.168.1.128/26', '192.168.1.192/26']
+    """
+    address, prefix = parse_cidr(cidr)
+    if (isinstance(new_prefix, bool) or not isinstance(new_prefix, int)
+            or not prefix <= new_prefix <= 32):
+        raise ValueError(f"新的前缀长度要落在 {prefix}~32 之间：{new_prefix!r}")
+    start = ip_to_int(address) & mask_of(prefix)
+    step = 1 << (32 - new_prefix)         # 每个子网占多少个地址
+    count = 1 << (new_prefix - prefix)    # 一共切成多少块
+    return [f"{int_to_ip(start + index * step)}/{new_prefix}" for index in range(count)]

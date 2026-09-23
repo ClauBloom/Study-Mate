@@ -42,204 +42,204 @@
 
   <!-- ── 正文：渲染器按内容文件（lessons/<序号>-<节点id>.md）产出，块词汇见 docs/课件内容格式.md ── -->
 
-  <h2>一根网线接出来的问题</h2>
+  <h2>谁该收下这一帧</h2>
 
-  <p>实验室里二十台机器插在同一台交换机上。其中一台要发数据给另一台，它得先回答：这段线路上挂着二十块网卡，这一包该交给谁？</p>
+  <p>宿舍里两台电脑连在同一个路由器上，你在传文件，室友在打游戏。路由器的无线口收到的是一串电磁波解出来的比特，它必须判断：这一帧是给你的、给他的，还是给路由器的？</p>
 
-  <p>上一课说网络接口层用 MAC 地址、数据单元叫帧。这一课把帧拆开看：地址写在哪几个字节里，交换机会读哪一段，跨网段时这些地址又怎么变。</p>
+  <p>网络层给出的地址是 IP 地址，但 IP 地址解决的是「哪台机器到哪台机器」，它管不了「眼前这一跳交给谁」。链路层要在这一段线缆或这段无线里，把比特交给正确的邻居。它用的地址叫 <b>MAC 地址</b>，这一段传输的单元叫<b>帧</b>（frame）。</p>
 
-  <h2>以太网这个名字的来历</h2>
+  <h2>以太网这个名字</h2>
 
-  <p>1973 年，Bob Metcalfe 在施乐帕克研究中心（Xerox PARC）做出第一版以太网，用来把几台 Alto 计算机和一台打印机连起来。1976 年他与 David Boggs 发表论文《Ethernet: Distributed Packet Switching for Local Computer Networks》，把做法讲清楚：所有机器共享一根同轴电缆，发之前先听，线上安静才发，撞上了各自退避一段随机时间重发。</p>
+  <p>1973 年 Bob Metcalfe 在 Xerox PARC 写下一份备忘录，描述一种把办公室里的计算机连起来的总线网络，取名 Ethernet。这个名字借自 19 世纪物理学里的「以太」（luminiferous aether）——当时人们假定光靠一种充满空间的介质传播；Metcalfe 用它表达「一种到处都是、谁都能挂上去的传输介质」。这份备忘录后来变成了 IEEE 802.3 标准，今天你插的网线、连的 WiFi 背后的有线部分，都还是它的后代。</p>
 
-  <p>名字里的"以太"（ether）借自 19 世纪物理学假想的传播介质"光以太"。Metcalfe 用这个词表示数据在共享介质里传播，与物理上的以太没有关系。</p>
+  <p>早期的以太网是一根同轴电缆，所有机器挂在同一根线上，一台说话所有机器都听得见。为了让多台机器共用一根线，Metcalfe 与 David Boggs 设计了 CSMA/CD：发之前先听线是不是空的（载波侦听），边发边听有没有别人同时在发（冲突检测），撞上了就各自退避一段随机时间再重发。这个「一段线上大家共享、谁都可能插话」的图景，决定了帧长、地址和最短帧的取值，下面几节都会用到。</p>
 
-  <p>1980 年 DEC、Intel、施乐三家联合发布 DIX 以太网标准，1983 年 IEEE 把它收进 802.3。此后介质从同轴电缆换到双绞线、光纤，速率从 2.94 Mb/s 涨到 400 Gb/s，帧格式基本没动。</p>
+  <h2>一帧的字段</h2>
 
-  <h2>帧长什么样</h2>
-
-  <p>以太网帧是一段字段顺序固定的字节：发送方按顺序填，接收方按顺序读。</p>
-
-  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="以太网帧的字段顺序与字节数">
-<svg viewBox="0 0 760 140" role="img" aria-hidden="true">
-  <g fill="none" stroke="currentColor" stroke-width="1.2"><rect x="90" y="36" width="74" height="48"/><rect x="164" y="36" width="96" height="48"/><rect x="260" y="36" width="96" height="48"/><rect x="356" y="36" width="58" height="48"/><rect x="414" y="36" width="220" height="48"/><rect x="634" y="36" width="58" height="48"/></g>
-  <g fill="currentColor" font-size="10" text-anchor="middle">
-    <text x="127" y="24">接收方靠它对齐时钟</text>
-    <text x="127" y="58">前导码</text><text x="127" y="74">8 字节</text>
-    <text x="212" y="58">目的 MAC</text><text x="212" y="74">6 字节</text>
-    <text x="308" y="58">源 MAC</text><text x="308" y="74">6 字节</text>
-    <text x="385" y="58">类型</text><text x="385" y="74">2 字节</text>
-    <text x="524" y="58">载荷</text><text x="524" y="74">46 ~ 1500 字节</text>
-    <text x="663" y="58">FCS</text><text x="663" y="74">4 字节</text>
-  </g>
-  <g fill="none" stroke="currentColor" stroke-width="1"><path d="M164 96h528"/><path d="M164 92v8M692 92v8"/></g>
-  <text x="428" y="116" fill="currentColor" font-size="10" text-anchor="middle">这一段才叫帧：64 ~ 1518 字节，前导码不计入</text>
-</svg>
-    <figcaption>图 1 · 以太网帧的字段：前导码之后才是帧本身</figcaption>
-  </figure>
+  <p>一个以太网帧由下面几段拼成，长度都是固定的，只有载荷是可变的：</p>
 
   <table>
     <thead>
-      <tr><th>字段</th><th>字节</th><th>装什么</th></tr>
+      <tr><th>字段</th><th>长度</th><th>作用</th></tr>
     </thead>
     <tbody>
-      <tr><td>前导码</td><td>8</td><td>固定交替的 0 与 1，让接收方对齐时钟；网卡处理完不交给上层</td></tr>
-      <tr><td>目的 MAC</td><td>6</td><td>这一帧给哪块网卡</td></tr>
-      <tr><td>源 MAC</td><td>6</td><td>这一帧从哪块网卡发出</td></tr>
-      <tr><td>类型</td><td>2</td><td>载荷是什么协议，<code>0x0800</code> 是 IPv4，<code>0x0806</code> 是 ARP</td></tr>
-      <tr><td>载荷</td><td>46 ~ 1500</td><td>上层交下来的整个 IP 包</td></tr>
-      <tr><td>FCS</td><td>4</td><td>帧的循环冗余校验值，接收方算一遍对不上就丢弃</td></tr>
+      <tr><td>前导码与帧起始定界符</td><td>8 字节</td><td>让收方网卡的时钟对齐，并标记帧从这里开始</td></tr>
+      <tr><td>目的 MAC</td><td>6 字节</td><td>这一帧交给哪块网卡</td></tr>
+      <tr><td>源 MAC</td><td>6 字节</td><td>这一帧由哪块网卡发出</td></tr>
+      <tr><td>类型</td><td>2 字节</td><td>载荷是什么，<code>0x0800</code> 表示里面是一个 IP 包</td></tr>
+      <tr><td>载荷</td><td>46 ~ 1500 字节</td><td>网络层交下来的整份内容；不足 46 字节要补零</td></tr>
+      <tr><td>帧尾校验</td><td>4 字节</td><td>循环冗余校验，收方用它判断这一帧有没有在传输中损坏</td></tr>
     </tbody>
   </table>
 
-  <p>46 与 1500 这两个边界不是随手定的。上限 1500 就是上一课说的 MTU。下限 46 来自最小帧长 64 字节：从 64 里减掉 6 + 6 + 2 + 4 得 46，不够就补零。定这条是为了让最早的共享电缆上"撞车"能被发方察觉——帧太短，等发完时冲突信号还没绕回来。帧长定下来之后就没再改：1980 年的 10 Mb/s 与今天的 400 Gb/s 用同一个格式，改了就跟老设备说不上话。</p>
-
-  <div class="quiz" data-quiz='[
-  {
-    "q": "以太网帧里的类型字段（2 字节）告诉接收方什么？",
-    "opts": [
-      "载荷是什么协议",
-      "这一帧有多长",
-      "帧的校验对不对",
-      "发送方的网卡型号"
-    ],
-    "ans": 0,
-    "why": "类型字段只回答一个问题：载荷里装的是哪种协议的数据。\n0x0800 是 IPv4、0x86DD 是 IPv6、0x0806 是 ARP。\n以太网 II 帧没有长度字段，长度由物理层从线路信号的起止判断；校验由末尾的 FCS 负责。"
-  }
-]'></div>
-
-  <h2>MAC 地址怎么编号</h2>
-
-  <p>MAC 地址是网卡的 48 位编号，写成六组两位十六进制数，如 <code>02:1a:2b:3c:4d:5e</code>。前 24 位是 IEEE 分配给厂商的编号（OUI），后 24 位由厂商自己给每块网卡编。它出厂时烧进 ROM，操作系统允许驱动改写，所以更像出厂编号，不承担身份认证。</p>
-
-  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="MAC 地址的 48 位：前 24 位厂商标号、后 24 位自编，第一个字节最低两位有约定">
-<svg viewBox="0 0 760 200" role="img" aria-hidden="true">
-  <g fill="none" stroke="currentColor" stroke-width="1.2"><rect x="60" y="60" width="80" height="40"/><rect x="140" y="60" width="80" height="40"/><rect x="220" y="60" width="80" height="40"/><rect x="300" y="60" width="80" height="40"/><rect x="380" y="60" width="80" height="40"/><rect x="460" y="60" width="80" height="40"/></g>
-  <g fill="currentColor" font-size="11" text-anchor="middle">
-    <text x="100" y="86">02</text><text x="180" y="86">1a</text><text x="260" y="86">2b</text>
-    <text x="340" y="86">3c</text><text x="420" y="86">4d</text><text x="500" y="86">5e</text>
-  </g>
-  <g fill="none" stroke="currentColor" stroke-width="1"><path d="M60 50h240"/><path d="M60 46v8M300 46v8"/><path d="M300 50h240"/><path d="M300 46v8M540 46v8"/></g>
-  <g fill="currentColor" font-size="10" text-anchor="middle">
-    <text x="180" y="38">前 24 位：IEEE 给厂商的编号</text>
-    <text x="420" y="38">后 24 位：厂商自己编</text>
-    <text x="100" y="126">第一个字节</text><text x="100" y="142">最低两位有约定</text>
-  </g>
-  <g fill="currentColor" font-size="10" text-anchor="start">
-    <text x="180" y="126">bit 0：0 单播 · 1 组播</text>
-    <text x="180" y="142">bit 1：0 全球唯一 · 1 本地管理</text>
-    <text x="60" y="178">例：02 = 0000 0010 → 单播、本地管理（不由 IEEE 分配）</text>
+  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="以太网帧的字段顺序与各字段长度">
+<svg viewBox="0 0 640 220" role="img" aria-hidden="true">
+  <g font-size="15" fill="currentColor">
+    <rect x="24" y="70" width="56" height="44" fill="currentColor" fill-opacity="0.14"/>
+    <rect x="80" y="70" width="98" height="44" fill="currentColor" fill-opacity="0.42"/>
+    <rect x="178" y="70" width="322" height="44" fill="currentColor" fill-opacity="0.07" stroke="currentColor" stroke-opacity="0.35"/>
+    <rect x="500" y="70" width="28" height="44" fill="currentColor" fill-opacity="0.42"/>
+    <text x="52" y="56" text-anchor="middle">前导码</text>
+    <text x="129" y="56" text-anchor="middle">帧首部</text>
+    <text x="339" y="56" text-anchor="middle">载荷</text>
+    <text x="514" y="56" text-anchor="middle">校验</text>
+    <line x1="52" y1="114" x2="52" y2="124" stroke="currentColor" stroke-opacity="0.5"/>
+    <line x1="129" y1="114" x2="129" y2="124" stroke="currentColor" stroke-opacity="0.5"/>
+    <line x1="339" y1="114" x2="339" y2="124" stroke="currentColor" stroke-opacity="0.5"/>
+    <line x1="514" y1="114" x2="514" y2="124" stroke="currentColor" stroke-opacity="0.5"/>
+    <text x="52" y="140" text-anchor="middle">8 字节</text>
+    <text x="129" y="140" text-anchor="middle">14 字节</text>
+    <text x="339" y="140" text-anchor="middle">46 ~ 1500 字节</text>
+    <text x="514" y="140" text-anchor="middle">4 字节</text>
+    <line x1="80" y1="34" x2="80" y2="160" stroke="currentColor" stroke-dasharray="4 4" stroke-opacity="0.6"/>
+    <text x="88" y="176" font-size="14" fill-opacity="0.8">帧长从这里算起，前导码不算</text>
+    <text x="24" y="206" font-size="14" fill-opacity="0.8">帧首部 = 目的 MAC 6 字节 + 源 MAC 6 字节 + 类型 2 字节</text>
   </g>
 </svg>
-    <figcaption>图 2 · MAC 地址的两段与第一个字节里的两个标志位</figcaption>
+    <figcaption>图 1 · 以太网帧的字段，前导码不计入帧长</figcaption>
   </figure>
 
-  <p>地址分三类，看第一个字节就能判：<b>单播</b>地址最低位为 0，一块网卡一个；<b>组播</b>地址最低位为 1，一组网卡订阅同一个地址，一次发送这一组都收；<b>广播</b>地址 <code>ff:ff:ff:ff:ff:ff</code> 则本段线路上所有网卡都收，交换机必须向所有端口转发。</p>
+  <p><b>MAC 地址</b>是 48 位，写成六组十六进制数，例如 <code>00:1a:2b:3c:4d:5e</code>。它由 IEEE 分配前 24 位（称为 OUI，标识厂商），厂商自己编后 24 位，所以一家厂商最多能有 <span class="math-inline">2^{24} = 16777216</span> 个地址。48 位全 1 的 <code>ff:ff:ff:ff:ff:ff</code> 是广播地址，表示「这一段上的所有网卡都收下」。</p>
 
   <div class="quiz" data-quiz='[
   {
-    "q": "一块网卡的地址是 02:1a:2b:3c:4d:5e。\n它是单播地址还是组播地址？是全球唯一还是本地管理？\n写出你判断依据的那两位。",
-    "answer": "先看第一个字节 02 = 0000 0010。\n最低位 bit 0 是 0，所以是单播地址。\n次低位 bit 1 是 1，所以是本地管理地址，不是 IEEE 分配给厂商的编号。",
-    "criteria": "① 把第一个字节展开成二进制；② 用 bit 0 判单播/组播并给出单播的结论；③ 用 bit 1 判全球/本地并给出本地管理的结论；④ 说清这两位都在第一个字节里，与后五个字节无关。"
+    "q": "同一台交换机下有两台电脑，A 要给 B 传一个文件。\n这一帧的源 MAC 与目的 MAC 各是谁的？",
+    "opts": [
+      "源是 A 的网卡，目的是 B 的网卡",
+      "源是 A 的网卡，目的是 B 的 IP",
+      "源是交换机的口，目的是 B 的网卡",
+      "源是 A 的网卡，目的是交换机的口"
+    ],
+    "ans": 0,
+    "why": "帧首部里的两种地址都是网卡的 MAC 地址，IP 地址进不了这一层。"
+  },
+  {
+    "q": "帧首部里的类型字段只有 2 字节。\n它为什么不能省掉？收方靠什么知道载荷里是 IP 包？",
+    "answer": "类型字段说明载荷属于哪个上层协议：\n0x0800 表示里面是一个 IP 包，\n收方据此决定把载荷交给哪个模块处理。\n\n省掉它以后只剩长度可用，\n而长度说明不了内容是什么，\n同样的长度完全可能是另一种协议。",
+    "criteria": "指出类型字段的作用是标识上层协议；\n说明收方靠它决定把载荷交给谁。\n只答「协议规定要有它」不算答对。"
   }
 ]'></div>
+
+  <h2>最短帧的来历</h2>
+
+  <p>载荷最小 46 字节、帧最短 64 字节，这两个数来自 CSMA/CD 的物理约束，可以算出来。</p>
+
+  <p>10 Mbit/s 的以太网标准里，最坏情况下信号在最远两端跑一个来回，再加上中间中继器的处理，一共算作 <span class="math-inline">51.2</span> 微秒。发送方必须在发完最后一比特之前就知道线路上有没有撞车，否则撞了也不知道。于是发送最短帧所需的时间不能少于这个往返时间：</p>
+
+  <div class="math-block">10 \times 10^{6} \times 51.2 \times 10^{-6} = 512 \text{ bit}</div>
+
+  <p><span class="math-inline">512</span> 比特就是 <span class="math-inline">512 / 8 = 64</span> 字节，减去帧首部 <span class="math-inline">14</span> 字节与校验 <span class="math-inline">4</span> 字节，载荷至少 <span class="math-inline">64 - 18 = 46</span> 字节。载荷本来不足 46 字节时，网卡会在帧尾补上若干个 <code>0x00</code> 凑够长度；收方按网络层给出的总长度把填充丢掉，所以这些零不会跑到你的数据里。</p>
 
   <h2>交换机在做什么</h2>
 
-  <p>最早的以太网所有机器共享一根电缆，任何两台同时发就撞车。交换机换了做法：每个端口一条独立链路，端口之间由交换芯片按需接通，同一时刻可以有多对端口通信。</p>
+  <p><b>交换机</b>（switch）是局域网里把多台设备连起来、按 MAC 地址转发帧的设备。它做的事只有两件：</p>
 
-  <p>它维护一张 MAC 地址表，记"哪个地址在哪个端口"，工作流程只有三步：</p>
+  <ul>
+    <li>收到一帧，把「源 MAC 在哪个口」记进转发表。这一步不需要任何配置，插上线就会自己学</li>
+    <li>转发时按目的 MAC 查表：查到就只从对应那个口发出去（单播），查不到就把帧从除来源口以外的所有口发出去（泛洪）</li>
+  </ul>
 
-  <ol>
-    <li>收到帧，把源 MAC 与收到它的端口写进表里（自学，不用配置）</li>
-    <li>拿目的 MAC 查表，查到就从对应端口发出去，其他端口收不到</li>
-    <li>查不到，或目的是广播地址，就向除入口外的所有端口各发一份，这叫泛洪</li>
-  </ol>
+  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="交换机按目的 MAC 决定从哪个口转发">
+<svg viewBox="0 0 640 260" role="img" aria-hidden="true">
+  <g font-size="15" fill="currentColor">
+    <rect x="20" y="100" width="150" height="56" rx="6" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.4"/>
+    <text x="30" y="124">你的笔记本</text>
+    <text x="30" y="146" font-size="13" fill-opacity="0.75">00:1a:2b:3c:4d:5e</text>
+    <rect x="250" y="78" width="140" height="100" rx="6" fill="currentColor" fill-opacity="0.10" stroke="currentColor" stroke-opacity="0.4"/>
+    <text x="320" y="134" text-anchor="middle">交换机</text>
+    <rect x="470" y="28" width="155" height="52" rx="6" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.4"/>
+    <text x="478" y="50">路由器</text>
+    <text x="478" y="70" font-size="13" fill-opacity="0.75">a4:c3:61:8f:2b:07</text>
+    <rect x="470" y="180" width="155" height="52" rx="6" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.4"/>
+    <text x="478" y="202">室友的电脑</text>
+    <text x="478" y="222" font-size="13" fill-opacity="0.75">b8:27:eb:11:22:33</text>
+    <line x1="170" y1="128" x2="250" y2="128" stroke="currentColor" stroke-width="2"/>
+    <line x1="390" y1="110" x2="470" y2="60" stroke="currentColor" stroke-width="2"/>
+    <line x1="390" y1="148" x2="470" y2="198" stroke="currentColor" stroke-width="2" stroke-dasharray="5 5" stroke-opacity="0.6"/>
+    <text x="398" y="88" font-size="13">单播只走这一口</text>
+    <text x="398" y="182" font-size="13" fill-opacity="0.7">广播才走这一口</text>
+  </g>
+</svg>
+    <figcaption>图 2 · 单播只走一个口，广播除来源口外全发</figcaption>
+  </figure>
 
-  <p>表项有存活时间，几分钟不用就删掉；机器换端口、换网卡，表会自己重新学。因此交换机把"冲突域"缩小到单个端口，<b>广播域却没变</b>：广播帧仍会淹没整个交换网络，要切分得靠路由器或 VLAN。</p>
+  <p>交换机不读 IP 地址。对交换机来说，IP 首部只是载荷里的一串字节；跨网段怎么走是网络层的事。所以同一台交换机下的两台机器互传文件，流量不会经过路由器，也就不会占用你上网的带宽。</p>
 
   <div class="quiz" data-quiz='[
   {
-    "q": "一台交换机刚上电，MAC 地址表是空的。\n它收到一个目的地址不在表里的帧，会怎么做？",
-    "opts": [
-      "除了入口，发给所有端口",
-      "直接丢弃这个帧",
-      "退回给发送方并报错",
-      "等学到地址再发出去"
-    ],
-    "ans": 0,
-    "why": "查不到目的地址时交换机只能泛洪：除入口外的每个端口各发一份。\n目的机器应答时，交换机会把它的端口记进表里，下一次就直接转发了；广播帧也走泛洪这条路径。"
-  },
-  {
-    "q": "你的笔记本 ping 一台跨网段的服务器，中间经过两台路由器。\n抓到的帧里，目的 MAC 地址会是哪个？",
-    "opts": [
-      "每一跳都换成下一跳的地址",
-      "一路都是服务器网卡的地址",
-      "一路都是你笔记本的地址",
-      "只在最后一跳变成服务器的"
-    ],
-    "ans": 0,
-    "why": "MAC 地址只在同一段链路上有意义：帧头写明的是「当前这台设备要交给谁」。\n每经过一台路由器，帧头都换成「这台路由器 → 下一跳」，而 IP 包里的源与目的地址基本不动。\n这一条是下一课逐跳转发的前半段。"
+    "q": "同事说：两台电脑接在同一台交换机上，\n它们互传文件也要经过路由器，会占用上网带宽。\n这个说法哪里错了？",
+    "answer": "交换机按目的 MAC 查表转发，根本不读 IP 地址。\n同一台交换机下的两台机器互相通信时，\n帧的目的 MAC 就是对方的网卡，\n交换机会从对应的那个口直接发出去，\n路由器连这些帧都收不到。",
+    "criteria": "指出交换机按 MAC 转发、不读 IP；\n由此推出同网段互传的流量不经过路由器。\n只答「交换机比路由器快」不算答对。"
   }
 ]'></div>
 
-  <h2>知道 IP 却不知道 MAC</h2>
+  <h2>读一段真实的帧</h2>
 
-  <p>网际层交下来的是 IP 包，里面写着目的 IP 地址，而帧头要填目的 MAC 地址。两者之间需要一次翻译，1982 年的 RFC 826 给这个翻译定了规则，叫地址解析协议（ARP，Address Resolution Protocol）。过程只有一问一答：</p>
-
-  <ul>
-    <li>问：广播一个 ARP 请求，"谁的 IP 是 192.168.1.1？请把 MAC 告诉我"，目的地址填广播地址，同网段所有机器都收到</li>
-    <li>答：只有 IP 匹配的那台机器单播回一个应答，带上自己的 MAC</li>
-  </ul>
-
-  <p>问到的结果存进 ARP 缓存，几分钟内直接用，不重复广播。缓存记录过期后会重新问一遍——换网卡、换路由器之后连不上，先清一次 ARP 缓存往往就好了。</p>
-
-  <h2>边界与反例</h2>
-
-  <ul>
-    <li><b>MAC 地址只管一段链路</b>：跨网段时源与目的 MAC 在每一跳都换成"当前设备 → 下一跳"的地址，IP 包本身不动；下一课会把这条路走一遍</li>
-    <li>交换机不读 IP：它按 MAC 转发，所以同网段的机器插在同一台交换机上就能通，不必经过路由器</li>
-    <li>Wi-Fi 不用以太网帧：802.11 有自己的帧格式，但上层看到的仍是一个网络接口层，IP 包照样装进去</li>
-    <li>VLAN（802.1Q）在帧头插 4 字节标签，用标签而不是物理端口划分广播域；帧因此最长到 1522 字节</li>
-    <li>MAC 地址可以伪造：改一下驱动就能冒充别人的地址，所以它不构成身份证明</li>
-  </ul>
+  <p>下面是从一台笔记本上抓到的、访问网页时发出的第一个帧（去掉前导码后的 64 个字节）：</p>
 
   <div class="lesson-practice">
     <div class="lesson-practice__head">
       <span class="lesson-practice__level">上手做</span>
-      <span class="lesson-practice__title">第 1 步 · 把自己网卡的地址拆开看</span>
+      <span class="lesson-practice__title">第 1 步 · 把字段一个个切出来</span>
     </div>
 
-      <p>先读本机的地址表与邻居表（Linux；Windows 用 <code>ipconfig /all</code> 与 <code>arp -a</code>）：</p>
+      <pre data-lang="python"><code>frame = bytes.fromhex(
+    "001a2b3c4d5e a4c3618f2b07 0800"
+    "450000281c4640004006b1e6c0a801175db8d822"
+    "c12f00500a21000100000000500220005a3f0000"
+    "000000000000 9e3b7a11")
+print("整帧长度", len(frame), "字节")
+print("目的 MAC", ":".join(f"{b:02x}" for b in frame[0:6]))
+print("源 MAC  ", ":".join(f"{b:02x}" for b in frame[6:12]))
+print("类型字段", frame[12:14].hex())
+print("帧载荷", len(frame[14:-4]), "字节")
+print("IP 总长度", int.from_bytes(frame[16:18], "big"), "字节")</code></pre>
 
-      <pre data-lang="term"><code>$ ip -brief link show
-lo               UNKNOWN        00:00:00:00:00:00 &lt;LOOPBACK,UP,LOWER_UP&gt;
-wlp3s0           UP             3c:58:c2:1a:7f:0d &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt;
+      <p>跑之前先自己数一遍：<code>001a2b3c4d5e</code> 正好 6 字节，对应帧结构里的目的 MAC；接下来 6 字节是源 MAC。下面是它在这台机器上的真实输出：</p>
 
-$ ip neigh show
-192.168.1.1 dev wlp3s0 lladdr 8c:53:c3:04:1e:a8 REACHABLE</code></pre>
-
-      <p>回答三个问题，每个都写出依据：</p>
-
-      <ol>
-        <li><code>wlp3s0</code> 的地址是单播还是组播？第一个字节的哪一位告诉你的？</li>
-        <li><code>192.168.1.1</code> 那一行的 MAC 是谁的网卡？它为什么出现在你的邻居表里？</li>
-        <li><code>lo</code> 的地址为什么是全 0？</li>
-      </ol>
-
-      <p>再用 Python 读一次本机地址，对照上面的输出：</p>
-
-      <pre data-lang="python"><code>import uuid
-
-print(f"{uuid.getnode():012x}")</code></pre>
-
-      <p>读不到硬件地址时它返回一个组播位为 1 的随机值，所以这个数不能当真实 MAC 用；反过来，看到第一个字节的组播位是 1，也能认出它不是一块普通网卡的地址。</p>
+      <pre data-lang="term"><code>$ python3 frame_read.py
+整帧长度 64 字节
+目的 MAC 00:1a:2b:3c:4d:5e
+源 MAC   a4:c3:61:8f:2b:07
+类型字段 0800
+帧载荷 46 字节
+IP 总长度 40 字节</code></pre>
   </div>
 
+  <p>对着输出回答四个问题：① 整帧是不是 64 字节？② 目的 MAC 与源 MAC 各是什么？③ 类型字段是多少，它说明载荷是什么？④ 帧载荷报的是 <span class="math-inline">46</span> 字节、IP 总长度报的是 <span class="math-inline">40</span> 字节，差的 <span class="math-inline">6</span> 个字节是什么？</p>
+
+  <p>第四个问题的答案在上一节：网络层给出的总长度是 <code>0x0028</code>，也就是 <span class="math-inline">40</span> 字节（IP 首部 <span class="math-inline">20</span> 加 TCP 首部 <span class="math-inline">20</span>），而帧载荷至少要 <span class="math-inline">46</span> 字节，于是网卡补了 <span class="math-inline">46 - 40 = 6</span> 个零字节。</p>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "把上一节那段十六进制里的 IP 部分从 40 字节加长到 60 字节，\n帧首部与帧尾校验都不动。这一帧会变成多少字节？",
+    "opts": [
+      "78 字节，不再需要填充",
+      "84 字节，仍要填充 6 字节",
+      "64 字节，超出部分会被丢掉",
+      "74 字节，校验也跟着变长"
+    ],
+    "ans": 0,
+    "why": "14 + 60 + 4 = 78；载荷 60 字节已经超过 46，填充不再需要。"
+  },
+  {
+    "q": "假设上层交下来一段 30 字节的内容。\n网卡会把它封装成多大的帧？\n多出来的那些字节里装的是什么？",
+    "answer": "帧首部 14 字节 + 载荷、校验 4 字节，\n载荷要补到 46 字节，整帧 64 字节。\n\n填充的是 46 - 30 = 16 个零字节，\n它们只负责把帧撑到最短长度，\n收方按上层给出的长度把它们丢掉。",
+    "criteria": "算出 64 字节；\n说出填充的是零字节、数量是 16，并且收方会丢弃。\n只答「补到 64 字节」而说不出补的是什么，算部分正确。"
+  }
+]'></div>
+
+  <h2>链路的三个边界</h2>
+
+  <p><b>无线侧有自己的帧格式。</b> 802.11 的帧与以太网不同，它有三个地址字段和一整套管理帧。手机发出的那段无线帧到了接入点之后，会被转换成以太网帧进入有线部分。抓包时看到同一段通信在无线侧与有线侧长得不一样，属于正常。</p>
+
+  <p><b>MAC 地址可以改。</b> 网卡驱动与虚拟机都能改这个 48 位字段，「全球唯一」只在出厂的意义上成立。这也是为什么按 MAC 地址做权限控制不牢靠。</p>
+
+  <p><b>交换机不隔离广播。</b> 广播帧会被泛洪到所有口，同一台交换机下的所有设备都会收到。局域网越大，广播占的带宽越多，所以大网络要划分子网——那正是下一课要算的东西。</p>
+
   <ul class="lesson-resources">
-    <li><a href="https://www.rfc-editor.org/rfc/rfc894.html">RFC 894 · IP over Ethernet</a><span class="lesson-resources__meta">规范原文 · IP 包怎么装进以太网帧</span></li>
-    <li><a href="https://www.rfc-editor.org/rfc/rfc826.html">RFC 826 · ARP</a><span class="lesson-resources__meta">规范原文 · 请求为什么广播、应答为什么单播</span></li>
-    <li><a href="https://man7.org/linux/man-pages/man8/ip.8.html">iproute2 · ip(8) 手册</a><span class="lesson-resources__meta">官方手册 · <code>ip link</code> / <code>ip neigh</code> 各字段的读法</span></li>
+    <li><a href="https://www.ieee802.org/3/">IEEE 802.3 以太网工作组</a><span class="lesson-resources__meta">官方标准入口 · 帧格式与最短帧长</span></li>
+    <li><a href="https://www.wireshark.org/docs/wsug_html_chunked/">Wireshark 用户指南</a><span class="lesson-resources__meta">工具文档 · 抓到的帧在界面里怎么展开</span></li>
   </ul>
 
   <!-- ── 提问提示：固定写法，别删 ── -->
@@ -269,6 +269,9 @@ print(f"{uuid.getnode():012x}")</code></pre>
 </article>
 
 <script src="../../../assets/sayo/sayo.js"></script>
+<link rel="stylesheet" href="../../../assets/katex/katex.min.css">
+<script src="../../../assets/katex/katex.min.js" defer></script>
+<script src="../../../assets/lesson-math.js" defer></script>
 <script src="../assets/quiz.js" defer></script>
 <script src="../assets/lesson-toc.js" defer></script>
 <script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
