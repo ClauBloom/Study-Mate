@@ -34,13 +34,7 @@
 **通过 npm 安装**
 
 ```bash
-dsh plugin --profile web add @yunmiao/studymate
-dsh web
-```
-
-**升级**
-```bash
-dsh plugin --profile web update @yunmiao/studymate@latest
+npx @yunmiao/studymate@latest install
 dsh web
 ```
 
