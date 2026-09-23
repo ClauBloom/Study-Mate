@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { findPython } from '../../bin/studymate.mjs';
@@ -24,14 +25,17 @@ function fixture(t) {
   const run = (code, overrides = {}) => spawnSync(process.execPath, ['--input-type=module', '-e', code], {
     env: { ...env, ...overrides }, encoding: 'utf8', timeout: 30000,
   });
-  function boot(overrides) {
-    return run(`import { apply } from ${JSON.stringify(plugin)};
-      const state = {registered: 0, disposed: 0};
+  function boot(overrides = {}, scenario = 'normal', url = plugin) {
+    return run(`import { apply } from ${JSON.stringify(url)};
+      const scenario = ${JSON.stringify(scenario)};
+      const state = {registered: 0, disposed: 0, warnings: []};
+      console.warn = message => {state.warnings.push(String(message));};
       const effects = [];
       const ctx = {
         get: () => ({name: 'web', home: process.env.DSH_HOME}),
         agentPresets: {register: async config => {
           state.config = config; state.registered++;
+          if (scenario === 'duplicate') throw new Error('Duplicate agent preset: learning');
           return async () => { state.disposed++; };
         }},
         effect: async fn => {effects.push(await fn());},
@@ -49,6 +53,16 @@ function fixture(t) {
   return { dir, env, dshHome, workspace, patch, config, engine, run, boot, yaml };
 }
 
+function snapshot(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap(entry => {
+    const file = path.join(dir, entry.name);
+    return entry.isDirectory()
+      ? [[entry.name, 'directory'], ...snapshot(file).map(([name, hash]) => [path.join(entry.name, name), hash])]
+      : [[entry.name, createHash('sha256').update(fs.readFileSync(file)).digest('hex')]];
+  });
+}
+
 test('native loading initializes portable skills and owns the preset lifetime without a dsh subprocess', t => {
   const f = fixture(t);
   const result = f.boot();
@@ -56,6 +70,7 @@ test('native loading initializes portable skills and owns the preset lifetime wi
   const state = JSON.parse(result.stdout);
   assert.equal(state.registered, 1);
   assert.equal(state.disposed, 1);
+  assert.deepEqual(state.warnings, []);
   assert.equal(state.config.id, 'learning');
   assert.deepEqual(state.config.plugins.find(row => row.id === 'tool-bash').disabled,
     { __jsExpr: "process.platform === 'win32'" });
@@ -78,40 +93,115 @@ test('native loading initializes portable skills and owns the preset lifetime wi
   assert.equal(fs.existsSync(path.join(f.engine, 'obsolete.txt')), false);
 });
 
-test('old managed registration migrates once, preserving other plugins and learning data', t => {
+test('native startup leaves installer-managed registration and payload unchanged', t => {
   const f = fixture(t);
   fs.mkdirSync(path.dirname(f.patch), { recursive: true });
-  const original = '# unrelated plugin\n- id: keep\n  disabled: true\n';
-  fs.writeFileSync(f.patch, original);
+  fs.writeFileSync(f.patch, '# unrelated plugin\n- id: keep\n  disabled: true\n');
   const cliUrl = pathToFileURL(path.join(root, 'bin/studymate.mjs')).href;
   const installed = f.run(`import {installPayload} from ${JSON.stringify(cliUrl)};
     installPayload({version:'0.1.7-alpha.1'});`);
   assert.equal(installed.status, 0, installed.stderr);
   assert.match(fs.readFileSync(f.patch, 'utf8'), /BEGIN STUDYMATE/);
-  const migrated = f.boot();
-  assert.equal(migrated.status, 1);
-  const state = JSON.parse(migrated.stdout);
-  assert.match(state.error, /重启 DSH 一次/);
+  const data = path.join(f.workspace, '.learning', 'subjects', 'keep.txt');
+  fs.writeFileSync(data, 'my learning data');
+  const before = snapshot(f.dshHome);
+  const attempted = f.boot();
+  assert.equal(attempted.status, 0, attempted.stdout + attempted.stderr);
+  const state = JSON.parse(attempted.stdout);
   assert.equal(state.registered, 0);
-  assert.equal(fs.readFileSync(f.patch, 'utf8'), original);
-  const restarted = f.boot();
-  assert.equal(restarted.status, 0, restarted.stdout + restarted.stderr);
-  assert.equal(JSON.parse(restarted.stdout).registered, 1);
-  assert.equal(f.yaml(f.config).workspace, fs.realpathSync(f.workspace));
+  assert.match(state.warnings.join('\n'), /--mode native/);
+  assert.deepEqual(snapshot(f.dshHome), before);
+  assert.equal(fs.readFileSync(data, 'utf8'), 'my learning data');
 });
 
-test('manual learning declarations fail without replacing existing data', t => {
+test('standalone installation in another profile preserves native Web ownership', t => {
+  const f = fixture(t);
+  const initial = f.boot();
+  assert.equal(initial.status, 0, initial.stdout + initial.stderr);
+  assert.equal(JSON.parse(initial.stdout).registered, 1);
+  assert.deepEqual(f.yaml(f.config).installModes, { web: 'native' });
+  const cliUrl = pathToFileURL(path.join(root, 'bin/studymate.mjs')).href;
+  const installed = f.run(`import {installPayload} from ${JSON.stringify(cliUrl)};
+    installPayload({version:'0.1.7-alpha.1', profile:'headless'});`);
+  assert.equal(installed.status, 0, installed.stderr);
+  assert.deepEqual(f.yaml(f.config).installModes, { web: 'native', headless: 'standalone' });
+  const headlessPatch = path.join(f.dshHome, 'profiles', 'headless', 'cordis.patch.yml');
+  const preset = path.join(f.dshHome, '.agent-presets', 'learning', 'agent.cordis.yml');
+  const originalPatch = fs.readFileSync(headlessPatch);
+  const originalPreset = fs.readFileSync(preset);
+  const restarted = f.boot();
+  assert.equal(restarted.status, 0, restarted.stdout + restarted.stderr);
+  const state = JSON.parse(restarted.stdout);
+  assert.equal(state.registered, 1);
+  assert.deepEqual(state.warnings, []);
+  assert.deepEqual(f.yaml(f.config).installModes, { web: 'native', headless: 'standalone' });
+  assert.deepEqual(fs.readFileSync(headlessPatch), originalPatch);
+  assert.deepEqual(fs.readFileSync(preset), originalPreset);
+});
+
+test('native startup does not take over an old legacy installer without an ownership marker', t => {
+  const f = fixture(t);
+  const cliUrl = pathToFileURL(path.join(root, 'bin/studymate.mjs')).href;
+  const installed = f.run(`import {installPayload} from ${JSON.stringify(cliUrl)};
+    installPayload({version:'0.1.5-rc.2'});`);
+  assert.equal(installed.status, 0, installed.stderr);
+  assert.equal(fs.existsSync(f.patch), false);
+  const oldConfig = f.yaml(f.config);
+  delete oldConfig.installModes;
+  fs.writeFileSync(f.config, JSON.stringify(oldConfig));
+  assert.ok(fs.existsSync(path.join(f.dshHome, '.agent-presets', 'learning', 'agent.cordis.yml')));
+  const before = snapshot(f.dshHome);
+  const result = f.boot();
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const state = JSON.parse(result.stdout);
+  assert.equal(state.registered, 0);
+  assert.match(state.warnings.join('\n'), /--mode native/);
+  assert.deepEqual(snapshot(f.dshHome), before);
+});
+
+test('native startup warns about manual learning declarations without replacing data', t => {
   const f = fixture(t);
   assert.equal(f.boot().status, 0);
-  const config = fs.readFileSync(f.config, 'utf8');
   fs.mkdirSync(path.dirname(f.patch), { recursive: true });
   const manual = '- insert:\n  - id: custom-learning\n    name: "@deepseek-ai/dsh-agent-preset"\n    config: {id: learning, plugins: []}\n';
   fs.writeFileSync(f.patch, manual);
+  const before = snapshot(f.dshHome);
   const failed = f.boot();
-  assert.equal(failed.status, 1);
-  assert.match(JSON.parse(failed.stdout).error, /learning/);
-  assert.equal(fs.readFileSync(f.patch, 'utf8'), manual);
-  assert.equal(fs.readFileSync(f.config, 'utf8'), config);
+  assert.equal(failed.status, 0, failed.stdout + failed.stderr);
+  const state = JSON.parse(failed.stdout);
+  assert.equal(state.registered, 0);
+  assert.match(state.warnings.join('\n'), /learning/);
+  assert.deepEqual(snapshot(f.dshHome), before);
+});
+
+test('registry failures are reported without stopping the host or deleting learning data', t => {
+  const f = fixture(t);
+  assert.equal(f.boot().status, 0);
+  const data = path.join(f.workspace, '.learning', 'subjects', 'keep.txt');
+  fs.writeFileSync(data, 'my learning data');
+  const result = f.boot({}, 'duplicate');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const state = JSON.parse(result.stdout);
+  assert.equal(state.registered, 1);
+  assert.equal(state.disposed, 0);
+  assert.match(state.warnings.join('\n'), /Duplicate agent preset: learning/);
+  assert.equal(fs.readFileSync(data, 'utf8'), 'my learning data');
+});
+
+test('missing Python is reported without stopping the host or creating installation files', t => {
+  const f = fixture(t);
+  const copied = path.join(f.dir, 'dsh-plugin.mjs');
+  fs.copyFileSync(path.join(root, 'bin/dsh-plugin.mjs'), copied);
+  // Simulate dependency failure at the installer boundary; Windows launchers
+  // may find Python even with an empty PATH.
+  fs.writeFileSync(path.join(f.dir, 'studymate.mjs'),
+    'export function installPayload() { throw new Error("需要 Python 3.9+ 和 PyYAML"); }');
+  const result = f.boot({}, 'normal', pathToFileURL(copied).href);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const state = JSON.parse(result.stdout);
+  assert.equal(state.registered, 0);
+  assert.match(state.warnings.join('\n'), /Python 3\.9\+ 和 PyYAML/);
+  assert.equal(fs.existsSync(f.dshHome), false);
 });
 
 test('unavailable Python reports the prerequisite on every supported platform', () => {

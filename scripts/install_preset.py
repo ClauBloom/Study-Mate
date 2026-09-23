@@ -16,6 +16,13 @@ END = '# END STUDYMATE LEARNING PRESET'
 PLUGIN = '@deepseek-ai/dsh-agent-preset'
 ENTRY_ID = 'studymate-learning-preset'
 BUNDLE = '@yunmiao/studymate'
+BUNDLE_ENTRY_ID = 'studymate'
+# Evaluated before importing the row. Older DSH releases cannot resolve this
+# package; profileContext alone is insufficient (0.1.6-alpha.2 already has it).
+DECLARATIVE_DISABLED = {'__jsExpr': (
+    "(() => { try { return !ctx.get('pluginPackages')?.packageOf("
+    "'@deepseek-ai/dsh-agent-preset', ctx.baseUrl); } catch { return true; } })()"
+)}
 
 
 class PatchLoader(yaml.SafeLoader):
@@ -91,28 +98,38 @@ def parse_patch(text, path):
         raise ValueError(f'无法解析 {path}，不会覆盖原配置：{error}') from error
     if node is not None and not isinstance(node, yaml.SequenceNode):
         raise ValueError(f'{path} 顶层必须是 YAML 列表')
+    def validate(entries):
+        if not isinstance(entries, list):
+            raise ValueError(f'{path} 的配置行必须是 YAML 列表')
+        for row in entries:
+            if not isinstance(row, dict):
+                raise ValueError(f'{path} 的配置行必须是 YAML 对象')
+            if 'insert' in row:
+                validate(row['insert'])
+            if row.get('group') is True and isinstance(row.get('config'), list):
+                validate(row['config'])
+    validate(data or [])
     return data or [], node
 
 
 def rows(data):
-    if isinstance(data, list):
-        for value in data:
-            yield from rows(value)
-    elif isinstance(data, dict):
-        yield data
-        for value in data.values():
-            if isinstance(value, (dict, list)):
-                yield from rows(value)
+    # A plugin's own config is not a Loader patch.
+    for row in data:
+        yield row
+        if isinstance(row.get('insert'), list):
+            yield from rows(row['insert'])
+        if row.get('group') is True and isinstance(row.get('config'), list):
+            yield from rows(row['config'])
 
 
 def learning_rows(data):
     return [row for row in rows(data)
-            if row.get('name') == PLUGIN and isinstance(row.get('config'), dict)
+            if row.get('name') in (None, '', PLUGIN) and isinstance(row.get('config'), dict)
             and row['config'].get('id') == 'learning']
 
 
-def insert_managed(text, node, row):
-    encoded = json.dumps(row, ensure_ascii=False)
+def insert_managed(text, node, entries):
+    encoded = [json.dumps(row, ensure_ascii=False) for row in entries]
     if node is not None and node.flow_style:
         # Keep the original flow-list text, including comments and !!js tags.
         closing = node.end_mark.index - 1
@@ -124,11 +141,13 @@ def insert_managed(text, node, row):
                    if isinstance(token, FlowSequenceEndToken) and token.start_mark.index == closing)
         comma = bool(node.value) and not isinstance(tokens[end - 1], FlowEntryToken)
         separator = '' if prefix.endswith('\n') else '\n'
-        block = f'{separator}{BEGIN}\n{"," if comma else ""}{encoded}\n{END}\n'
+        payload = ',\n'.join(encoded)
+        block = f'{separator}{BEGIN}\n{"," if comma else ""}{payload}\n{END}\n'
         return prefix + block + text[closing:]
     position = node.end_mark.index if node is not None else len(text)
     prefix = text[:position]
-    block = f'{BEGIN}\n- {encoded}\n{END}\n'
+    payload = ''.join(f'- {row}\n' for row in encoded)
+    block = f'{BEGIN}\n{payload}{END}\n'
     return prefix + ('' if not prefix or prefix.endswith('\n') else '\n') + block + text[position:]
 
 
@@ -164,10 +183,38 @@ def bundle_selected(profile_dir):
     return BUNDLE in bundles
 
 
+def check_native_overrides(data, path, *, standalone, selected, global_patch=False):
+    for row in rows(data):
+        introduced = row.get('insert', [])
+        if row.get('group') is True and isinstance(row.get('config'), list):
+            introduced = [*introduced, *row['config']]
+        if any(item.get('name') == BUNDLE or item.get('id') == BUNDLE_ENTRY_ID
+               for item in rows(introduced)):
+            raise ValueError(f'{path} 有手动插入的 StudyMate 入口；请先处理该声明，未修改配置')
+        if row.get('id') == ENTRY_ID:
+            raise ValueError(f'{path} 的 {ENTRY_ID} 已被手动配置使用；未修改配置')
+        if row.get('id') != BUNDLE_ENTRY_ID:
+            continue
+        if row.get('name') not in (None, '', BUNDLE):
+            raise ValueError(f'{path} 的 studymate id 已被其他插件使用；未修改配置')
+        if row.get('group'):
+            raise ValueError(f'{path} 的 studymate 入口被设为 group，无法安全切换；未修改配置')
+        disabled = row.get('disabled', False)
+        if not standalone and disabled is not False:
+            raise ValueError(f'{path} 有手动停用 StudyMate 的配置；请先处理该配置，未修改配置')
+        if standalone and selected and global_patch and 'disabled' in row and disabled is not True:
+            raise ValueError(f'{path} 的全局配置会重新启用 StudyMate 原生入口；未修改配置')
+
+
 def install(args):
     native = args.bundle
+    handoff = args.mode == 'native'
+    if native and handoff:
+        raise ValueError('--bundle 不可与 --mode native 同时使用')
     version = None if native else args.dsh_version if args.dsh_version is not None else installed_version()
     modern = native or version is not None and at_least(version, '0.1.7-alpha.1')
+    if handoff and not modern:
+        raise ValueError('切换原生安装需要 DSH 0.1.7-alpha.1+；旧版请使用默认 install')
     workflow = 'ptc' if native or version is not None and at_least(version, '0.1.6-alpha.1') else 'worker-thread'
     home = Path(args.dsh_home).expanduser().absolute()
     profile = args.profile
@@ -178,25 +225,28 @@ def install(args):
     agent = re.sub(r'(@deepseek-ai/dsh-workflow-|\bid: workflow-)(?:worker-thread|ptc)\b',
                    lambda match: match.group(1) + workflow, agent)
     patch = home / 'profiles' / profile / 'cordis.patch.yml'
-    bundle = native or modern and bundle_selected(patch.parent)
+    selected = bundle_selected(patch.parent)
+    if handoff and not selected:
+        raise ValueError(f'请先运行 dsh plugin --profile {profile} add @yunmiao/studymate，再切换原生安装')
+    bundle = native or handoff
     original = read(patch)
     clean = without_managed(original)
-    updated = clean
+    data, node = parse_patch(clean, patch)
+    home_patch = home / 'cordis.patch.yml'
+    home_data, _ = parse_patch(read(home_patch), home_patch)
+    if learning_rows(home_data):
+        raise ValueError(f'{home_patch} 已声明 learning 预设，请先处理该全局声明；未修改配置')
+    if learning_rows(data):
+        raise ValueError(f'{patch} 已手动声明 learning 预设，请先处理该声明；未修改配置')
+    if native and BEGIN in original:
+        raise ValueError('学习模式仍由 npx 管理；如需切换，请运行 '
+                         f'npx @yunmiao/studymate@latest install --mode native --profile {profile} 后重启 DSH')
+    for entries, location in [(data, patch), (home_data, home_patch)]:
+        check_native_overrides(entries, location, standalone=not bundle,
+                               selected=selected, global_patch=location == home_patch)
+    updated = original if native else clean
+    managed = []
     if modern:
-        home_patch = home / 'cordis.patch.yml'
-        home_data, _ = parse_patch(read(home_patch), home_patch)
-        if learning_rows(home_data):
-            raise ValueError(f'{home_patch} 已声明 learning 预设，请先处理该全局声明；未修改配置')
-        data, node = parse_patch(clean, patch)
-        existing = learning_rows(data)
-        if bundle and existing:
-            raise ValueError(f'{patch} 已手动声明 learning 预设，与 StudyMate 插件重复；请先移除该声明，未修改配置')
-        if len(existing) > 1:
-            raise ValueError(f'{patch} 有多个 learning 声明，请先消除重复；未修改配置')
-        if existing and (not isinstance(existing[0].get('id'), str) or not existing[0]['id'].strip()):
-            raise ValueError(f'{patch} 的 learning 声明缺少稳定的 Loader id，无法安全复用')
-        if not bundle and not existing and any(row.get('id') == ENTRY_ID for row in rows(data)):
-            raise ValueError(f'{patch} 的 {ENTRY_ID} 已被其他配置使用；未修改配置')
         metadata = yaml.safe_load(read(Path(args.preset_dir) / 'preset.yml')) or {}
         if not isinstance(metadata, dict):
             raise ValueError('学习预设元数据必须是对象；未修改配置')
@@ -206,14 +256,18 @@ def install(args):
             raise ValueError('学习预设必须是插件列表；未修改配置')
         config.update(id='learning', plugins=plugins)
         if not bundle:
-            declaration = {'id': existing[0]['id'] if existing else ENTRY_ID, 'config': config}
-            if not existing:
-                declaration['name'] = PLUGIN
-            row = declaration if existing else {'insert': [declaration]}
-            updated = insert_managed(clean, node, row)
-        parse_patch(updated, patch)
+            managed.append({'insert': [{'id': ENTRY_ID, 'name': PLUGIN,
+                                        'disabled': DECLARATIVE_DISABLED, 'config': config}]})
+    if selected and not bundle:
+        managed.append({'id': BUNDLE_ENTRY_ID, 'name': BUNDLE, 'disabled': True})
+    if managed:
+        updated = insert_managed(clean, node, managed)
+    elif not native and updated != original and node is None:
+        # A comment-only document parses as null, which DSH refuses to load.
+        updated += ('' if not updated or updated.endswith('\n') else '\n') + '[]\n'
+    parse_patch(updated, patch)
     # Do not touch active profile configuration when the npm installer stages an update.
-    changed = updated != original
+    changed = not native and updated != original
     output = Path(args.patch_output) if args.patch_output else patch
     if preset.is_symlink() or changed and output.is_symlink():
         raise ValueError('预设或配置文件是符号链接；未修改配置')
@@ -233,6 +287,7 @@ def main():
     parser.add_argument('--preset-target', required=True)
     parser.add_argument('--dsh-home', required=True)
     parser.add_argument('--profile', default='web')
+    parser.add_argument('--mode', choices=['standalone', 'native'], default='standalone')
     parser.add_argument('--dsh-version')
     parser.add_argument('--patch-output')
     parser.add_argument('--bundle', action='store_true', help='由 DSH 插件注册预设，不写入独立声明')

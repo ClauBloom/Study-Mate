@@ -29,7 +29,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "test:installer": "node --test scripts/tests/test_installer.mjs scripts/tests/test_bundle.mjs"
+    "test:installer": "node --test scripts/tests/test_installer.mjs scripts/tests/test_bundle.mjs",
+    "test:dsh": "node --test scripts/tests/test_dsh_runtime.mjs",
+    "test:dsh-cli": "node --test scripts/tests/test_dsh_plugin_cli.mjs"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

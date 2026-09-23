@@ -10,12 +10,13 @@ const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const metadata = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
 const help = `StudyMate ${metadata.version}
 
-用法：studymate [install] [--workspace <目录>] [--profile <名称>]
+用法：studymate [install] [--workspace <目录>] [--profile <名称>] [--mode standalone|native]
       studymate --help | --version
 
 将学习模式和引擎安装到 DSH_HOME（默认 ~/.dsh）。
 工作区优先使用 --workspace、LEARN_WORKSPACE、已有配置，首次默认为 ~/StudyMate。
 DSH 0.1.7+ 默认注册到 web profile；其他 profile 用 --profile 指定。
+默认由安装器管理；已添加 DSH 原生插件时，可用 --mode native 显式切换。
 需要 Node.js ^22.19.0 或 >=24、dsh >=0.1.5-rc.2、Python 3.9+ 和 PyYAML。
 安装器不会安装或升级 dsh，也不会重启正在运行的会话。`;
 
@@ -146,7 +147,10 @@ function copyPayload(destination) {
 // Shared by the CLI and the DSH bundle. Native loading already runs inside DSH;
 // it must not launch a second, possibly different dsh executable from PATH.
 export function installPayload({ workspaceArg, profile = 'web', python, version,
-  dshHome = absolute(process.env.DSH_HOME || path.join(os.homedir(), '.dsh')), native = false }) {
+  dshHome = absolute(process.env.DSH_HOME || path.join(os.homedir(), '.dsh')), native = false, mode = 'standalone' }) {
+  if (!['standalone', 'native'].includes(mode) || native && mode !== 'standalone') {
+    throw new Error('--mode 必须是 standalone 或 native；原生启动不执行安装方式切换。');
+  }
   if (!profile || /[/\\\0]/.test(profile) || ['.', '..', 'node_modules', 'desktop'].includes(profile)) {
     throw new Error('--profile 必须是单个 DSH 配置名称，不能使用路径或保留名称。');
   }
@@ -157,6 +161,16 @@ export function installPayload({ workspaceArg, profile = 'web', python, version,
   const workspace = absolute(workspaceArg || process.env.LEARN_WORKSPACE || config.workspace || path.join(os.homedir(), 'StudyMate'));
   const engine = path.join(dshHome, 'studymate', 'engine');
   const preset = path.join(dshHome, '.agent-presets', 'learning');
+  const installModes = config.installModes ?? {};
+  if (typeof installModes !== 'object' || Array.isArray(installModes)) {
+    throw new Error('配置中的 installModes 必须是按 profile 记录安装方式的对象。');
+  }
+  const installedMode = installModes[profile];
+  if (native && (installedMode === 'standalone' ||
+      installedMode !== 'native' && fs.existsSync(preset))) {
+    throw new Error('学习模式仍由安装器管理；如需切换，请运行 ' +
+      `npx @yunmiao/studymate@latest install --mode native --profile ${profile} 后重启 DSH。`);
+  }
   const managedDirectories = native ? [engine] : [engine, preset];
   for (const parent of managedDirectories.map(directory => path.dirname(directory))) {
     if (fs.lstatSync(parent, { throwIfNoEntry: false })?.isSymbolicLink()) {
@@ -208,7 +222,7 @@ export function installPayload({ workspaceArg, profile = 'web', python, version,
     const prepare = run(python.command, [...python.prefix, path.join(source, 'scripts', 'install_preset.py'),
       '--preset-dir', stagedPreset, '--preset-target', preset, '--dsh-home', dshHome,
       '--profile', profile, '--patch-output', stagedPatch,
-      ...(native ? ['--bundle'] : ['--dsh-version', version])]);
+      ...(native ? ['--bundle'] : ['--dsh-version', version, '--mode', mode])]);
     if (prepare.status !== 0) throw new Error(prepare.stderr?.trim() || prepare.error?.message || '无法注册学习预设。');
     registration = JSON.parse(prepare.stdout);
 
@@ -220,12 +234,18 @@ export function installPayload({ workspaceArg, profile = 'web', python, version,
     }
     config.workspace = realWorkspace;
     config.root = engine;
+    config.installModes = { ...installModes, [profile]: native || mode === 'native' ? 'native' : 'standalone' };
     const stagedConfig = path.join(staging, 'config.yaml');
     // JSON objects are also valid YAML; retain unrelated user configuration keys.
     fs.writeFileSync(stagedConfig, `# StudyMate 学习工作区与引擎项目定位\n${JSON.stringify(config, null, 2)}\n`);
 
-    const targets = [[stagedEngine, engine], [stagedConfig, configFile]];
-    if (!native) targets.push([stagedPreset, preset]);
+    const targets = [[stagedConfig, configFile]];
+    // Explicit handoff changes registration only; the selected native package
+    // initializes its own payload on the next start, avoiding an npx downgrade.
+    if (mode !== 'native') {
+      targets.unshift([stagedEngine, engine]);
+      if (!native) targets.push([stagedPreset, preset]);
+    }
     if (registration.patchChanged) {
       const profilePatch = path.join(dshHome, 'profiles', profile, 'cordis.patch.yml');
       if (fs.lstatSync(profilePatch, { throwIfNoEntry: false })?.isSymbolicLink()) {
@@ -260,9 +280,9 @@ export function installPayload({ workspaceArg, profile = 'web', python, version,
   return { registration, engine, preset, configFile, workspace: config.workspace };
 }
 
-function install(workspaceArg, profile) {
+function install(workspaceArg, profile, mode) {
   const { python, version } = checkDependencies();
-  const { registration, engine, preset, configFile, workspace } = installPayload({ workspaceArg, profile, python, version });
+  const { registration, engine, preset, configFile, workspace } = installPayload({ workspaceArg, profile, python, version, mode });
   const registered = registration.mode === 'bundle' ? `\n学习模式由 DSH 插件管理：${profile}`
     : registration.mode === 'declarative' ? `\n已注册到 DSH profile：${profile}` : '';
   console.log(`StudyMate ${metadata.version} 安装完成。\n引擎：${engine}\n学习预设：${preset}${registered}\n学习工作区：${workspace}\n配置：${configFile}\n请在 dsh 中新建会话并选择“学习模式”；已运行的 dsh 如未显示该模式，请重启。`);
@@ -274,18 +294,19 @@ export function main(args = process.argv.slice(2)) {
     else if (args.length === 1 && ['--version', '-v'].includes(args[0])) console.log(metadata.version);
     else {
       if (args[0] === 'install') args.shift();
-      let workspace, profile = 'web';
+      let workspace, profile = 'web', mode = 'standalone';
       const seen = new Set();
       for (let i = 0; i < args.length; i += 2) {
         const option = args[i], value = args[i + 1];
-        if (!['--workspace', '--profile'].includes(option) || !value || value.startsWith('--') || seen.has(option)) {
+        if (!['--workspace', '--profile', '--mode'].includes(option) || !value || value.startsWith('--') || seen.has(option)) {
           throw new Error(`不支持的参数：${args.join(' ')}\n${help}`);
         }
         seen.add(option);
         if (option === '--workspace') workspace = value;
-        else profile = value;
+        else if (option === '--profile') profile = value;
+        else mode = value;
       }
-      install(workspace, profile);
+      install(workspace, profile, mode);
     }
   } catch (error) {
     console.error(`StudyMate：${error.message}`);

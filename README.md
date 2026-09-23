@@ -33,6 +33,8 @@
 
 **通过 npm 安装**
 
+适用于 DSH 0.1.5-rc.2 及以上，安装器会按 DSH 版本选择预设格式。原生命令安装和切换安装方式见 [安装说明](docs/安装.md)。
+
 ```bash
 npx @yunmiao/studymate@latest install
 dsh web

@@ -8,6 +8,22 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 只依赖 `python3` + `pyyaml`（跑检查要用）与 `node`（两套 DOM 测试）；没有 node 会自动跳过那两套。
 测试自己造临时科目，**不读也不写任何工作区**（`workspace/` 是学生数据，测试不该碰）。
 
+## DSH 实际安装与启动
+
+先在独立目录安装要检查的 DSH，然后指定其包目录：
+
+```sh
+npm install --prefix /tmp/studymate-dsh @deepseek-ai/dsh@0.1.7-alpha.2
+export STUDYMATE_DSH_PACKAGE=/tmp/studymate-dsh/node_modules/@deepseek-ai/dsh
+npm run test:dsh
+npm run test:dsh-cli
+```
+
+需要 Python 3.9+、PyYAML；CLI 测试另需 `pnpm`。未设置 `STUDYMATE_DSH_PACKAGE` 时跳过，不读取本机默认 DSH 配置。
+测试创建临时 HOME、DSH_HOME 和工作区，启动仅监听本机随机端口的 Web，不调用模型。CLI 测试通过临时本地 registry 安装、更新和卸载实际打包的 StudyMate，检查普通模式、学习模式、安装方式切换、缺少 Python 及学习数据保留。
+
+另设 `STUDYMATE_DSH_DOWNGRADE_PACKAGE` 为旧 DSH 包目录，可以检查旧版安装升级后的显式迁移，以及降级和重新安装恢复。两个 DSH 目录只读。CI 覆盖 Windows、macOS、Linux 的旧版和新版，以及 Linux 上的版本切换边界。
+
 ## 快测（默认跑）
 
 | 套件 | 钉住什么 |

@@ -110,3 +110,85 @@ test('profile option registers only the selected profile and rejects traversal',
   assert.equal(fs.existsSync(f.patch), false);
   assert.equal(f.yaml(path.join(f.env.DSH_HOME, 'profiles', 'headless', 'cordis.patch.yml'))[0].insert[0].config.id, 'learning');
 });
+
+test('default install manages learning and disables only the selected StudyMate bundle', t => {
+  const f = fixture(t);
+  fs.mkdirSync(path.dirname(f.patch), { recursive: true });
+  const original = '# unrelated plugin\n- id: keep\n  disabled: false\n';
+  const manifest = path.join(path.dirname(f.patch), 'package.json');
+  const manifestText = JSON.stringify({ dependencies: { '@yunmiao/studymate': '0.1.3' },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@yunmiao/studymate'] } } });
+  fs.writeFileSync(manifest, manifestText);
+  for (const version of ['0.1.7-alpha.1', '0.1.5-rc.2']) {
+    f.version(version);
+    fs.writeFileSync(f.patch, original);
+    const result = f.install('--workspace', path.join(f.dir, 'workspace'));
+    assert.equal(result.status, 0, result.stderr + result.stdout);
+    const rows = f.yaml(f.patch);
+    assert.deepEqual(rows[0], { id: 'keep', disabled: false });
+    const guard = rows.find(row => row.id === 'studymate');
+    assert.deepEqual(guard, { id: 'studymate', name: '@yunmiao/studymate', disabled: true });
+    const declarations = rows.flatMap(row => row.insert || []).filter(row => row.config?.id === 'learning');
+    assert.equal(declarations.length, version === '0.1.7-alpha.1' ? 1 : 0);
+    assert.equal(fs.readFileSync(manifest, 'utf8'), manifestText);
+    assert.ok(fs.existsSync(f.preset));
+    assert.equal(f.yaml(f.config).installModes.web, 'standalone');
+    const before = fs.readFileSync(f.patch, 'utf8');
+    assert.equal(f.install().status, 0);
+    assert.equal(fs.readFileSync(f.patch, 'utf8'), before);
+  }
+});
+
+test('explicit native switch records ownership and removes registration without replacing payload or user files', t => {
+  const f = fixture(t);
+  fs.mkdirSync(path.dirname(f.patch), { recursive: true });
+  const original = '# my other plugin\n- id: unrelated\n  disabled: true\n';
+  fs.writeFileSync(f.patch, original);
+  const manifest = path.join(path.dirname(f.patch), 'package.json');
+  const manifestText = JSON.stringify({ dependencies: { '@yunmiao/studymate': '0.1.3' },
+    dsh: { profile: { bundles: ['@yunmiao/studymate'] } } });
+  fs.writeFileSync(manifest, manifestText);
+  const lockfile = path.join(path.dirname(f.patch), 'pnpm-lock.yaml');
+  fs.writeFileSync(lockfile, '# existing package manager lock\n');
+  const installed = f.install('--workspace', path.join(f.dir, 'workspace'));
+  assert.equal(installed.status, 0, installed.stderr);
+  assert.match(fs.readFileSync(f.patch, 'utf8'), /BEGIN STUDYMATE/);
+  const engineSentinel = path.join(f.env.DSH_HOME, 'studymate', 'engine', 'keep.txt');
+  fs.writeFileSync(engineSentinel, 'existing engine');
+  const learningData = path.join(f.yaml(f.config).workspace, '.learning', 'subjects', 'keep.txt');
+  fs.writeFileSync(learningData, 'my notes');
+  const originalConfig = { ...f.yaml(f.config), custom: 'keep',
+    installModes: { ...f.yaml(f.config).installModes, headless: 'standalone' } };
+  fs.writeFileSync(f.config, JSON.stringify(originalConfig));
+  const untouched = [f.preset, manifest, lockfile, engineSentinel, learningData];
+  const before = untouched.map(file => fs.readFileSync(file));
+  const switched = f.install('--mode', 'native');
+  assert.equal(switched.status, 0, switched.stderr + switched.stdout);
+  assert.equal(fs.readFileSync(f.patch, 'utf8'), original);
+  untouched.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index], file));
+  assert.deepEqual(f.yaml(f.config), { ...originalConfig,
+    installModes: { ...originalConfig.installModes, web: 'native' } });
+  assert.equal(f.install('--mode', 'native').status, 0);
+  assert.equal(fs.readFileSync(f.patch, 'utf8'), original);
+});
+
+test('native switch refuses unsupported hosts, missing bundles and invalid modes without changing installation', t => {
+  const f = fixture(t);
+  const installed = f.install('--workspace', path.join(f.dir, 'workspace'));
+  assert.equal(installed.status, 0, installed.stderr);
+  const paths = [f.patch, f.config, f.preset];
+  const before = paths.map(file => fs.readFileSync(file));
+  const checkUnchanged = () => paths.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index], file));
+  assert.notEqual(f.install('--mode', 'native').status, 0);
+  checkUnchanged();
+  const manifest = path.join(path.dirname(f.patch), 'package.json');
+  fs.writeFileSync(manifest, JSON.stringify({ dsh: { profile: { bundles: ['@yunmiao/studymate'] } } }));
+  f.version('0.1.6-alpha.2');
+  const unsupported = f.install('--mode', 'native');
+  assert.notEqual(unsupported.status, 0);
+  assert.match(unsupported.stderr, /0\.1\.7-alpha\.1/);
+  checkUnchanged();
+  f.version('0.1.7-alpha.1');
+  assert.notEqual(f.install('--mode', 'unexpected').status, 0);
+  checkUnchanged();
+});
