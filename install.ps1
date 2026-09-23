@@ -5,6 +5,7 @@
 #   powershell -ExecutionPolicy Bypass -File .\install.ps1
 #   想换工作区位置：$env:LEARN_WORKSPACE = 'D:\study'; .\install.ps1
 #   想换 DSH 目录：  $env:DSH_HOME = 'D:\dsh';        .\install.ps1
+param([string]$Profile = 'web')
 $ErrorActionPreference = 'Stop'
 
 # 写文件一律 UTF-8 **不带 BOM**：配置和预设都要被 YAML 解析器读，
@@ -26,18 +27,60 @@ if (-not (Test-Path -LiteralPath $SkillsSrc -PathType Container)) {
     exit 1
 }
 $DestPreset = Join-Path $Dsh '.agent-presets\learning'
-[System.IO.Directory]::CreateDirectory($DestPreset) | Out-Null
-Get-ChildItem -LiteralPath (Join-Path $Root 'preset\learning') -Force |
-    Copy-Item -Destination $DestPreset -Recurse -Force
+$PythonCommand = $null
+$PythonArgs = @()
+foreach ($candidate in @(
+    @{ Command = 'py'; Args = @('-3') },
+    @{ Command = 'python3'; Args = @() },
+    @{ Command = 'python'; Args = @() }
+)) {
+    if (Get-Command $candidate.Command -ErrorAction SilentlyContinue) {
+        $command = $candidate.Command
+        $arguments = $candidate.Args
+        try {
+            & $command @arguments -X utf8 -c 'import sys, yaml; sys.exit(sys.version_info < (3, 9))' 2>$null
+        } catch { continue }
+        if ($LASTEXITCODE -eq 0) {
+            $PythonCommand = $command
+            $PythonArgs = $arguments
+            break
+        }
+    }
+}
+if (-not $PythonCommand) { throw '需要 Python 3.9+ 和 PyYAML（py -3 -m pip install pyyaml）' }
 
-$AgentYml    = Join-Path $DestPreset 'agent.cordis.yml'
 $SkillsPosix = $SkillsSrc -replace '\\', '/'      # YAML 里用正斜杠：反斜杠是转义字符
-$text = Read-Utf8 $AgentYml
-if ($text.Contains('__STUDYMATE_SKILLS__')) {
-    Write-Utf8NoBom $AgentYml ($text.Replace('__STUDYMATE_SKILLS__', $SkillsPosix.Replace("'", "''")))
-} elseif (-not $text.Contains($SkillsPosix)) {
-    [Console]::Error.WriteLine('预设里既没有占位符 __STUDYMATE_SKILLS__，也没有已写入的 skill 路径')
-    exit 1
+$Stage = Join-Path $Dsh ('.studymate-install-' + [Guid]::NewGuid().ToString('N'))
+$StagedPreset = Join-Path $Stage 'preset'
+$StagedPatch = Join-Path $Stage 'cordis.patch.yml'
+$PreviousPythonEncoding = $env:PYTHONIOENCODING
+try {
+    [System.IO.Directory]::CreateDirectory($StagedPreset) | Out-Null
+    Get-ChildItem -LiteralPath (Join-Path $Root 'preset\learning') -Force |
+        Copy-Item -Destination $StagedPreset -Recurse -Force
+    $AgentYml = Join-Path $StagedPreset 'agent.cordis.yml'
+    $text = Read-Utf8 $AgentYml
+    if ($text.Contains('__STUDYMATE_SKILLS__')) {
+        Write-Utf8NoBom $AgentYml ($text.Replace('__STUDYMATE_SKILLS__', $SkillsPosix.Replace("'", "''")))
+    } elseif (-not $text.Contains($SkillsPosix)) {
+        throw '预设里既没有占位符 __STUDYMATE_SKILLS__，也没有已写入的 skill 路径'
+    }
+    $env:PYTHONIOENCODING = 'utf-8'
+    & $PythonCommand @PythonArgs -X utf8 (Join-Path $Root 'scripts\install_preset.py') `
+        --preset-dir $StagedPreset --preset-target $DestPreset --dsh-home $Dsh `
+        --profile $Profile --patch-output $StagedPatch | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw '学习预设安装失败，原预设和配置未改动' }
+    [System.IO.Directory]::CreateDirectory($DestPreset) | Out-Null
+    Get-ChildItem -LiteralPath $StagedPreset -Force |
+        Copy-Item -Destination $DestPreset -Recurse -Force
+    if (Test-Path -LiteralPath $StagedPatch) {
+        $ProfileDir = Join-Path (Join-Path $Dsh 'profiles') $Profile
+        [System.IO.Directory]::CreateDirectory($ProfileDir) | Out-Null
+        Move-Item -LiteralPath $StagedPatch -Destination (Join-Path $ProfileDir 'cordis.patch.yml') -Force
+    }
+} finally {
+    $env:PYTHONIOENCODING = $PreviousPythonEncoding
+    if (Test-Path -LiteralPath $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
 }
 Write-Host "① 预设 → $DestPreset（skill 目录：$SkillsPosix）"
 

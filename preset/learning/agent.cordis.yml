@@ -1,12 +1,8 @@
-# The `standard` agent preset: the full coding agent, mounted once per process.
+# StudyMate agent-plane composition, derived from the standard preset.
 #
-# This file is an AGENT-PLANE composition. The roster mounts it ONCE under a
-# standing scope; every session naming it joins by scope parentage, so the
-# tools and prompt sections registered here cover each joined agent while a
-# session's own state stays keyed per Session/Agent inside the plugins. The
-# host composition (`base.cordis.yml` + `web.cordis.yml`) keeps everything a
-# preset must not own: the registries themselves, the sandbox and approval
-# stack, persistence, and the model route.
+# The installer registers this composition declaratively on dsh 0.1.7+ and
+# uses the legacy preset directory on older versions. Host services (registries,
+# sandbox, approvals, persistence and model routing) stay in the host composition.
 #
 # A service row here MUST sit inside a group carrying an `isolate` realm.
 # Without one it publishes into the root realm, where it is process-global —
@@ -16,7 +12,7 @@
 # private instance, apart from every other preset's. (A shared label does NOT
 # pool instances — `provide()` throws on the second registration under the
 # same realm symbol; labels join REALMS, and are not what this file needs.)
-# 派生自 standard 预设：替换 persona，并把 skill 目录指向引擎项目（install.sh 写入路径）。
+# 安装器写入 skill 路径，并为 dsh 0.1.5 选择旧版 workflow-worker-thread。
 
 # ── identity ────────────────────────────────────────────────────────────────
 
@@ -234,8 +230,8 @@
         backgroundMode: one-shot
         maxDepth: provider-managed
 
-    - id: workflow-worker-thread
-      name: '@deepseek-ai/dsh-workflow-worker-thread'
+    - id: workflow-ptc
+      name: '@deepseek-ai/dsh-workflow-ptc'
       config:
         provider: spawn
 

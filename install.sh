@@ -5,6 +5,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DSH="${DSH_HOME:-$HOME/.dsh}"
+PROFILE=web
+if [ "${1:-}" = '--profile' ] && [ "$#" -eq 2 ]; then
+  PROFILE="$2"
+elif [ "$#" -ne 0 ]; then
+  echo "用法：./install.sh [--profile web]" >&2
+  exit 1
+fi
 
 # 1) 学习模式预设 → ~/.dsh/.agent-presets/learning/，并把引擎的 skill 目录写进去
 if [ ! -d "$ROOT/.dsh/skills" ]; then
@@ -12,9 +19,25 @@ if [ ! -d "$ROOT/.dsh/skills" ]; then
   exit 1
 fi
 DEST_PRESET="$DSH/.agent-presets/learning"
-mkdir -p "$DEST_PRESET"
-cp -r "$ROOT/preset/learning/." "$DEST_PRESET/"
-python3 - "$DEST_PRESET/agent.cordis.yml" "$ROOT/.dsh/skills" <<'PY'
+PYTHON=''
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1 &&
+     "$candidate" -X utf8 -c 'import sys, yaml; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+    PYTHON="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON" ]; then
+  echo "需要 Python 3.9+ 和 PyYAML（python3 -m pip install pyyaml）" >&2
+  exit 1
+fi
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
+mkdir -p "$DSH"
+STAGE="$(mktemp -d "$DSH/.studymate-install.XXXXXX")"
+trap 'rm -rf -- "$STAGE"' EXIT
+mkdir -p "$STAGE/preset"
+cp -r "$ROOT/preset/learning/." "$STAGE/preset/"
+"$PYTHON" - "$STAGE/preset/agent.cordis.yml" "$ROOT/.dsh/skills" <<'PY'
 import pathlib, sys
 path, skills = sys.argv[1], sys.argv[2]
 p = pathlib.Path(path)
@@ -24,6 +47,16 @@ if '__STUDYMATE_SKILLS__' in t:
 elif skills not in t:
     raise SystemExit('预设里既没有占位符 __STUDYMATE_SKILLS__，也没有已写入的 skill 路径')
 PY
+"$PYTHON" "$ROOT/scripts/install_preset.py" \
+  --preset-dir "$STAGE/preset" --preset-target "$DEST_PRESET" \
+  --dsh-home "$DSH" --profile "$PROFILE" \
+  --patch-output "$STAGE/cordis.patch.yml" > "$STAGE/result.json"
+mkdir -p "$DEST_PRESET"
+cp -r "$STAGE/preset/." "$DEST_PRESET/"
+if [ -f "$STAGE/cordis.patch.yml" ]; then
+  mkdir -p "$DSH/profiles/$PROFILE"
+  mv "$STAGE/cordis.patch.yml" "$DSH/profiles/$PROFILE/cordis.patch.yml"
+fi
 echo "① 预设 → ${DEST_PRESET}（skill 目录：${ROOT}/.dsh/skills）"
 
 # 2) 学习工作区：默认 <root>/workspace/，路径写入配置
@@ -34,7 +67,7 @@ CONFIG="$DSH/studymate-config.yaml"
 WORKSPACE="${LEARN_WORKSPACE:-}"
 KEPT_EXISTING=""
 if [ -z "$WORKSPACE" ] && [ -f "$CONFIG" ]; then
-  WORKSPACE="$(python3 - "$CONFIG" <<'PY'
+  WORKSPACE="$("$PYTHON" - "$CONFIG" <<'PY'
 import pathlib, sys, yaml
 config = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')) or {}
 workspace = config.get('workspace') if isinstance(config, dict) else None
@@ -56,7 +89,7 @@ fi
 WORKSPACE="${WORKSPACE/#\~/$HOME}"
 mkdir -p "$WORKSPACE/.learning/subjects"
 WORKSPACE="$(cd "$WORKSPACE" && pwd)"
-python3 - "$CONFIG" "$WORKSPACE" "$ROOT" <<'PY'
+"$PYTHON" - "$CONFIG" "$WORKSPACE" "$ROOT" <<'PY'
 import json, pathlib, sys
 path, workspace, root = sys.argv[1:]
 pathlib.Path(path).write_text(

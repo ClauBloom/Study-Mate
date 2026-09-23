@@ -10,11 +10,12 @@ const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const metadata = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
 const help = `StudyMate ${metadata.version}
 
-用法：studymate [install] [--workspace <目录>]
+用法：studymate [install] [--workspace <目录>] [--profile <名称>]
       studymate --help | --version
 
 将学习模式和引擎安装到 DSH_HOME（默认 ~/.dsh）。
 工作区优先使用 --workspace、LEARN_WORKSPACE、已有配置，首次默认为 ~/StudyMate。
+DSH 0.1.7+ 默认注册到 web profile；其他 profile 用 --profile 指定。
 需要 Node.js ^22.19.0 或 >=24、dsh >=0.1.5-rc.2、Python 3.9+ 和 PyYAML。
 安装器不会安装或升级 dsh，也不会重启正在运行的会话。`;
 
@@ -88,7 +89,7 @@ function checkDependencies() {
   if (!supportsDsh(version)) {
     throw new Error(`dsh ${version} 不支持此学习预设，需要 >=0.1.5-rc.2。请运行 npm install -g @deepseek-ai/dsh@latest。`);
   }
-  return findPython();
+  return { python: findPython(), version };
 }
 
 function absolute(value) {
@@ -142,8 +143,11 @@ function copyPayload(destination) {
   }
 }
 
-function install(workspaceArg) {
-  const python = checkDependencies();
+function install(workspaceArg, profile) {
+  if (!profile || /[/\\\0]/.test(profile) || ['.', '..', 'node_modules', 'desktop'].includes(profile)) {
+    throw new Error('--profile 必须是单个 DSH 配置名称，不能使用路径或保留名称。');
+  }
+  const { python, version } = checkDependencies();
   const dshHome = absolute(process.env.DSH_HOME || path.join(os.homedir(), '.dsh'));
   const configFile = path.join(dshHome, 'studymate-config.yaml');
   const config = readConfig(configFile, python);
@@ -172,6 +176,7 @@ function install(workspaceArg) {
   const staging = fs.mkdtempSync(path.join(dshHome, '.studymate-install-'));
   const replacements = [];
   let preserveStaging = false;
+  let registration;
   try {
     const stagedEngine = path.join(staging, 'engine');
     copyPayload(stagedEngine);
@@ -193,6 +198,13 @@ function install(workspaceArg) {
     if (!agent.includes('__STUDYMATE_SKILLS__')) throw new Error('预设缺少 __STUDYMATE_SKILLS__，安装包不完整。');
     fs.writeFileSync(agentFile, agent.replaceAll('__STUDYMATE_SKILLS__', path.join(engine, '.dsh', 'skills').split(path.sep).join('/').replaceAll("'", "''")));
 
+    const stagedPatch = path.join(staging, 'cordis.patch.yml');
+    const prepare = run(python.command, [...python.prefix, path.join(source, 'scripts', 'install_preset.py'),
+      '--preset-dir', stagedPreset, '--preset-target', preset, '--dsh-home', dshHome,
+      '--profile', profile, '--dsh-version', version, '--patch-output', stagedPatch]);
+    if (prepare.status !== 0) throw new Error(prepare.stderr?.trim() || prepare.error?.message || '无法注册学习预设。');
+    registration = JSON.parse(prepare.stdout);
+
     fs.mkdirSync(path.join(workspace, '.learning', 'subjects'), { recursive: true });
     const realWorkspace = fs.realpathSync(workspace);
     for (const managed of [engine, preset]) {
@@ -205,7 +217,16 @@ function install(workspaceArg) {
     // JSON objects are also valid YAML; retain unrelated user configuration keys.
     fs.writeFileSync(stagedConfig, `# StudyMate 学习工作区与引擎项目定位\n${JSON.stringify(config, null, 2)}\n`);
 
-    for (const [staged, target] of [[stagedEngine, engine], [stagedPreset, preset], [stagedConfig, configFile]]) {
+    const targets = [[stagedEngine, engine], [stagedPreset, preset], [stagedConfig, configFile]];
+    if (registration.patchChanged) {
+      const profilePatch = path.join(dshHome, 'profiles', profile, 'cordis.patch.yml');
+      if (fs.lstatSync(profilePatch, { throwIfNoEntry: false })?.isSymbolicLink()) {
+        throw new Error(`预设配置是符号链接，请先将它改为独立文件：${profilePatch}`);
+      }
+      fs.mkdirSync(path.dirname(profilePatch), { recursive: true });
+      targets.push([stagedPatch, profilePatch]);
+    }
+    for (const [staged, target] of targets) {
       const backup = path.join(staging, `backup-${replacements.length}`);
       const existed = fs.existsSync(target);
       if (existed) fs.renameSync(target, backup);
@@ -228,7 +249,8 @@ function install(workspaceArg) {
   } finally {
     if (!preserveStaging) fs.rmSync(staging, { recursive: true, force: true });
   }
-  console.log(`StudyMate ${metadata.version} 安装完成。\n引擎：${engine}\n学习预设：${preset}\n学习工作区：${config.workspace}\n配置：${configFile}\n请在 dsh 中新建会话并选择“学习模式”；已运行的 dsh 如未显示该模式，请重启。`);
+  const registered = registration.mode === 'declarative' ? `\n已注册到 DSH profile：${profile}` : '';
+  console.log(`StudyMate ${metadata.version} 安装完成。\n引擎：${engine}\n学习预设：${preset}${registered}\n学习工作区：${config.workspace}\n配置：${configFile}\n请在 dsh 中新建会话并选择“学习模式”；已运行的 dsh 如未显示该模式，请重启。`);
 }
 
 export function main(args = process.argv.slice(2)) {
@@ -237,14 +259,18 @@ export function main(args = process.argv.slice(2)) {
     else if (args.length === 1 && ['--version', '-v'].includes(args[0])) console.log(metadata.version);
     else {
       if (args[0] === 'install') args.shift();
-      let workspace;
-      if (args.length) {
-        if (args.length !== 2 || args[0] !== '--workspace' || !args[1] || args[1].startsWith('--')) {
+      let workspace, profile = 'web';
+      const seen = new Set();
+      for (let i = 0; i < args.length; i += 2) {
+        const option = args[i], value = args[i + 1];
+        if (!['--workspace', '--profile'].includes(option) || !value || value.startsWith('--') || seen.has(option)) {
           throw new Error(`不支持的参数：${args.join(' ')}\n${help}`);
         }
-        workspace = args[1];
+        seen.add(option);
+        if (option === '--workspace') workspace = value;
+        else profile = value;
       }
-      install(workspace);
+      install(workspace, profile);
     }
   } catch (error) {
     console.error(`StudyMate：${error.message}`);

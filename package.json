@@ -15,10 +15,11 @@
     "docs/*.md",
     "docs/images/**",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "test:installer": "node --test scripts/tests/test_npm_compat.mjs"
+    "test:installer": "node --test scripts/tests/test_installer.mjs"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

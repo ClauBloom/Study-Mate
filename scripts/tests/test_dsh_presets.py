@@ -1,0 +1,164 @@
+"""DSH preset migration tests; every installation uses an isolated temporary home."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+HELPER = ROOT / 'scripts' / 'install_preset.py'
+PLUGIN = '@deepseek-ai/dsh-agent-preset'
+BEGIN = '# BEGIN STUDYMATE LEARNING PRESET'
+
+
+class CordisLoader(yaml.SafeLoader):
+    pass
+
+
+CordisLoader.add_constructor('tag:yaml.org,2002:js', lambda loader, node: loader.construct_scalar(node))
+
+
+class PresetTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='studymate-preset-test-')
+        self.addCleanup(self.temp.cleanup)
+        self.home = Path(self.temp.name) / "dsh O'Brien 中文"
+        self.preset = self.home / 'staged-learning'
+        self.target = self.home / '.agent-presets' / 'learning'
+        shutil.copytree(ROOT / 'preset' / 'learning', self.preset)
+        self.patch = self.home / 'profiles' / 'web' / 'cordis.patch.yml'
+        self.patch.parent.mkdir(parents=True)
+
+    def invoke(self, version='0.1.7-alpha.1', extra=(), success=True, env=None):
+        args = [sys.executable, str(HELPER), '--preset-dir', str(self.preset),
+                '--preset-target', str(self.target), '--dsh-home', str(self.home)]
+        if version is not None:
+            args += ['--dsh-version', version]
+        result = subprocess.run(args + list(extra), capture_output=True, text=True,
+                                encoding='utf-8', env={**os.environ, 'PYTHONUTF8': '1',
+                                                     'PYTHONIOENCODING': 'utf-8', **(env or {})})
+        if success:
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        return result.stderr
+
+    def parsed(self, path=None):
+        return yaml.load((path or self.patch).read_text(encoding='utf-8'), Loader=CordisLoader)
+
+    def test_version_boundaries_are_independent(self):
+        cases = [('0.1.5-rc.2', 'worker-thread', 'legacy'),
+                 ('0.1.6-alpha.0', 'worker-thread', 'legacy'),
+                 ('0.1.6-alpha.1', 'ptc', 'legacy'),
+                 ('0.1.6-alpha.2', 'ptc', 'legacy'),
+                 ('0.1.7-alpha.0', 'ptc', 'legacy'),
+                 ('0.1.7-alpha.1', 'ptc', 'declarative'),
+                 ('0.1.7', 'ptc', 'declarative')]
+        for version, workflow, mode in cases:
+            with self.subTest(version=version):
+                result = self.invoke(version)
+                self.assertEqual(result['mode'], mode)
+                self.assertIn(f"name: '@deepseek-ai/dsh-workflow-{workflow}'",
+                              (self.preset / 'agent.cordis.yml').read_text(encoding='utf-8'))
+        result = self.invoke('0.1.5-rc.2')
+        self.assertEqual(result['mode'], 'legacy')
+        self.assertNotIn(BEGIN, self.patch.read_text(encoding='utf-8'))
+
+    def test_existing_patch_shapes_are_preserved_and_idempotent(self):
+        cases = ['', '[]\n', '[# empty comment\n]\n',
+                 '[{id: unrelated}]\n', '[{id: unrelated}, # trailing comment\n]\n',
+                 '# retained\n- id: unrelated\n  disabled: !!js process.platform === \'win32\'\n',
+                 '\ufeff# retained\r\n[{id: unrelated, disabled: !!js "process.platform === \'win32\'"}]\r\n',
+                 '---\n- id: unrelated\n...\n']
+        for original in cases:
+            with self.subTest(patch=original):
+                self.patch.write_bytes(original.encode('utf-8'))
+                expected = yaml.load(original, Loader=CordisLoader) or []
+                self.assertTrue(self.invoke()['patchChanged'])
+                first = self.patch.read_bytes()
+                self.assertEqual(self.parsed()[:-1], expected)
+                if '!!js' in original:
+                    self.assertIn(b'!!js', first)
+                if '\r\n' in original:
+                    self.assertIn(b'# retained\r\n', first)
+                self.assertFalse(self.invoke()['patchChanged'])
+                self.assertEqual(self.patch.read_bytes(), first)
+                self.invoke('0.1.5-rc.2')
+                self.assertEqual(self.parsed() or [], expected)
+                self.assertNotIn(BEGIN, self.patch.read_text(encoding='utf-8'))
+
+    def test_staging_keeps_active_patch_and_embeds_live_plugin_definitions(self):
+        original = b'# user patch\n[]\n'
+        self.patch.write_bytes(original)
+        output = self.home / 'staged.patch.yml'
+        result = self.invoke(extra=['--patch-output', str(output)])
+        self.assertEqual(result['patchPath'], str(output))
+        self.assertEqual(self.patch.read_bytes(), original)
+        registration = self.parsed(output)[-1]['insert'][0]
+        self.assertEqual(registration['name'], PLUGIN)
+        self.assertEqual(registration['config']['id'], 'learning')
+        plugins = registration['config']['plugins']
+        self.assertEqual(plugins[0]['name'], '@deepseek-ai/dsh-persona')
+        self.assertNotIn('cordis:include', [row['name'] for row in plugins])
+        bash = next(row for row in plugins if row['id'] == 'tool-bash')
+        self.assertEqual(bash['disabled'], {'__jsExpr': "process.platform === 'win32'"})
+        delegation = next(row for row in plugins if row['id'] == 'delegation')
+        self.assertTrue(any(row['name'] == '@deepseek-ai/dsh-workflow-ptc'
+                            for row in delegation['config']))
+
+    def test_manual_learning_declaration_is_overridden_without_duplicate(self):
+        original = (f'- insert:\n  - id: user-learning\n    name: "{PLUGIN}"\n'
+                    '    config: {id: learning, name: Custom, plugins: []}\n')
+        self.patch.write_text(original, encoding='utf-8')
+        self.invoke()
+        data = self.parsed()
+        self.assertEqual(data[0], yaml.safe_load(original)[0])
+        self.assertEqual(data[1]['id'], 'user-learning')
+        self.assertNotIn('insert', data[1])
+        self.assertNotIn('name', data[1])
+        self.assertFalse(self.invoke()['patchChanged'])
+        self.invoke('0.1.5-rc.2')
+        self.assertEqual(self.patch.read_text(encoding='utf-8'), original)
+
+    def test_invalid_or_conflicting_patches_fail_without_writes(self):
+        declaration = f'- name: "{PLUGIN}"\n  config: {{id: learning, plugins: []}}\n'
+        duplicate = declaration.replace('- name:', '- id: first\n  name:')
+        cases = ['{}\n', 'null\n', '[]\n---\n[]\n', BEGIN + '\n- id: incomplete\n',
+                 declaration, duplicate + duplicate.replace('first', 'second'),
+                 '- id: studymate-learning-preset\n  name: user-plugin\n']
+        for content in cases:
+            with self.subTest(patch=content):
+                self.patch.write_text(content, encoding='utf-8')
+                before = (self.preset / 'agent.cordis.yml').read_bytes()
+                self.invoke(success=False)
+                self.assertEqual(self.patch.read_text(encoding='utf-8'), content)
+                self.assertEqual((self.preset / 'agent.cordis.yml').read_bytes(), before)
+        self.patch.write_text('[]\n', encoding='utf-8')
+        (self.home / 'cordis.patch.yml').write_text(duplicate, encoding='utf-8')
+        self.assertIn('全局声明', self.invoke(success=False))
+        self.assertEqual(self.patch.read_text(encoding='utf-8'), '[]\n')
+
+    def test_profile_names_cannot_escape_or_target_reserved_locations(self):
+        for profile in ['../web', 'a/b', 'a\\b', '.', '..', '', 'node_modules', 'desktop']:
+            with self.subTest(profile=profile):
+                self.assertIn('--profile', self.invoke(extra=['--profile', profile], success=False))
+                self.assertFalse(self.patch.exists())
+        custom = 'study.local 中文'
+        self.invoke(extra=['--profile', custom])
+        self.assertTrue((self.home / 'profiles' / custom / 'cordis.patch.yml').exists())
+        self.assertFalse(self.patch.exists())
+
+    def test_source_install_without_dsh_retains_legacy_setup(self):
+        result = self.invoke(version=None, env={'PATH': str(self.home / 'no-programs')})
+        self.assertEqual(result['mode'], 'legacy')
+        self.assertFalse(result['patchChanged'])
+        self.assertFalse(self.patch.exists())
+
+
+if __name__ == '__main__':
+    unittest.main()

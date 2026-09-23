@@ -33,7 +33,8 @@ def check(label, ok, extra=''):
     failures += not ok
 
 
-def run(home, workspace=None, script=None, env_extra=None, cwd=None):
+def run(home, workspace=None, script=None, env_extra=None, cwd=None,
+        dsh_version='0.1.5-rc.2', profile=None):
     """在沙箱 HOME / USERPROFILE 里跑本平台安装器，返回 CompletedProcess。
 
     cwd 只在测「相对路径」那条时要给：install.sh 是按**进程当前目录**解析相对
@@ -41,13 +42,24 @@ def run(home, workspace=None, script=None, env_extra=None, cwd=None):
     把 relws/ 建到仓库根目录里——本测试曾经真的这么漏过。
     """
     env = dict(os.environ, HOME=home, USERPROFILE=home, DSH_HOME=os.path.join(home, '.dsh'))
+    # 只探测假命令，避免本机 DSH 版本或配置影响回归测试。
+    fake_bin = Path(home, 'bin')
+    fake_bin.mkdir(exist_ok=True)
+    fake_dsh = fake_bin / ('dsh.cmd' if os.name == 'nt' else 'dsh')
+    fake_dsh.write_text(
+        '@echo off\necho %STUDYMATE_TEST_DSH_VERSION%\n' if os.name == 'nt'
+        else '#!/bin/sh\nprintf "%s\\n" "$STUDYMATE_TEST_DSH_VERSION"\n', encoding='utf-8')
+    fake_dsh.chmod(0o755)
+    env['STUDYMATE_TEST_DSH_VERSION'] = dsh_version
+    env['PATH'] = os.pathsep.join((str(fake_bin), str(Path(sys.executable).parent), env['PATH']))
     env.pop('LEARN_WORKSPACE', None)
     if workspace:
         env['LEARN_WORKSPACE'] = workspace
     env.update(env_extra or {})
     command = ([shutil.which('pwsh') or 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File']
                if os.name == 'nt' else ['bash'])
-    return subprocess.run([*command, str(script or INSTALL)], env=env,
+    arguments = [('-Profile' if os.name == 'nt' else '--profile'), profile] if profile else []
+    return subprocess.run([*command, str(script or INSTALL), *arguments], env=env,
                           capture_output=True, text=True, encoding='utf-8', cwd=cwd)
 
 
@@ -180,6 +192,8 @@ def main():
     moved = os.path.join(tmp, "moved [repo] O'Brien #1")
     os.makedirs(moved)
     shutil.copy(INSTALL, moved)
+    os.makedirs(os.path.join(moved, 'scripts'))
+    shutil.copy(REPO / 'scripts' / 'install_preset.py', os.path.join(moved, 'scripts'))
     shutil.copytree(REPO / 'preset', os.path.join(moved, 'preset'))
     shutil.copytree(REPO / '.dsh' / 'skills', os.path.join(moved, '.dsh', 'skills'))
     proc = run(home, script=os.path.join(moved, INSTALL.name))
@@ -211,6 +225,47 @@ def main():
     proc = run(home, script=os.path.join(broken, INSTALL.name))
     check('缺 .dsh/skills 时报错退出', proc.returncode != 0 and 'skills' in proc.stderr,
           f'exit={proc.returncode} stderr={proc.stderr.strip()[:120]}')
+
+    # ⑦ 工作流插件改名早于声明式预设，分别验证两个版本边界。
+    check('旧 DSH 保留 worker-thread 插件',
+          'workflow-worker-thread' in preset_tool_rows(home))
+    proc = run(home, dsh_version='0.1.6-alpha.1')
+    patch = Path(home, '.dsh', 'profiles', 'web', 'cordis.patch.yml')
+    check('DSH 0.1.6 使用 ptc，但仍沿用目录扫描',
+          proc.returncode == 0 and 'workflow-ptc' in preset_tool_rows(home)
+          and not patch.exists(), proc.stderr)
+    patch.parent.mkdir(parents=True, exist_ok=True)
+    patch.write_text('# 原有配置\n[]\n', encoding='utf-8')
+    proc = run(home, dsh_version='0.1.7-alpha.1')
+    registered = patch.read_text(encoding='utf-8')
+    check('DSH 0.1.7 注册学习模式并保留原配置注释',
+          proc.returncode == 0 and '@deepseek-ai/dsh-agent-preset' in registered
+          and '# 原有配置' in registered and 'workflow-ptc' in preset_tool_rows(home), proc.stderr)
+    proc = run(home, dsh_version='0.1.7-alpha.1')
+    check('声明式预设重复安装不产生重复声明',
+          proc.returncode == 0 and patch.read_text(encoding='utf-8') == registered, proc.stderr)
+    proc = run(home, dsh_version='0.1.7-alpha.1', profile='headless')
+    check('可指定 headless profile，web 配置不变',
+          proc.returncode == 0 and Path(home, '.dsh', 'profiles', 'headless', 'cordis.patch.yml').exists()
+          and patch.read_text(encoding='utf-8') == registered, proc.stderr)
+
+    preset_path = Path(home, '.dsh', '.agent-presets', 'learning', 'agent.cordis.yml')
+    original_preset = preset_path.read_bytes()
+    config_path = Path(home, '.dsh', 'studymate-config.yaml')
+    original_config = config_path.read_bytes()
+    patch.write_text('invalid: [\n', encoding='utf-8')
+    proc = run(home, dsh_version='0.1.7-alpha.1', workspace=os.path.join(tmp, 'should-not-create'))
+    check('profile YAML 错误时原预设和工作区配置保持不变',
+          proc.returncode != 0 and preset_path.read_bytes() == original_preset
+          and config_path.read_bytes() == original_config
+          and patch.read_text(encoding='utf-8') == 'invalid: [\n', proc.stderr)
+    check('安装失败后清理临时目录', not list(Path(home, '.dsh').glob('.studymate-install-*')))
+    patch.write_text(registered, encoding='utf-8')
+    proc = run(home)
+    check('降级 DSH 时移除管理的声明并还原旧工作流',
+          proc.returncode == 0 and '@deepseek-ai/dsh-agent-preset' not in patch.read_text(encoding='utf-8')
+          and '# 原有配置' in patch.read_text(encoding='utf-8')
+          and 'workflow-worker-thread' in preset_tool_rows(home), proc.stderr)
 
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)
