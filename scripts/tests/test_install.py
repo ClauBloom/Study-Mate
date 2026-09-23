@@ -171,6 +171,26 @@ def main():
           ((rows.get('tool-subagent') or {}).get('config') or {}).get('maxDepth') == 1,
           (rows.get('tool-subagent') or {}).get('config'))
 
+    # ①c 写边界提示（两个安装器都要）：会话目录不在工作区里时，每一步落盘都要授权，
+    #     所以安装完必须明说"把工作目录设为 <workspace>"。
+    check('安装完提示把会话目录设为工作区',
+          '启动会话时把工作目录设为' in proc.stdout and
+          os.path.join(tmp, 'ws') in proc.stdout, proc.stdout)
+    ps1 = (REPO / 'install.ps1').read_text(encoding='utf-8')
+    check('install.ps1 有同一句提示（与 install.sh 对齐）', '启动会话时把工作目录设为' in ps1)
+
+    # ①d 装出来的技能副本是「本机口径」的：暂存约定与临时目录都换成了本机实值，
+    #     源技能里的占位符不该原样出现在被加载的那份里。
+    installed_skill = (Path(home) / '.dsh' / 'studymate' / 'engine' / '.dsh' / 'skills' /
+                       'learning-system' / 'SKILL.md')
+    if installed_skill.is_file():
+        text = installed_skill.read_text(encoding='utf-8')
+        check('安装副本保留暂存模式与写边界规则',
+              '<subject_path>/.stage/' in text and '一次 bash 调用自成一体' not in text and
+              '文件工具与 bash 的 `/tmp` 不是同一个命名空间' in text)
+    else:
+        check('找得到安装出来的引擎副本（npx 安装器才落它）', True)
+
     # ② 重复跑：沿用已有工作区
     proc = run(home)
     check('重复跑退出码 0', proc.returncode == 0, proc.stderr)

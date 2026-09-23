@@ -5,10 +5,10 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 # 档案维护规范
 
-学习状态由你（主教练）亲自读写，不派角色。路径都以 `LEARN_WORKSPACE`（开场从 `~/.dsh/studymate-config.yaml` 读到）为前缀：
+学习状态由你（主教练）亲自读写，不派角色。路径都以**工作区根 `<WS>`** 为前缀——开场就定它，**默认先写暂存工作区**（不探测、不直接写 `LEARN_WORKSPACE`）：`<WS>` = `<SESSION_DIR>/.studymate-stage/<slug>`；唯一例外是会话目录本身就是 `LEARN_WORKSPACE`（那就直接用，没有搬运）。口径见 `learning-system` 开场第 0.5 步。下面所有路径里的 `<WS>` 都指这一个值：
 
 ```
-<LEARN_WORKSPACE>/
+<WS>/
 ├── index.html                   # 根主页（生成产物）
 └── .learning/
     ├── MEMORY.md                # 跨科目共享记忆
@@ -19,6 +19,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
         ├── index.html            # 科目主页（生成产物）
         ├── lessons/ reference/ assets/    # 课件三件（见下）、速查页、科目组件
         ├── lab/                  # 角色落 deliver/、你 cp 搬入：实操 + solutions/ + README.md；概念课没有
+        ├── .stage/               # 角色产出的暂存区（角色写、你 cp 搬入后删；不留到交付）
         ├── assessments/          # 评估记录（你撰写）
         ├── learning-records/     # 学习记录
         └── sessions/YYYY-MM-DD.md
@@ -72,7 +73,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 ## 主页刷新
 
-主页是生成产物（模板在 `<root>/templates/`）：**刷新 = 跑 `python3 <root>/scripts/gen_home.py`**（一次刷新根主页与所有科目主页），覆盖旧文件、不改数据文件。非零退出看 stderr——断链或某个科目数据读不出来，修完重跑。时机：新建科目后、节点状态变化后、材料新增后、会话结束前。
+主页是生成产物（模板在 `<root>/templates/`）：**刷新 = 跑 `python3 -B <root>/scripts/gen_home.py <WS>`**（一次刷新根主页与所有科目主页；`<WS>` 按开场定的工作区根传，暂存模式传临时工作区），覆盖旧文件、不改数据文件。非零退出看 stderr——断链或某个科目数据读不出来，修完重跑。时机：新建科目后、节点状态变化后、材料新增后、会话结束前。
 
 ## 读写规则（硬约束）
 
@@ -80,12 +81,14 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 2. 写后校验：`curriculum.yaml`、`progress.yaml`、`subject.yaml`、评估记录 frontmatter 分别对照 `<root>/schemas/*.json`；会话摘要对照 `session-summary.schema.json`
 3. **写入类型化的状态**：结构化事实进 YAML，偏好与观察进 `MEMORY.md`
 4. **会话摘要**（会话结束时）：按 session-summary schema 生成，存 `subjects/<slug>/sessions/<YYYY-MM-DD>.md`（同日多段追加）；**YAML frontmatter 承载 schema 字段**（日期加引号），正文写本次要点；同时在对话里给一条 `memory_updates` 建议，学生确认后写进 `MEMORY.md`
+   - **落点也写进摘要正文**：这次收尾搬到哪（"已搬到 `<目标>`"）——下次开场连同 `<SESSION_DIR>/.studymate-stage/prefs.md` 的 `default_delivery` 一起恢复默认落点
 5. **恢复视图**（开场自读）：`MEMORY.md` 相关分节 + 当前节点 + 前置节点摘要 + 最近 5 条 misconceptions + 最近 3 条学习记录 + 最近 3 条评估记录 + 实验课节点进度与 `project.current`。只读需要的部分（offset/limit/grep），不把长文件整份读进来
 6. **进度只认 `progress.yaml`**：`curriculum.yaml` 的每个节点也带 `status`/`mastery`（schema 要求），那是**建课时的初始快照**，建课后不再回头维护；运行期的状态只写 `progress.yaml`、也只读它——里面**只记有变化的节点**，没写的按大纲里的初始值算（`gen_home.py` 就是这么合并的）。两份文件都改是漂移的源头
+7. **暂存模式（默认走法；`<WS>` = `<SESSION_DIR>/.studymate-stage/<slug>`）的额外规则**：它是**临时工作区**（配置里的 `LEARN_WORKSPACE` 没变，别去改它）。① 跨工具接力只在 `<WS>` 之下成立——**别拿 `/tmp` 当中转**：bash 的 `/tmp` 每条命令新建、文件工具的 `/tmp` bash 又看不见；② 角色产出走 `<subject_path>/.stage/`，你 `cp` 搬入的同一条命令里 `rm -rf` 掉它，**交付前 `.stage/` 必须为空**；③ 结束前按 `learning-system` 的「暂存模式的收尾」问一次落点（学习工作区／桌面／文档／家目录／留下），`cp -a` 过去再 `rm -rf` 掉暂存目录，并在会话摘要里写明"这次建在会话目录下的临时工作区、已搬到 `<目标>`"；④ 搬走后不再当工作区用，下次会话重新建；⑤ **落点偏好要持久化**：`<SESSION_DIR>/.studymate-stage/prefs.md` 里的 `default_delivery`（会话侧、零提权、不随搬运消失）是下次开场恢复默认落点的唯一依据；改全局定位（`~/.dsh/studymate-config.yaml` 的 `workspace`）**必须先问学生**，他同意才动那一个键
 
 ## 边界
 
 - 课程内容归 `curriculum-designer`，课件/题库/lab/页面的归属见上表与上面的目录树（题目、lab 与实验说明页由 `practice-evaluator` 落 `deliver/`、你 `cp` 搬入）。你只读写状态与元数据，发现不一致以文件为准并修正记录
 - 档案存结构化摘要，聊天的原始过程留在会话里
 - 科目之间隔离：只读当前科目，唯一的跨科目来源是 `MEMORY.md`
-- 只在 `<LEARN_WORKSPACE>/` 下写学习文件，绝不写会话目录
+- 只在 `<WS>/` 下写学习文件，绝不写会话目录（会话目录是别人的代码仓）。`<WS>` 不可写时按开场第 0.5 步走暂存工作区，**不把学习数据写进会话目录、也不写进别的科目**

@@ -63,9 +63,12 @@ dsh web
 ① 预设 → /home/you/.dsh/.agent-presets/learning（skill 目录：/path/to/StudyMate/.dsh/skills）
 ② 学习工作区 → /path/to/StudyMate/workspace（配置在 /home/you/.dsh/studymate-config.yaml）
 完成（StudyMate v0.1）。现在可在任意目录开会话，选'学习模式'预设开始学习。
+启动会话时把工作目录设为 /path/to/StudyMate/workspace，并把会话权限选成 workspace-write 或 danger-full-access：
+学习数据会写在当前目录，每次落盘都会要求你授权。当会话权限是 workspace-write 时，会在课程生成完毕后请求落盘位置。
 ```
 
-- **第一次学习**：新建会话时选「学习模式」，说一句「我想学 [某个科目]」。
+- **第一次学习**：新建会话时选「学习模式」，说一句「我想学 [某个科目]」。会话开在**学习工作区目录**里（权限选 `workspace-write` 或 `danger-full-access`）最省事——课程就地建，零授权。
+- **会话开在别处也行**（比如某个代码仓）：课程先建在会话目录下的 `.studymate-stage/<slug>`（全程零授权），结束时总控问你一句放哪——**学习工作区**／桌面／文档文件夹／用户根目录／先留着——然后一次 `cp -a` 搬过去。
 - **还没想好学什么**：在学习对话里说「我不知道学什么，帮我选方向」，可选探索后再决定是否开课；已有明确科目或恢复学习直接走原流程。
 - **试用方向探索开发版**：按 [学习方向探索使用指南](docs/learning-discovery-guide.md) 加载当前源码，查看完整对话示例与跳过方式。
 - **学习工作区默认在 StudyMate/workspace，所有课件与记忆均存放在工作区**

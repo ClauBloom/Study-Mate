@@ -104,3 +104,5 @@ else
 fi
 
 echo "完成（StudyMate v0.1）。现在可在任意目录开会话，选'学习模式'预设开始学习。"
+echo "启动会话时把工作目录设为 ${WORKSPACE}，并把会话权限选成 workspace-write 或 danger-full-access："
+echo "学习数据都写在那个目录里，会话目录不在它里面时，每次落盘都会要求你授权。"
