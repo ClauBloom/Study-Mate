@@ -14,9 +14,12 @@
   · 上/下节课指针 → 跳过（落空是设计内的，检查项 8 只提示）
   · `?查询串` 与 `#片段` 先剥掉再解析；`%xx` 先解码
 
-另外两条钉的是**条件引用**（检查项 11）：页面里有 `.math-inline` / `.math-block` 时，壳里必须有
-离线 KaTeX 三件（`katex/katex.min.css`、`katex/katex.min.js`、`lesson-math.js`）；没有数学式的
-页面不要求它们（老课件与非数学课零迁移）。
+另外三条钉的是**另外两类**：
+  · 条件引用（检查项 11）：页面里有 `.math-inline` / `.math-block` 时，壳里必须有离线 KaTeX 三件
+    （`katex/katex.min.css`、`katex/katex.min.js`、`lesson-math.js`）；没有数学式的页面不要求它们。
+  · 生成产物（检查项 10 的例外）：壳里那条「返回课程」回链指向 `index.html`，它是 `gen_home.py`
+    的产物——还没生成时只提示，**不阻断**（作者产不出这个文件；否则每门新科目在跑生成器之前
+    都过不了检查）。
 
 用法：python3 scripts/tests/test_lesson_links.py
 """
@@ -115,7 +118,17 @@ def main():
     failures += not ok2
     fixtures.check('有公式但引用被删（拦下，指到缺哪一件）', ok2, out_math2)
 
-    total = len(CASES) + 3
+    # 科目主页（gen_home 的产物）还没生成：只提示，不阻断
+    subject3 = fixtures.write_subject(tmp)
+    fixtures.clear_lessons(subject3)
+    os.remove(os.path.join(subject3, 'index.html'))
+    path3 = fixtures.write_lesson(subject3, 1, 'overview-map')
+    code_index, out_index = fixtures.run_gate(path3, subject3, 'overview-map')
+    ok3 = code_index == 0 and '科目主页还没生成' in out_index
+    failures += not ok3
+    fixtures.check('科目主页还没生成（放行，只有提示）', ok3, out_index)
+
+    total = len(CASES) + 4
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)
     return 1 if failures else 0

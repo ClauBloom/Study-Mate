@@ -56,6 +56,8 @@
        lab 链接指错了文件名，检查照样全绿而学生点开是白板 / 404。
        跳过三类：外链与锚点（http(s)、协议相对 //、mailto:、data:、`#…`）；HTML 注释里的
        示例路径；上/下节课指针（落空是设计内的，第 8 项只提示）。
+       另有一条**生成产物**：指向 `index.html`（壳里那条「返回课程」回链，目标是 gen_home.py
+       的产物）而它还没生成时只提示——作者产不出这个文件，缺了是流水线顺序问题，不是课件缺陷。
    11 数学式：页面里有 `.math-inline` / `.math-block` 时，壳里必须引用离线 KaTeX 三件
        （katex/katex.min.css、katex/katex.min.js、lesson-math.js）。**条件判定**：没有数学式的
        页面不要求它们——老课件与非数学课因此零改动。少了引用公式就只显示 TeX 原文，等于没排版。
@@ -897,16 +899,20 @@ def check_images(text, path):
 
 
 def check_local_refs(text, path):
-    """检查项 10：页面里所有本地 href/src 都要能落到真实文件。
+    """检查项 10：页面里所有本地 href/src 都要能落到真实文件；返回 (problems, notes)。
 
     gen_home 的断链自检只管它自己写出的主页，课件页不在它的范围内——没有这道，页面缺组件、
     正文里的 lab 链接指错文件，检查全绿而学生点开是白板或 404。
 
     跳过：外链与锚点（任何 scheme: 或协议相对 //、`#…`）；上/下节课指针（落空是设计内的，
     检查项 8 单独提示）。注释里的路径不会走到这里——`check_file` 传进来的已经是剥过注释的文本。
+
+    **生成产物单算**：`index.html`（壳里那条「返回课程」回链的目标）由 gen_home.py 产出，
+    作者产不出来——还没生成时只提示，不阻断（否则每门新科目在跑生成器之前都过不了检查）。
     """
     allowed = {value for value in nav_links(text).values() if value}
     problems = []
+    notes = []
     seen = set()
     for value in ref_values(text):
         raw = html.unescape(value).strip()
@@ -916,9 +922,13 @@ def check_local_refs(text, path):
         if target is None:
             continue
         seen.add(raw)
-        if not os.path.exists(target):
+        if os.path.exists(target):
+            continue
+        if os.path.basename(target) == 'index.html':
+            notes.append(f'科目主页还没生成（{raw} → {target}）：跑一次 gen_home.py 就有了')
+        else:
             problems.append(f'引用了不存在的本地文件：{raw}（解析到 {target}）')
-    return problems
+    return problems, notes
 
 
 def check_math_refs(text):
@@ -977,7 +987,9 @@ def check_file(path, subject=None, node=None):
     problems += nav_problems
     img_problems, img_notes = check_images(text, path)
     problems += img_problems
-    problems += check_local_refs(text, path)
+    ref_problems, ref_notes = check_local_refs(text, path)
+    problems += ref_problems
+    notes += ref_notes
     problems += check_math_refs(text)
     problems += check_theme_toggle(text)
     problems += check_placeholder(raw, path)
