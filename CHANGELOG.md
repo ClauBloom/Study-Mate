@@ -1,5 +1,20 @@
 # 更新日志
 
+<!-- studymate-release:v0.1.3 -->
+## [0.1.3](https://github.com/Miaotofu01/Study-Mate/releases/tag/v0.1.3) - 2026-09-23
+
+### 所有提交
+
+- ci: 等待 npm 完成异步包处理再核验发布 ([0862d57](https://github.com/Miaotofu01/Study-Mate/commit/0862d57178b312026dea69af8146c5923e61b758))
+- feat: 支持 DSH 原生插件安装与更新 ([476f566](https://github.com/Miaotofu01/Study-Mate/commit/476f566df5f140c124991edb818aae68d5217535))
+- Update README with upgrade instructions and version info ([cf1e2dd](https://github.com/Miaotofu01/Study-Mate/commit/cf1e2ddc7a975d9d87e21ac069bb423f3fad65d3))
+
+  > Added upgrade instructions and updated version information.
+
+
+[完整比较](https://github.com/Miaotofu01/Study-Mate/compare/v0.1.2...v0.1.3)
+<!-- /studymate-release:v0.1.3 -->
+
 <!-- studymate-release:v0.1.2 -->
 ## [0.1.2](https://github.com/Miaotofu01/Study-Mate/releases/tag/v0.1.2) - 2026-09-23
 
