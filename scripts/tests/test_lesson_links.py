@@ -22,6 +22,8 @@
     都过不了检查）。
   · 题库里的公式（检查项 11）：题目正文由 quiz.js 运行时插入，静态看不到 `.math-inline`，
     所以 `data-quiz` 属性里出现 `$…$` 也算「页面有数学式」。
+  · 方程组的大括号（质量线，只提示）：`aligned` 里 ≥2 行等式却没被 `\left\{ … \right.` 包住
+    ——KaTeX 不会自己加，少了读者会把一列等式当成几个独立结论。
 
 用法：python3 scripts/tests/test_lesson_links.py
 """
@@ -141,7 +143,33 @@ def main():
     failures += not ok4
     fixtures.check('公式只在题库里也算数学式（漏引用就拦）', ok4, out_quiz)
 
-    total = len(CASES) + 5
+    # 方程组少了 \left\{ … \right.：只提示、不阻断（质量线，规格见课件内容格式第 3 节）
+    subject5 = fixtures.write_subject(tmp)
+    fixtures.write_content(subject5, 1, 'overview-map', body='## 试\n\n$$\n\\begin{aligned}\n'
+                                                     'x + y &= 1 \\\\\n'  'x - y &= 0\n\\end{aligned}\n$$\n'
+                                                     '\n::: quiz 理解 锚点：本节校验\n:::\n')
+    fixtures.write_quiz(subject5, 1, 'overview-map',
+                        {'本节校验': [{'q': '题干', 'opts': ['A', 'B'], 'ans': 0, 'why': '解释'}]})
+    fixtures.run_render(subject5, 'overview-map')
+    page5 = fixtures.lesson_html(subject5, 1, 'overview-map')
+    code_brace, out_brace = fixtures.run_gate(page5, subject5, 'overview-map')
+    ok5 = code_brace == 0 and '大括号' in out_brace
+    failures += not ok5
+    fixtures.check('方程组缺大括号（提示，不阻断）', ok5, out_brace)
+
+    subject6 = fixtures.write_subject(tmp)
+    fixtures.write_content(subject6, 1, 'overview-map', body='## 试\n\n$$\n\\left\\{\\begin{aligned}\n'
+                                                     'x + y &= 1 \\\\\n'  'x - y &= 0\n\\end{aligned}\\right.\n$$\n'
+                                                     '\n::: quiz 理解 锚点：本节校验\n:::\n')
+    fixtures.write_quiz(subject6, 1, 'overview-map',
+                        {'本节校验': [{'q': '题干', 'opts': ['A', 'B'], 'ans': 0, 'why': '解释'}]})
+    fixtures.run_render(subject6, 'overview-map')
+    code_ok, out_ok = fixtures.run_gate(fixtures.lesson_html(subject6, 1, 'overview-map'), subject6, 'overview-map')
+    ok6 = code_ok == 0 and '大括号' not in out_ok
+    failures += not ok6
+    fixtures.check('方程组带了大括号（不再提示）', ok6, out_ok)
+
+    total = len(CASES) + 7
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)
     return 1 if failures else 0

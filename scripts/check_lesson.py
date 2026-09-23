@@ -72,6 +72,8 @@
     · 图片用了外链（http/https 或其他 scheme）：离线打开会裂；建议从科目图片库
       `assets/img/pool/` 挑一张本地文件引用。
     · 图片缺 alt：裂图时学生只看到空白，读屏软件也读不出。
+    · 方程组少了 `\left\{ … \right.` 大括号（aligned 里 ≥2 行等式却没被包住）：
+      KaTeX 不会自己加，少了读者会当成几个独立结论。
 
 本检查**不判内容风格**：真实场景、术语来历、怎么分节与标题怎么写，都是 lesson-design 的
 着眼点与倾向，由讲解角色按内容与学生偏好现场定；检查不用关键词词表去替它做判断——那种代理会把
@@ -948,6 +950,27 @@ def page_has_math(text):
                for match in QUIZ_ATTR_RE.finditer(text))
 
 
+def check_math_style(text):
+    r"""质量线（只提示）：`aligned` 里有两行以上等式，却没被 `\left\{ … \right.` 包住。
+
+    这是方程组最容易被漏掉的一处：KaTeX 不会自己加括号，少了大括号读者会把一列等式当成几个
+    独立结论（规格见 docs/课件内容格式.md 第 3 节的「方程组要带大括号」）。判据保守——
+    只在「同一段 aligned 里 ≥2 行带 `&=`」且紧邻上文没有 `\left\{` 时提示，推导链
+    （`\xrightarrow`）与单条恒等式都不会命中。**只提示，不阻断**：它拦不了交付，只提醒补一下。
+    """
+    notes = []
+    for match in re.finditer(r'\\begin\{aligned\}(.*?)\\end\{aligned\}', text, re.S):
+        body = html.unescape(match.group(1))
+        if body.count('&=') < 2:
+            continue
+        if '\\left\\{' in text[max(0, match.start() - 12):match.start()]:
+            continue
+        notes.append('这段 aligned 有两行以上等式、却没有大括号——方程组要写成 '
+                     '`$$\left\{\begin{aligned} … \end{aligned}\right.$$`'
+                     '（KaTeX 不会自己加，见 docs/课件内容格式.md 第 3 节）')
+    return notes
+
+
 def check_math_refs(text):
     """检查项 11：有数学式的页面必须引用离线 KaTeX（三件）。
 
@@ -1007,6 +1030,7 @@ def check_file(path, subject=None, node=None):
     ref_problems, ref_notes = check_local_refs(text, path)
     problems += ref_problems
     notes += ref_notes
+    notes += check_math_style(text)
     problems += check_math_refs(text)
     problems += check_theme_toggle(text)
     problems += check_placeholder(raw, path)

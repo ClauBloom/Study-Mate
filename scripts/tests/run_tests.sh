@@ -26,7 +26,7 @@ step '安装脚本（沙箱 HOME，39 项）'        python3 scripts/tests/test_
 step '题目属性转义（检查，9 例）'          python3 scripts/tests/test_quiz_attr.py
 step '题目里的代码围栏（检查，12 例）'     python3 scripts/tests/test_quiz_code.py
 step '课件配图（检查，5 例）'              python3 scripts/tests/test_lesson_figure.py
-step '本地引用可达（检查，14 例）'         python3 scripts/tests/test_lesson_links.py
+step '本地引用可达（检查，16 例）'         python3 scripts/tests/test_lesson_links.py
 step '模板与规格一致（8 项）'              python3 scripts/tests/test_templates.py
 step '命名与上下节课指针（检查，9 例）'    python3 scripts/tests/test_naming_nav.py
 step '图片库索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
