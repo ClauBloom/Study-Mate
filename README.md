@@ -185,6 +185,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 
 ## 贡献 / License
 
+- **项目交流群**(QQ)：161914370
 - **变更日志**：[CHANGELOG.md](CHANGELOG.md)
 - **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、检查与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位置的语法）· [设计方案](docs/设计方案.md)（产品视角）· [工程约束](docs/工程约束.md)（目录约定、占位符契约、技术选型）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
 
