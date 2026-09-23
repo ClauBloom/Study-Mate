@@ -46,7 +46,7 @@
 
   <p>假设你在做电影推荐。每部电影有两个可量的属性：动作场面占比、情感戏占比，于是每部电影就是两个数组成的一对。用户看过的几部电影，能不能拼出一部他大概会喜欢的新片？</p>
 
-  <p>「拼」的意思是：把看过的电影各自乘上一个权重再相加。如果前两部是 (0.8, 0.2) 与 (0.2, 0.8)，各自乘 0.5 再相加，就得到 (0.5, 0.5)。这就叫<b>线性组合</b>：把若干向量各自乘一个数再相加。</p>
+  <p>「拼」的意思是：把看过的电影各自乘上一个权重再相加。如果前两部是 <span class="math-inline">(0.8, 0.2)</span> 与 <span class="math-inline">(0.2, 0.8)</span>，各自乘 0.5 再相加，就得到 <span class="math-inline">(0.5, 0.5)</span>。这就叫<b>线性组合</b>：把若干向量各自乘一个数再相加。</p>
 
   <p>「线性」来自拉丁文 <em>linearis</em>，本意是「属于线的」——17 世纪笛卡尔用它指两个量成比例。后来这个词被借去描述这类只有「数与和」的运算；「组合」是中文的意译，说的是把几样东西拼起来。整门线性代数只有两个基本动作：向量相加、向量乘一个数，后面的张成、矩阵、秩、特征值都是它们的推论。</p>
 
@@ -94,12 +94,11 @@
 
   <h2>把方程组读成列向量</h2>
 
-  <p>看这个方程组，先用中学的办法解一遍：<code>2x + y = 4</code>、<code>x - y = -1</code>。两式相加得 <code>3x = 3</code>，所以 <code>x = 1</code>；代回去得 <code>y = 2</code>。答案没错，但这个做法没有告诉你方程组长什么样。换一种读法：把每个未知量的系数收成一列，第一个未知量的系数是 <code>(2, 1)</code>，第二个是 <code>(1, -1)</code>，等号右边的常数是 <code>(4, -1)</code>。于是方程组等价于一个向量等式：</p>
+  <p>看这个方程组，先用中学的办法解一遍：<span class="math-inline">2x + y = 4</span>、<span class="math-inline">x - y = -1</span>。两式相加得 <span class="math-inline">3x = 3</span>，所以 <span class="math-inline">x = 1</span>；代回去得 <span class="math-inline">y = 2</span>。答案没错，但这个做法没有告诉你方程组长什么样。换一种读法：把每个未知量的系数收成一列，第一个未知量的系数是 <span class="math-inline">(2, 1)</span>，第二个是 <span class="math-inline">(1, -1)</span>，等号右边的常数是 <span class="math-inline">(4, -1)</span>。于是方程组等价于一个向量等式：</p>
 
-  <pre data-lang="text"><code>2x + y = 4            x · (2, 1) + y · (1, -1) = (4, -1)
-x - y = -1</code></pre>
+  <div class="math-block">\begin{aligned} 2x + y &amp;= 4 &amp; x \cdot (2, 1) + y \cdot (1, -1) &amp;= (4, -1) \\ x - y &amp;= -1 \end{aligned}</div>
 
-  <p>解方程组，就是<b>找一组系数，让列向量的线性组合等于右端向量</b>。代入验证： <code>1 · (2, 1) + 2 · (1, -1) = (2 + 2, 1 - 2) = (4, -1)</code>，正好是右端项。</p>
+  <p>解方程组，就是<b>找一组系数，让列向量的线性组合等于右端向量</b>。代入验证： <span class="math-inline">1 \cdot (2, 1) + 2 \cdot (1, -1) = (2 + 2, 1 - 2) = (4, -1)</span>，正好是右端项。</p>
 
   <figure class="lesson-figure">
     <img src="../assets/img/pool/线性代数-向量-列向量拼出右端向量-本机-01.png" alt="两个列向量首尾相接，落点是右端向量">
@@ -128,10 +127,9 @@ x - y = -1</code></pre>
 
   <p>把上面两个列向量并排写成一个数表，就得到<b>矩阵</b>（matrix，拉丁文原意是「母体」，19 世纪西尔维斯特借它表示「数的出生地」）：</p>
 
-  <pre data-lang="text"><code>A = [ 2   1 ]
-    [ 1  -1 ]</code></pre>
+  <div class="math-block">A = \begin{bmatrix} 2 &amp; 1 \\ 1 &amp; -1 \end{bmatrix}</div>
 
-  <p>未知量写成向量 <code>x = (x, y)</code>，右端项写成 <code>b = (4, -1)</code>，方程组就浓缩成一行 <code>Ax = b</code>。矩阵乘法的定义是：<b><code>Ax</code> 是 A 的各列按 x 的分量加权拼出来的线性组合</b>。按行读也能算——结果的第一行是「A 的第一行与 x 逐项相乘再相加」，也就是 <code>2x + y</code>；两种读法算出同一个数，但只有列读法能解释「为什么解方程组等于拼向量」。</p>
+  <p>未知量写成向量 <span class="math-inline">x = (x, y)</span>，右端项写成 <span class="math-inline">b = (4, -1)</span>，方程组就浓缩成一行 <span class="math-inline">Ax = b</span>。矩阵乘法的定义是：<b><span class="math-inline">Ax</span> 是 A 的各列按 x 的分量加权拼出来的线性组合</b>。按行读也能算——结果的第一行是「A 的第一行与 x 逐项相乘再相加」，也就是 <span class="math-inline">2x + y</span>；两种读法算出同一个数，但只有列读法能解释「为什么解方程组等于拼向量」。</p>
 
   <div class="lesson-warn">
     <b>矩阵乘向量与逐元素相乘是两回事</b>
@@ -170,7 +168,7 @@ x = [1, 1]
 print([sum(c * k for c, k in zip(col, x)) for col in zip(*A)])
 "</code></pre>
 
-      <p>第 2 步的输出是 <code>(4, 2)</code>，它一定是 <code>(2, 1)</code> 的倍数：共线的两个列向量只能张成一条直线。</p>
+      <p>第 2 步的输出是 <span class="math-inline">(4, 2)</span>，它一定是 <span class="math-inline">(2, 1)</span> 的倍数：共线的两个列向量只能张成一条直线。</p>
   </div>
 
   <div class="lesson-practice">
@@ -181,9 +179,7 @@ print([sum(c * k for c, k in zip(col, x)) for col in zip(*A)])
 
       <p>拿一个 3 元方程组，先判断它的列向量是否线性相关，猜它有几个解，再动手验证：</p>
 
-      <pre data-lang="text"><code>x + 2y + 3z = 6
-2x + 4y + 6z = 12
-x + y + z = 3</code></pre>
+      <div class="math-block">\begin{aligned} x + 2y + 3z &amp;= 6 \\ 2x + 4y + 6z &amp;= 12 \\ x + y + z &amp;= 3 \end{aligned}</div>
 
       <p>第二行是第一行的两倍：它提供的信息与前两列的组合重复。先自己算出结论，下一课用消元验证。</p>
   </div>

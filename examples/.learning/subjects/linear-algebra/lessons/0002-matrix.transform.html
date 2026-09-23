@@ -44,7 +44,7 @@
 
   <h2>一张照片被拉斜了</h2>
 
-  <p>图像编辑器里的「斜切」动作，改的是每个像素点的位置：横坐标按 <code>x + 0.5y</code> 重算，纵坐标原样不动。写成一行就是 <code>(x, y) → (x + 0.5y, y)</code>。这不是给某个点做特例处理——所有点都按同一条规则移动，原来的正方形网格会被拉成平行四边形，直线仍然变直线，原点原地不动。</p>
+  <p>图像编辑器里的「斜切」动作，改的是每个像素点的位置：横坐标按 <span class="math-inline">x + 0.5y</span> 重算，纵坐标原样不动。写成一行就是 <span class="math-inline">(x, y) \to (x + 0.5y, y)</span>。这不是给某个点做特例处理——所有点都按同一条规则移动，原来的正方形网格会被拉成平行四边形，直线仍然变直线，原点原地不动。</p>
 
   <p>这类「整块空间一起动、并且保持直线与原点」的动作，就是这一课要讲的<b>线性变换</b>。它由一张数表决定，那张数表叫<b>矩阵</b>。学会把矩阵读成动作，你就能回答：这个动作把哪些方向压扁了、哪些方向留了下来。</p>
 
@@ -54,10 +54,9 @@
 
   <p>到了 20 世纪，观点翻转了。人们发现真正的主角是<b>变换</b>这件事本身，矩阵只是它在某一组基下的记录方式。于是「线性变换」有了定义：一个映射 T 若满足</p>
 
-  <pre data-lang="text"><code>T(u + v) = T(u) + T(v)        先加再变换 = 先变换再加
-T(c·u)   = c·T(u)             先伸缩再变换 = 先变换再伸缩</code></pre>
+  <div class="math-block">\begin{aligned} T(u + v) &amp;= T(u) + T(v) &amp;&amp; \text{先加再变换 = 先变换再加} \\ T(c \cdot u) &amp;= c \cdot T(u) &amp;&amp; \text{先伸缩再变换 = 先变换再伸缩} \end{aligned}</div>
 
-  <p>就称为线性的。两条一起说，就是「保持线性组合」：<code>T(c·u + d·v) = c·T(u) + d·T(v)</code>。注意这两条也顺手保证了原点不动——取 <code>c = 0</code> 就能看出 <code>T(0) = 0</code>。</p>
+  <p>就称为线性的。两条一起说，就是「保持线性组合」：<span class="math-inline">T(c \cdot u + d \cdot v) = c \cdot T(u) + d \cdot T(v)</span>。注意这两条也顺手保证了原点不动——取 <span class="math-inline">c = 0</span> 就能看出 <span class="math-inline">T(0) = 0</span>。</p>
 
   <div class="lesson-note">
     <b>这两条限制了什么</b>
@@ -66,21 +65,19 @@ T(c·u)   = c·T(u)             先伸缩再变换 = 先变换再伸缩</code></
 
   <h2>矩阵的列就是基向量的落点</h2>
 
-  <p>定义里有个关键推论。平面上任意向量都能写成基向量的线性组合，<code>(x, y) = x·(1, 0) + y·(0, 1)</code>，于是</p>
+  <p>定义里有个关键推论。平面上任意向量都能写成基向量的线性组合，<span class="math-inline">(x, y) = x \cdot (1, 0) + y \cdot (0, 1)</span>，于是</p>
 
-  <pre data-lang="text"><code>T(x, y) = x · T(1, 0) + y · T(0, 1)</code></pre>
+  <div class="math-block">T(x, y) = x \cdot T(1, 0) + y \cdot T(0, 1)</div>
 
-  <p>右边只有两项含未知：<code>T(1, 0)</code> 与 <code>T(0, 1)</code>。<b>只要知道两个基向量各自被送到哪里，整个空间里所有点的落点都定了。</b> 把这两个落点竖着并排写成数表，就是矩阵：</p>
+  <p>右边只有两项含未知：<span class="math-inline">T(1, 0)</span> 与 <span class="math-inline">T(0, 1)</span>。<b>只要知道两个基向量各自被送到哪里，整个空间里所有点的落点都定了。</b> 把这两个落点竖着并排写成数表，就是矩阵：</p>
 
-  <pre data-lang="text"><code>A = [ ↑      ↑   ]
-    [ T(1,0) T(0,1) ]</code></pre>
+  <div class="math-block">A = \begin{bmatrix} \uparrow &amp; \uparrow \\ T(1, 0) &amp; T(0, 1) \end{bmatrix}</div>
 
-  <p>具体的写法是把落点写成列。以斜切 <code>T(x, y) = (x + 0.5y, y)</code> 为例：基向量 <code>(1, 0)</code> 落在 <code>(1, 0)</code>，基向量 <code>(0, 1)</code> 落在 <code>(0.5, 1)</code>，所以矩阵的两列分别是 <code>(1, 0)</code> 与 <code>(0.5, 1)</code>。</p>
+  <p>具体的写法是把落点写成列。以斜切 <span class="math-inline">T(x, y) = (x + 0.5y, y)</span> 为例：基向量 <span class="math-inline">(1, 0)</span> 落在 <span class="math-inline">(1, 0)</span>，基向量 <span class="math-inline">(0, 1)</span> 落在 <span class="math-inline">(0.5, 1)</span>，所以矩阵的两列分别是 <span class="math-inline">(1, 0)</span> 与 <span class="math-inline">(0.5, 1)</span>。</p>
 
-  <pre data-lang="text"><code>A = [ 1   0.5 ]
-    [ 0    1  ]</code></pre>
+  <div class="math-block">A = \begin{bmatrix} 1 &amp; 0.5 \\ 0 &amp; 1 \end{bmatrix}</div>
 
-  <p>验证几个点：<code>A·(1, 0) = (1, 0)</code>；<code>A·(0, 1) = (0.5, 1)</code>；<code>A·(2, 1) = 2·(1, 0) + 1·(0.5, 1) = (2.5, 1)</code>。第 1 课的列视角在这里接上了：<b>矩阵乘向量仍是用列去拼，只是现在每一列有了身份—— 它是某个基向量的落点。</b></p>
+  <p>验证几个点：<span class="math-inline">A \cdot (1, 0) = (1, 0)</span>；<span class="math-inline">A \cdot (0, 1) = (0.5, 1)</span>； <span class="math-inline">A \cdot (2, 1) = 2 \cdot (1, 0) + 1 \cdot (0.5, 1) = (2.5, 1)</span>。第 1 课的列视角在这里接上了：<b>矩阵乘向量仍是用列去拼，只是现在每一列有了身份—— 它是某个基向量的落点。</b></p>
 
   <figure class="lesson-figure">
     <img src="../assets/img/pool/线性代数-矩阵-斜切变换前后网格对比-本机-02.png" alt="单位网格被斜切成平行四边形网格">
@@ -124,33 +121,33 @@ T(c·u)   = c·T(u)             先伸缩再变换 = 先变换再伸缩</code></
 
   <p>术语的来历也在方程上：19 世纪的数学家数「独立的方程有几个」，发现这个数目决定了方程组的解有多大余地，于是把它叫 rank。放到矩阵上，它就是线性无关的列的<b>最多个数</b>，算法上等于行阶梯形里主元的个数——数一数互相独立的方向还剩几个，比数非零行的形式更本质。</p>
 
-  <p>拿斜切矩阵举例，它化成阶梯形就是自身，两个主元，秩为 2：平面没被压扁，只是被拉斜了。再看不那么幸运的矩阵 <code>B = [1 2; 2 4]</code>——第二列是第一列的 2 倍，两列线性相关。消元时 <code>第二行 − 2×第一行</code> 得到一整行零，只剩一个主元，秩为 1：这个变换把整个平面压到了 <code>(1, 2)</code> 那条直线上。</p>
+  <p>拿斜切矩阵举例，它化成阶梯形就是自身，两个主元，秩为 2：平面没被压扁，只是被拉斜了。再看不那么幸运的矩阵 <span class="math-inline">B = \begin{bmatrix} 1 &amp; 2 \\ 2 &amp; 4 \end{bmatrix}</span>——第二列是第一列的 2 倍，两列线性相关。消元时 <span class="math-inline">\text{第二行} - 2 \times \text{第一行}</span> 得到一整行零，只剩一个主元，秩为 1：这个变换把整个平面压到了 <span class="math-inline">(1, 2)</span> 那条直线上。</p>
 
   <table>
     <thead>
       <tr><th>矩阵</th><th>消元后的主元数</th><th>秩</th><th>变换的几何效果</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>[1 0; 0 1]</code></td><td>2</td><td>2</td><td>什么都不动，平面还是平面</td></tr>
-      <tr><td><code>[2 1; 1 2]</code></td><td>2</td><td>2</td><td>拉伸加旋转，平面还是平面</td></tr>
-      <tr><td><code>[1 2; 2 4]</code></td><td>1</td><td>1</td><td>平面压成一条过原点的直线</td></tr>
-      <tr><td><code>[0 0; 0 0]</code></td><td>0</td><td>0</td><td>全部点落到原点</td></tr>
+      <tr><td><span class="math-inline">\begin{bmatrix} 1 &amp; 0 \\ 0 &amp; 1 \end{bmatrix}</span></td><td>2</td><td>2</td><td>什么都不动，平面还是平面</td></tr>
+      <tr><td><span class="math-inline">\begin{bmatrix} 2 &amp; 1 \\ 1 &amp; 2 \end{bmatrix}</span></td><td>2</td><td>2</td><td>拉伸加旋转，平面还是平面</td></tr>
+      <tr><td><span class="math-inline">\begin{bmatrix} 1 &amp; 2 \\ 2 &amp; 4 \end{bmatrix}</span></td><td>1</td><td>1</td><td>平面压成一条过原点的直线</td></tr>
+      <tr><td><span class="math-inline">\begin{bmatrix} 0 &amp; 0 \\ 0 &amp; 0 \end{bmatrix}</span></td><td>0</td><td>0</td><td>全部点落到原点</td></tr>
     </tbody>
   </table>
 
   <h2>零空间：被压掉的方向</h2>
 
-  <p>秩告诉我们剩下几维，还有一个问题没答：<b>被压掉的是哪些方向？</b> 定义零空间（null space）为所有满足 <code>A·v = 0</code> 的向量 v 构成的集合——被这个变换送到原点的输入向量。它是输入空间里的一个集合，衡量这个变换「丢掉了多少信息」。</p>
+  <p>秩告诉我们剩下几维，还有一个问题没答：<b>被压掉的是哪些方向？</b> 定义零空间（null space）为所有满足 <span class="math-inline">A \cdot v = 0</span> 的向量 v 构成的集合——被这个变换送到原点的输入向量。它是输入空间里的一个集合，衡量这个变换「丢掉了多少信息」。</p>
 
-  <p><code>B = [1 2; 2 4]</code> 的零空间是方程 <code>x + 2y = 0</code> 的全部解，也就是 <code>(x, y) = t·(-2, 1)</code> 这条过原点的直线：一维。而斜切矩阵的零空间只有零向量一个元素，维数为 0：它一点信息都没丢（这个动作可以撤销，把每点向左拉回 0.5y 就行）。两者合起来有个漂亮的等式，叫<b>秩-零化度定理</b>：</p>
+  <p><span class="math-inline">B = \begin{bmatrix} 1 &amp; 2 \\ 2 &amp; 4 \end{bmatrix}</span> 的零空间是方程 <span class="math-inline">x + 2y = 0</span> 的全部解，也就是 <span class="math-inline">(x, y) = t \cdot (-2, 1)</span> 这条过原点的直线：一维。而斜切矩阵的零空间只有零向量一个元素，维数为 0：它一点信息都没丢（这个动作可以撤销，把每点向左拉回 0.5y 就行）。两者合起来有个漂亮的等式，叫<b>秩-零化度定理</b>：</p>
 
-  <pre data-lang="text"><code>秩 + 零空间的维数 = 列数        2 = 1 + 1    （B 的情形）</code></pre>
+  <div class="math-block">\text{秩} + \text{零空间的维数} = \text{列数} \qquad 2 = 1 + 1 \quad (B \text{ 的情形})</div>
 
   <p>直观解释：输入空间的每一维，要么活下来成为输出空间的一维（计入秩），要么落在零空间里（被压掉），没有第三种去向。<b>矩阵的列数就是输入空间的维数</b>，所以两边必然相等。</p>
 
   <div class="lesson-warn">
     <b>零空间不是「无解时的那个空间」</b>
-    <p>零空间是矩阵自身的性质，跟右端项 b 无关，它由齐次方程 <code>Av = 0</code> 定义。方程 <code>Ax = b</code> 无解说的是 b 不在列的张成里，那是输出空间的事。把两者混起来，就会出现「无解所以零空间非空」这种错误推理。</p>
+    <p>零空间是矩阵自身的性质，跟右端项 b 无关，它由齐次方程 <span class="math-inline">Av = 0</span> 定义。方程 <span class="math-inline">Ax = b</span> 无解说的是 b 不在列的张成里，那是输出空间的事。把两者混起来，就会出现「无解所以零空间非空」这种错误推理。</p>
   </div>
 
   <h2>用 Python 算一遍</h2>
@@ -170,7 +167,7 @@ def rank2(M):
 
 print(rank2(A), rank2([[1, 2], [2, 4]]))   # 2 1</code></pre>
 
-  <p>第一段验证了 <code>[2 1; 1 2]</code> 把 <code>(1, -1)</code> 送到 <code>(1, -1)</code>：这个方向只被拉长，方向没变。这种「方向不变、只被伸缩」的方向，就是第 5 课要讲的特征向量。</p>
+  <p>第一段验证了 <span class="math-inline">\begin{bmatrix} 2 &amp; 1 \\ 1 &amp; 2 \end{bmatrix}</span> 把 <span class="math-inline">(1, -1)</span> 送到 <span class="math-inline">(1, -1)</span>：这个方向只被拉长，方向没变。这种「方向不变、只被伸缩」的方向，就是第 5 课要讲的特征向量。</p>
 
   <div class="lesson-practice">
     <div class="lesson-practice__head">
@@ -181,9 +178,9 @@ print(rank2(A), rank2([[1, 2], [2, 4]]))   # 2 1</code></pre>
       <p>把上面那段存成 <code>transform.py</code>，依次替换 <code>A</code> 的值跑一次，每次先猜结果再看输出：</p>
 
       <ol>
-        <li><code>[[2, 1], [1, 2]]</code> 作用在 <code>(1, 1)</code> 上（猜一猜这个方向变不变）；</li>
-        <li><code>[[0, -1], [1, 0]]</code> 作用在 <code>(1, 0)</code> 上（这是一个旋转，看看它转了多少度）；</li>
-        <li><code>[[1, 2], [2, 4]]</code> 作用在 <code>(2, -1)</code> 上（输出应该是零向量）。</li>
+        <li><code>[[2, 1], [1, 2]]</code> 作用在 <span class="math-inline">(1, 1)</span> 上（猜一猜这个方向变不变）；</li>
+        <li><code>[[0, -1], [1, 0]]</code> 作用在 <span class="math-inline">(1, 0)</span> 上（这是一个旋转，看看它转了多少度）；</li>
+        <li><code>[[1, 2], [2, 4]]</code> 作用在 <span class="math-inline">(2, -1)</span> 上（输出应该是零向量）。</li>
       </ol>
 
       <pre data-lang="text"><code>第 1 组：答案 (3, 3)
@@ -201,15 +198,14 @@ print(rank2(A), rank2([[1, 2], [2, 4]]))   # 2 1</code></pre>
 
       <p>不看上面的表，对下面两个矩阵各说一遍「秩是几、零空间维数是几、平面被压成了什么」：</p>
 
-      <pre data-lang="text"><code>C = [ 1   3 ]        D = [ 2   -1 ]
-    [ 2   6 ]            [ -4   2 ]</code></pre>
+      <div class="math-block">C = \begin{bmatrix} 1 &amp; 3 \\ 2 &amp; 6 \end{bmatrix} \qquad D = \begin{bmatrix} 2 &amp; -1 \\ -4 &amp; 2 \end{bmatrix}</div>
 
       <p>数完再用第 1 课的办法验证：找两个被送到同一个点的输入向量（它们的差就在零空间里）。</p>
   </div>
 
   <h2>这一课留下的问题</h2>
 
-  <p>矩阵是动作、列是基向量的落点、秩是剩下几维、零空间是被压掉的方向——四个说法是同一个东西的四个侧面。下一个问题是实用的：给定 <code>Ax = b</code>，怎么<b>算</b>出 x，怎么在动手之前就知道它有没有解？第 3 课把这三课的工具合成一台机器，并用一个 lab 让你亲手把它写出来。</p>
+  <p>矩阵是动作、列是基向量的落点、秩是剩下几维、零空间是被压掉的方向——四个说法是同一个东西的四个侧面。下一个问题是实用的：给定 <span class="math-inline">Ax = b</span>，怎么<b>算</b>出 x，怎么在动手之前就知道它有没有解？第 3 课把这三课的工具合成一台机器，并用一个 lab 让你亲手把它写出来。</p>
 
   <div class="quiz" data-quiz='[
   {
@@ -280,6 +276,9 @@ print(rank2(A), rank2([[1, 2], [2, 4]]))   # 2 1</code></pre>
 </article>
 
 <script src="../../../assets/sayo/sayo.js"></script>
+<link rel="stylesheet" href="../../../assets/katex/katex.min.css">
+<script src="../../../assets/katex/katex.min.js" defer></script>
+<script src="../../../assets/lesson-math.js" defer></script>
 <script src="../assets/quiz.js" defer></script>
 <script src="../assets/lesson-toc.js" defer></script>
 <script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>

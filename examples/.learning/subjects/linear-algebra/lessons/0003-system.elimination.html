@@ -56,35 +56,23 @@
 
   <p>「消元」二字说的是动作：把未知量一个一个消掉，直到某一行只剩一个未知量。手的动作很简单—— <b>方程两边同乘一个非零数、两个方程相减、交换两个方程的位置</b>，这三件事都不会改变方程组的解集。把未知量的名字藏起来，只抄系数，就得到<b>增广矩阵</b>（augmented matrix）：系数与等号右边的常数并排写在同一个数表里，消元时两边一起变，不用每步重抄。</p>
 
-  <pre data-lang="text"><code>方程                          增广矩阵
-2x +  y +  z = 9              [ 2   1   1 | 9 ]
- x + 3y + 2z = 10             [ 1   3   2 | 10 ]
- x +  y -  z = 2              [ 1   1  -1 | 2 ]</code></pre>
+  <div class="math-block">\begin{array}{ccc} \text{方程} &amp; &amp; \text{增广矩阵} \\[4pt] \begin{aligned} 2x + y + z &amp;= 9 \\ x + 3y + 2z &amp;= 10 \\ x + y - z &amp;= 2 \end{aligned} &amp; \quad &amp; \left[\begin{array}{ccc|c} 2 &amp; 1 &amp; 1 &amp; 9 \\ 1 &amp; 3 &amp; 2 &amp; 10 \\ 1 &amp; 1 &amp; -1 &amp; 2 \end{array}\right] \end{array}</div>
 
   <h2>手写一遍消元</h2>
 
   <p>拿上面这个方程组走一遍，每一步只做一件事。先交换第 1、3 行，让首位变成 1，再把第一列消干净：</p>
 
-  <pre data-lang="text"><code>第 1、3 行交换        第 2 行 − 第 1 行       第 3 行 − 2×第 1 行
-[ 1  1 -1 | 2 ]     [ 1  1 -1 | 2 ]        [ 1  1 -1 | 2 ]
-[ 1  3  2 | 10 ] →  [ 0  2  3 | 8 ]     →  [ 0  2  3 | 8 ]
-[ 2  1  1 | 9 ]     [ 2  1  1 | 9 ]        [ 0 -1  3 | 5 ]</code></pre>
+  <div class="math-block">\begin{aligned} &amp; \xrightarrow{\ \text{第 1、3 行交换}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 1 &amp; 3 &amp; 2 &amp; 10 \\ 2 &amp; 1 &amp; 1 &amp; 9 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 2 行} - \text{第 1 行}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 2 &amp; 3 &amp; 8 \\ 2 &amp; 1 &amp; 1 &amp; 9 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 3 行} - 2 \times \text{第 1 行}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 2 &amp; 3 &amp; 8 \\ 0 &amp; -1 &amp; 3 &amp; 5 \end{array}\right] \end{aligned}</div>
 
   <p>接着处理第二列：把第 2 行化成 1，第 3 行除以 5，再用它们把这一列的 3、1.5 消掉，第三行就只剩一个未知量了。</p>
 
-  <pre data-lang="text"><code>第 2 行 ÷ 2           第 3 行 × 3           第 2 行 − 第 3 行      第 3 行 ÷ 3
-[ 1  1 -1 | 2 ]     [ 1  1 -1 | 2 ]      [ 1  1 -1 | 2 ]       [ 1  1 -1 | 2 ]
-[ 0  1 1.5| 4 ]  →  [ 0  1 1.5| 4 ]  →   [ 0  1  1 | 3 ]   →   [ 0  1  1 | 3 ]
-[ 0  0  1 | 2 ]     [ 0  0 1.5| 3 ]      [ 0  0 1.5| 3 ]       [ 0  0  1 | 2 ]</code></pre>
+  <div class="math-block">\begin{aligned} &amp; \xrightarrow{\ \text{第 2 行} \div 2\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 1 &amp; 1.5 &amp; 4 \\ 0 &amp; 0 &amp; 1 &amp; 2 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 3 行} \times 3\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 1 &amp; 1.5 &amp; 4 \\ 0 &amp; 0 &amp; 1.5 &amp; 3 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 2 行} - \text{第 3 行}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 1 &amp; 1 &amp; 3 \\ 0 &amp; 0 &amp; 1.5 &amp; 3 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 3 行} \div 3\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 1 &amp; 1 &amp; 3 \\ 0 &amp; 0 &amp; 1 &amp; 2 \end{array}\right] \end{aligned}</div>
 
   <p>最后把上面两行里的 z 也消掉，就得到<b>最简行阶梯形</b>（reduced row echelon form，缩写 rref）：</p>
 
-  <pre data-lang="text"><code>第 2 行 − 第 3 行      第 1 行 + 第 3 行      第 1 行 − 第 2 行
-[ 1  1 -1 | 2 ]      [ 1  1  0 | 4 ]       [ 1  0  0 | 3 ]
-[ 0  1  1 | 3 ]  →   [ 0  1  0 | 1 ]   →   [ 0  1  0 | 1 ]
-[ 0  0  1 | 2 ]      [ 0  0  1 | 2 ]       [ 0  0  1 | 2 ]</code></pre>
+  <div class="math-block">\begin{aligned} &amp; \xrightarrow{\ \text{第 2 行} - \text{第 3 行}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; -1 &amp; 2 \\ 0 &amp; 1 &amp; 1 &amp; 3 \\ 0 &amp; 0 &amp; 1 &amp; 2 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 1 行} + \text{第 3 行}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 1 &amp; 0 &amp; 4 \\ 0 &amp; 1 &amp; 0 &amp; 1 \\ 0 &amp; 0 &amp; 1 &amp; 2 \end{array}\right] \\[8pt] &amp; \xrightarrow{\ \text{第 1 行} - \text{第 2 行}\ } &amp; \left[\begin{array}{ccc|c} 1 &amp; 0 &amp; 0 &amp; 3 \\ 0 &amp; 1 &amp; 0 &amp; 1 \\ 0 &amp; 0 &amp; 1 &amp; 2 \end{array}\right] \end{aligned}</div>
 
-  <p>它有两个特征：每个主元都是 1，且主元所在列的其他位置全是 0。答案直接读出来，一行一个：<code>x = 3</code>， <code>y = 1</code>，<code>z = 2</code>。代回原来的方程组验证：<code>6 + 1 + 2 = 9</code>、<code>3 + 3 + 4 = 10</code>、<code>3 + 1 − 2 = 2</code>，与右端项一致。</p>
+  <p>它有两个特征：每个主元都是 1，且主元所在列的其他位置全是 0。答案直接读出来，一行一个：<span class="math-inline">x = 3</span>， <span class="math-inline">y = 1</span>，<span class="math-inline">z = 2</span>。代回原来的方程组验证：<span class="math-inline">6 + 1 + 2 = 9</span>、<span class="math-inline">3 + 3 + 4 = 10</span>、<span class="math-inline">3 + 1 - 2 = 2</span>，与右端项一致。</p>
 
   <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="行阶梯形的形状，主元下方全为零">
 <svg viewBox="0 0 300 130" role="img" aria-hidden="true" font-family="sans-serif" font-size="11">
@@ -114,7 +102,7 @@
     <figcaption>图 2 · 三种解的几何对照：交于一点（唯一解）、平行（无解）、同一条线（无穷多解）（来源：本机生成（脚本 assets/img/gen/linear-algebra-diagrams.py），许可：本项目自产）</figcaption>
   </figure>
 
-  <p>落到矩阵上，判据是这样两条：出现 <code>[0 0 … 0 | 非零]</code> 这样的行（也就是 <code>0 = 非零</code>）就是<b>无解</b>；没有矛盾行时，主元个数等于未知量个数就是<b>唯一解</b>，少于未知量个数就是<b>无穷多解</b>，差几个主元就有几个自由变量。</p>
+  <p>落到矩阵上，判据是这样两条：出现 <span class="math-inline">\left[\begin{array}{cccc|c} 0 &amp; 0 &amp; \dots &amp; 0 &amp; \text{非零} \end{array}\right]</span> 这样的行（也就是 <span class="math-inline">0 = \text{非零}</span>）就是<b>无解</b>；没有矛盾行时，主元个数等于未知量个数就是<b>唯一解</b>，少于未知量个数就是<b>无穷多解</b>，差几个主元就有几个自由变量。</p>
 
   <p>没有主元的那些未知量叫<b>自由变量</b>（free variable）：它可以任取一个值，其余未知量随之被定下来。自由变量的个数就是解集的维数——一个自由变量，解集是一条直线；两个自由变量，解集是一个平面。</p>
 
@@ -125,33 +113,32 @@
     <tbody>
       <tr><td>唯一解</td><td>没有矛盾行</td><td>等于未知量个数</td><td>0</td><td>一个点</td></tr>
       <tr><td>无穷多解</td><td>没有矛盾行</td><td>少于未知量个数</td><td>至少 1 个</td><td>直线、平面或更高维</td></tr>
-      <tr><td>无解</td><td>有 <code>[0 … 0 | 非零]</code> 行</td><td>与解无关</td><td>与解无关</td><td>空集</td></tr>
+      <tr><td>无解</td><td>有 <span class="math-inline">\left[\begin{array}{ccc|c} 0 &amp; \dots &amp; 0 &amp; \text{非零} \end{array}\right]</span> 行</td><td>与解无关</td><td>与解无关</td><td>空集</td></tr>
     </tbody>
   </table>
 
   <p>拿两个例子对照。无解的方程组：</p>
 
-  <pre data-lang="text"><code>x + 2y = 1
-2x + 4y = 3</code></pre>
+  <div class="math-block">\begin{aligned} x + 2y &amp;= 1 \\ 2x + 4y &amp;= 3 \end{aligned}</div>
 
-  <p>消元后第二行变成 <code>[0 0 | 1]</code>，即 <code>0 = 1</code>，无解。把右端项换成 <code>(1, 2)</code>，第二行变成全零，只剩一个主元而未知量有两个：<code>y</code> 是自由变量，解是 <code>(1 − 2t, t)</code>，一条直线上的无穷多个点。</p>
+  <p>消元后第二行变成 <span class="math-inline">\left[\begin{array}{cc|c} 0 &amp; 0 &amp; 1 \end{array}\right]</span>，即 <span class="math-inline">0 = 1</span>，无解。把右端项换成 <span class="math-inline">(1, 2)</span>，第二行变成全零，只剩一个主元而未知量有两个：<span class="math-inline">y</span> 是自由变量，解是 <span class="math-inline">(1 - 2t, t)</span>，一条直线上的无穷多个点。</p>
 
   <div class="lesson-warn">
     <b>一整行零不等于无解</b>
-    <p><code>[0 0 | 0]</code> 表示「这一行没提供新信息」，它在说这个方程是前几个方程的线性组合，解集一点没变。只有右边也非零时才矛盾。看到一整行零就写「无解」，是最常见的误判。</p>
+    <p><span class="math-inline">\left[\begin{array}{cc|c} 0 &amp; 0 &amp; 0 \end{array}\right]</span> 表示「这一行没提供新信息」，它在说这个方程是前几个方程的线性组合，解集一点没变。只有右边也非零时才矛盾。看到一整行零就写「无解」，是最常见的误判。</p>
   </div>
 
   <h2>解的结构：特解加零空间</h2>
 
-  <p>无穷多解的情形值得多看一步。<code>x + 2y = 1</code> 的解可以写成</p>
+  <p>无穷多解的情形值得多看一步。<span class="math-inline">x + 2y = 1</span> 的解可以写成</p>
 
-  <pre data-lang="text"><code>(x, y) = (1, 0) + t · (-2, 1)</code></pre>
+  <div class="math-block">(x, y) = (1, 0) + t \cdot (-2, 1)</div>
 
-  <p>右边第一项是取 <code>t = 0</code> 得到的一个<b>特解</b>；第二项是齐次方程 <code>x + 2y = 0</code> 的全部解，也就是第 2 课讲过的<b>零空间</b>。这不是巧合：若 <code>x<sub>p</sub></code> 是 <code>Ax = b</code> 的一个解，<code>v</code> 是 <code>Av = 0</code> 的任意解，那么 <code>A(x<sub>p</sub> + v) = Ax<sub>p</sub> + Av = b + 0 = b</code>，所以 <code>x<sub>p</sub> + v</code> 也是解；反过来两个解的差必然落在零空间里。</p>
+  <p>右边第一项是取 <span class="math-inline">t = 0</span> 得到的一个<b>特解</b>；第二项是齐次方程 <span class="math-inline">x + 2y = 0</span> 的全部解，也就是第 2 课讲过的<b>零空间</b>。这不是巧合：若 <span class="math-inline">x_p</span> 是 <span class="math-inline">Ax = b</span> 的一个解，<span class="math-inline">v</span> 是 <span class="math-inline">Av = 0</span> 的任意解，那么 <span class="math-inline">A(x_p + v) = Ax_p + Av = b + 0 = b</span>，所以 <span class="math-inline">x_p + v</span> 也是解；反过来两个解的差必然落在零空间里。</p>
 
   <p>于是解集永远长这个样子：</p>
 
-  <pre data-lang="text"><code>Ax = b 的全部解 = 一个特解 + 零空间的任意元素</code></pre>
+  <div class="math-block">Ax = b \ \text{的全部解} = \text{一个特解} + \text{零空间的任意元素}</div>
 
   <p>这也是「自由变量的个数 = 零空间维数」的来源：两者都是解集维数，只是一个从方程组看、一个从变换看。</p>
 
@@ -197,7 +184,7 @@ for row in rref(aug):
 ② 无解：     A = [[1, 2], [2, 4]]                        b = [1, 3]
 ③ 无穷多解： A = [[1, 2], [2, 4]]                        b = [1, 2]</code></pre>
 
-      <p>每个都先手写出「有没有矛盾行、主元几个、自由变量几个」，再用代码验证。第 ③ 个的最简行阶梯形第二行会变成 <code>[0, 0, 0]</code>，主元只剩一个——这就是自由变量 <code>y</code> 的来历。</p>
+      <p>每个都先手写出「有没有矛盾行、主元几个、自由变量几个」，再用代码验证。第 ③ 个的最简行阶梯形第二行会变成 <code>[0, 0, 0]</code>，主元只剩一个——这就是自由变量 <span class="math-inline">y</span> 的来历。</p>
   </div>
 
   <div class="lesson-practice">
@@ -224,7 +211,7 @@ python3 -m unittest -v      # 现在是红的：20 条报 NotImplementedError，
 
   <h2>这台机器与后面三课</h2>
 
-  <p>消元是本课程第一个成型的工具：它把「有没有解、有几个解」变成可以机械执行、也可以写成代码的判定过程。它的三个副产品后面还要用：主元位置决定哪些变量自由（第 4 课的基就是主元列给出的）；秩是主元的个数；零空间是所有 <code>Av = 0</code> 的解（第 5 课求特征向量时，解的就是 <code>(A − λI)v = 0</code> 这个齐次方程组）。</p>
+  <p>消元是本课程第一个成型的工具：它把「有没有解、有几个解」变成可以机械执行、也可以写成代码的判定过程。它的三个副产品后面还要用：主元位置决定哪些变量自由（第 4 课的基就是主元列给出的）；秩是主元的个数；零空间是所有 <span class="math-inline">Av = 0</span> 的解（第 5 课求特征向量时，解的就是 <span class="math-inline">(A - \lambda I)v = 0</span> 这个齐次方程组）。</p>
 
   <div class="quiz" data-quiz='[
   {
@@ -295,6 +282,9 @@ python3 -m unittest -v      # 现在是红的：20 条报 NotImplementedError，
 </article>
 
 <script src="../../../assets/sayo/sayo.js"></script>
+<link rel="stylesheet" href="../../../assets/katex/katex.min.css">
+<script src="../../../assets/katex/katex.min.js" defer></script>
+<script src="../../../assets/lesson-math.js" defer></script>
 <script src="../assets/quiz.js" defer></script>
 <script src="../assets/lesson-toc.js" defer></script>
 <script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
