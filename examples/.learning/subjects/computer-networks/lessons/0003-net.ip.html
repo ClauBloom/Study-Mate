@@ -96,7 +96,7 @@
   <p>拿 <code>192.168.1.70/26</code> 走一遍，步骤只有三步：</p>
 
   <ol>
-    <li>前缀 26 表示前 26 位是网络号，主机位剩 6 位，块大小 2^6 = 64</li>
+    <li>前缀 26 表示前 26 位是网络号，主机位剩 6 位，块大小 <span class="math-inline">2^6 = 64</span></li>
     <li>主机号所在的最后一段从 0 起按 64 分段：0 ~ 63、64 ~ 127、128 ~ 191、192 ~ 255；70 落在第二段</li>
     <li>于是网络地址是 192.168.1.64，广播地址是 192.168.1.127，可用范围 192.168.1.65 ~ 192.168.1.126，共 62 个</li>
   </ol>
@@ -269,6 +269,9 @@
 </article>
 
 <script src="../../../assets/sayo/sayo.js"></script>
+<link rel="stylesheet" href="../../../assets/katex/katex.min.css">
+<script src="../../../assets/katex/katex.min.js" defer></script>
+<script src="../../../assets/lesson-math.js" defer></script>
 <script src="../assets/quiz.js" defer></script>
 <script src="../assets/lesson-toc.js" defer></script>
 <script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>

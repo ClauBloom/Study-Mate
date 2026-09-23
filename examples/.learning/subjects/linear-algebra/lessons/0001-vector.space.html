@@ -52,7 +52,11 @@
 
   <h2>从加法到线性组合</h2>
 
-  <p>向量相加是逐分量相加：<code>(1, 2) + (3, -1) = (4, 1)</code>；向量乘一个数（叫<b>标量</b>）是逐分量乘： <code>2 · (1, 2) = (2, 4)</code>。两者合起来就是线性组合：给 n 个向量 <code>v<sub>1</sub>, …, v<sub>n</sub></code> 配上 n 个系数 <code>c<sub>1</sub>, …, c<sub>n</sub></code>，<code>c<sub>1</sub>v<sub>1</sub> + … + c<sub>n</sub>v<sub>n</sub></code> 就是它们的一个线性组合。</p>
+  <p>向量相加是逐分量相加：<span class="math-inline">(1, 2) + (3, -1) = (4, 1)</span>；向量乘一个数（叫<b>标量</b>）是逐分量乘： <span class="math-inline">2(1, 2) = (2, 4)</span>。两者合起来就是线性组合：给 <span class="math-inline">n</span> 个向量 <span class="math-inline">v_1, \dots, v_n</span> 配上 <span class="math-inline">n</span> 个系数 <span class="math-inline">c_1, \dots, c_n</span>，</p>
+
+  <div class="math-block">c_1 v_1 + c_2 v_2 + \dots + c_n v_n</div>
+
+  <p>就是它们的一个线性组合。</p>
 
   <p>系数可以取零、可以取负数，也可以取分数，这决定了组合能覆盖多大范围。所有可能的系数配出来的结果放在一起，构成这组向量的<b>张成</b>（span）。一个向量张成一条过原点的直线；两个不共线的向量张成整个平面；共线的两个向量张成的还是那条直线。</p>
 
@@ -62,7 +66,7 @@
 
   <p>一组向量称为<b>线性无关</b>，如果它们的线性组合只有在系数全为零时才等于零向量：</p>
 
-  <pre data-lang="text"><code>c₁v₁ + c₂v₂ + … + cₙvₙ = 0   当且仅当   c₁ = c₂ = … = cₙ = 0</code></pre>
+  <div class="math-block">c_1 v_1 + c_2 v_2 + \dots + c_n v_n = 0 \quad\Longleftrightarrow\quad c_1 = c_2 = \dots = c_n = 0</div>
 
   <p>只要存在一组不全为零的系数能让组合等于零向量，这组向量就叫<b>线性相关</b>。几何上，线性无关意味着每个向量都提供了别处拿不到的新方向：平面里两个不共线的向量线性无关，三个向量必然相关；三维空间里，三个不共面的向量才线性无关。</p>
 
@@ -275,6 +279,9 @@ x + y + z = 3</code></pre>
 </article>
 
 <script src="../../../assets/sayo/sayo.js"></script>
+<link rel="stylesheet" href="../../../assets/katex/katex.min.css">
+<script src="../../../assets/katex/katex.min.js" defer></script>
+<script src="../../../assets/lesson-math.js" defer></script>
 <script src="../assets/quiz.js" defer></script>
 <script src="../assets/lesson-toc.js" defer></script>
 <script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
