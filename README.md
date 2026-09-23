@@ -63,9 +63,14 @@ dsh web
 ① 预设 → /home/you/.dsh/.agent-presets/learning（skill 目录：/path/to/StudyMate/.dsh/skills）
 ② 学习工作区 → /path/to/StudyMate/workspace（配置在 /home/you/.dsh/studymate-config.yaml）
 完成（StudyMate v0.1）。现在可在任意目录开会话，选'学习模式'预设开始学习。
+启动会话时把工作目录设为 /path/to/StudyMate/workspace，并把会话权限选成 workspace-write 或 danger-full-access：
+学习数据会写在当前目录，每次落盘都会要求你授权。当会话权限是 workspace-write 时，会在课程生成完毕后请求落盘位置。
 ```
 
-- **第一次学习**：新建会话时选「学习模式」，说一句「我想学 [某个科目]」。
+- **第一次学习**：新建会话时选「学习模式」，说一句「我想学 [某个科目]」。会话开在**学习工作区目录**里（权限选 `workspace-write` 或 `danger-full-access`）最省事——课程就地建，零授权。
+- **会话开在别处也行**（比如某个代码仓）：课程先建在会话目录下的 `.studymate-stage/<slug>`（全程零授权），结束时总控问你一句放哪——**学习工作区**／桌面／文档文件夹／用户根目录／先留着——然后一次 `cp -a` 搬过去。
+- **还没想好学什么**：在学习对话里说「我不知道学什么，帮我选方向」，可选探索后再决定是否开课；已有明确科目或恢复学习直接走原流程。
+- **试用方向探索开发版**：按 [学习方向探索使用指南](docs/learning-discovery-guide.md) 加载当前源码，查看完整对话示例与跳过方式。
 - **学习工作区默认在 StudyMate/workspace，所有课件与记忆均存放在工作区**
 - 第一次生成课程后，课程主页在工作区目录 `<workspace>/index.html`，是未来所有课件的入口
 
@@ -106,6 +111,7 @@ StudyMate 是 DSH（DeepSeek Harness）的 **「学习模式」预设 + 一套 S
 
 ## 用法示例
 
+- **「我不知道学什么，帮我选方向」** → 一次聊一个问题，可跳过或先看建议；选定方向后补齐开课信息，确认后接回建课与首课流程（见 [可选方向探索](docs/使用说明.md#可选先探索学习方向)）。
 - **「我想学 C++ 打竞赛」** → 先盘问目的/程度/项目/实验方式，再产出大纲路线图与科目主页，开第一课。
 - **贴一段看不懂的课文 + 「这里没懂」** → 主教练当场答一小段，记一条档案，送你回原位接着读。
 - **「考考我」** → 现场出题 + 按可运行证据核验，给一份评估记录并更新进度。
@@ -142,13 +148,14 @@ bash scripts/tests/run_tests.sh                # 回归测试：检查/题目属
 ```text
 StudyMate/                     ← 本仓库：系统源码（引擎），学习时只读
 ├── install.sh / install.ps1   # 装预设 + 建学习工作区，幂等（macOS/Linux 与 Windows 各一份）
-├── .dsh/skills/               # 11 个技能：总控 learning-system + 5 个角色 + 5 个规范
+├── .dsh/skills/               # 12 个技能：总控 learning-system + 5 个角色 + 6 个协议
 │   ├── learning-system/       #   总控（主教练）：开场、盘问、调度、档案
 │   ├── resource-scout/        #   角色：收集资料（权威教材与官方文档 → 资源清单）
 │   ├── image-scout/           #   角色：采图（抓网页现成的图 → 科目图片库与索引）
 │   ├── curriculum-designer/   #   角色：课程设计（大纲 / 实验课节点）
 │   ├── learning-coach/        #   角色：讲解（写课件内容）
 │   ├── practice-evaluator/    #   角色：出题与评估（题目唯一 owner）
+│   ├── learning-discovery/    #   协议：可选方向探索，由总控按需加载
 │   ├── lesson-design/         #   规范：课件唯一约束来源
 │   ├── layered-practice/      #   规范：四层练习与题型
 │   ├── evidence-check/        #   规范：完成证据核验

@@ -36,7 +36,7 @@ npm run test:dsh-cli
 | `test_pool.py` | 图片库校验器 `check_pool.py`：表头七列齐全（分隔行跳过）、每行的图真在 `assets/img/pool/` 下、文件名合规（字符集 + ≤60 字符）、`来源 URL`/`许可`/`抓取日期` 非空、单张 ≤500 KB（按文件字节，不读 `尺寸` 列）（6 例） |
 | `test_lesson_scripts.py` | 总控的两件机械活做成脚本后的回归：`renumber_lessons.py`（大纲插/删节点后按 `nodes:` 顺序重排 `lessons/` 的文件名序号，三件保持一致、冲突即拒、`--dry-run` 不写盘、`--render` 调渲染器重算指针、认不出的名字不动）与 `apply_empty_reasons.py`（把出题人的 `empty_reason` 按 TSV 打进对应 `::: quiz` 块；锚点找不到／同锚点两块／块里已有理由／TSV 重复或空值一律先校验后写、出错一个文件都不动）（21 例） |
 | `test_render_lesson.py` | 课件渲染器 `render_lesson.py`：壳与接线齐全、正文与代码块的 `&<>` 转义且代码原文逐字、表格/列表/围栏/行内标记、题目按锚点合入且 `data-quiz` 单引号包裹与实体正确、锚点无题必须 `empty_reason`（且**只准**出现在 `::: quiz`：写进 `::: practice`／`::: tip` 会被当段落印成 `<p>empty_reason: …</p>`，按错拦下）、锚点**双向**对账（题库里多出来的孤儿键、同一个锚点被两个题目位置引用，都带行号报错）、用法错误退 2 与坏题库三种形态（非 JSON／非对象／值是空数组）、配图存在性与题注来源、导航序号按大纲算、未知指令与手写 HTML（块首与段落中间、HTML 注释、front matter 的 title、`alt:` 与 `caption:`、`script`/`style`/`link`/`meta` 与 `iframe`/`video`/`form`/`main`/`button`/`canvas` 及 11 个 SVG 名）带行号报错、一级标题与行首 `#include` 不许静默消失、运算符/泛型/落单反引号不误伤、真标签名单是完整 HTML 元素表 + SVG 名且与格式文档和测试里的字面集合逐字一致、名单里每个名字都必须被形状正则捕获（连字符名 `<syo-editor>` 捕不到，只能做成 `:::` 指令）、`::: svg` 的收尾按保留换行的文本判（拆成两行不算闭合）、模板占位符报错指向真实行号、`--check` 不写盘、渲染产物过检查（含 `kind: 实验` 的无题库说明页）且不带模板说明注释（26 例） |
-| `test_skill_rules.py` | 提示词回归：`.dsh/skills/*/SKILL.md` 里 417 条可执行规则逐条在位（压缩/改写时不许丢规则；`evidence-check` 的「原字段名 `evidence`」那条随提示词精简一并移除，映射仍留在 `docs/使用说明.md`） |
+| `test_skill_rules.py` | 提示词静态回归：保留原有规则片段，新增可选方向探索的触发、问数、三种跳过／退出、会话状态、候选证据与建课交接边界；检查七入口参考文件及原盘问七步／`frontier 空`。输出实际规则数，静态通过不代表模型稳定遵守对话行为 |
 | `quiz_dom_test.js` | `templates/assets/quiz.js`：选择题判分、开放题展开/收起、坏数据兜底、计分，以及围栏 → `<pre><code>` 的渲染与 `textContent` 语义、异常数据隔离和开头围栏（33 项） |
 | `toc_dom_test.js` | `templates/assets/lesson-toc.js`：侧栏目录、折叠、移动端抽屉、上/下节课指针搬进侧栏、平板默认折叠与展开状态（33 项） |
 
@@ -58,6 +58,10 @@ npm run test:dsh-cli
 `node scripts/tests/browser/shot.mjs <file-url> <out-prefix> <css-selector>`），`palette.py` 吃主色出配色表。
 
 ## 写新测试
+
+方向探索的验收场景与待验证项见 [学习方向探索验收](../../docs/learning-discovery-validation.md)。这里的规则断言与人工走读均不能代替实际模型对话验证；尤其八问上限、退出后停问、确认前无写入，需要在学习模式中观察对话与工具调用。技能调用面另用 `python scripts/check_skill.py .dsh/skills/learning-discovery --expect-model-invocable` 校验。
+
+[learning_discovery_cases.json](fixtures/learning_discovery_cases.json) 提供 12 个合成多轮场景、按问题披露的用户回答与独立评审判据。它是可重复使用的测试数据，**不是通过记录或自动评分器**。真实模型验证按每场景 3 次执行；使用隔离学习目录，保存对话、工具调用和文件变化。不要把 `checks`／`review_only` 作为用户输入发给被测模型，也不要将这些联网、消耗模型额度的运行加入默认快测或发布检查。目标 DSH 版本不同可用界面逐轮执行，无须依赖其内部 API。
 
 `fixtures.py` 负责造一份**能过检查**的最小科目（`curriculum.yaml` + 课件 + 正确的上下节课指针），
 测试只往里注入自己那一处偏差，断言就不会被无关的 FAIL 污染：

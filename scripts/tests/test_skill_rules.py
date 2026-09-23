@@ -4,7 +4,9 @@
 每条 = (技能, 说明, 必须出现的片段)。片段取自旧版原文里**承载规则**的词
 （阈值、字段名、文件名、命令、时机、禁止项），不是文风词。
 """
+import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -20,7 +22,7 @@ RULES = {
  ('新科目落地顺序：科目文件夹', 'assessments/'),
  ('MISSION 两节来自盘问第一问', 'Success looks like'),
  ('新科目先派 resource-scout 收集资料', '`resource-scout` 收集资料'),
- ('新科目资源清单：角色落 deliver/、总控 cp 落位', '它把清单草稿落到 `/tmp/resource-scout-<slug>/deliver/RESOURCES.md`'),
+ ('新科目资源清单：角色落 deliver/、总控 cp 落位', '它把清单草稿落到 `<subject_path>/.stage/resource-scout-<slug>/deliver/RESOURCES.md`'),
  ('prompt 只写三样（规格是权威、只给值）', '**prompt 只写三样**（**规格是权威，你只给值**）'),
  ('prompt 不写：要加载的协议／交付格式／落盘口径／做法判据', '**不写进 prompt**（角色规格里都有）：要它加载哪些协议'),
  ('progress 初始值', 'misconceptions: []'),
@@ -70,7 +72,7 @@ RULES = {
  ('会话结束写摘要', 'session-summary'),
  ('角色规格设了 disable-model-invocation，按绝对路径交给它 read', 'disable-model-invocation'),
  ('角色不写 root', '角色不写 `<root>`'),
- ('派发说清临时产物写 /tmp', '/tmp'),
+ ('派发说清临时产物写科目的 .stage/', '临时脚本与中间产物写 `<subject_path>/.stage/`'),
  ('验收不过退回原 agent', 'send_message'),
  ('只派五类活（收集资料 + 采图 + 大纲/课件/出题）', '只派五类活'),
  ('派工必带三条边界一句', '3. **三条边界**一句：不派子 agent／不用 `ask_user_question`／不建环境（定义见下条）'),
@@ -87,7 +89,29 @@ RULES = {
  ('上游产出给路径，不转述', '**上游产出给路径，不转述**'),
  ('角色规格按路径交，read 读得到', '明说"先读它、照它执行"'),
  ('别把产物读进上下文再写出来', '**别读进上下文再写出来**'),
- ('草稿路径模板带 slug 变体', '`/tmp/<角色>-<节点id或slug>/`'),
+ ('等子 agent 不许 sleep 轮询（通知会唤醒主线程）', '它那一轮结束会**自动给你送回通知**并把你唤醒'),
+ ('要原地等就用有等待语义的调用', '`job_output(wait: true)`'),
+ ('草稿路径模板带 slug 变体', '`\'<subject_path>/.stage/<角色>-<节点id或slug>/\'`'),
+ ('开场默认先写暂存区，不探测工作区', '**默认先写暂存工作区，别去写 `LEARN_WORKSPACE`、也别做任何探测写入**'),
+ ('唯一不暂存的情况：会话目录就是工作区', '**只有一种情况不暂存**'),
+ ('暂存模式：暂存根落会话目录，不用 /tmp', '`<WS>` = `<TMP_WS>` = `<SESSION_DIR>/.studymate-stage/<slug>`'),
+ ('暂存模式明令禁止拿 /tmp 当中转', '别拿 `/tmp` 当中转站'),
+ ('暂存模式的两条硬约束', '**暂存模式的两条硬约束**'),
+ ('跑引擎脚本加 -B（别往只读引擎目录写 __pycache__）', '跑引擎的 Python 脚本一律加 `-B`'),
+ ('暂存模式开场告知学生', '课程先建在会话目录下的临时工作区'),
+ ('暂存模式要求跨工具接力只在暂存根之下', '**每次落盘的下一步要能看见它**'),
+ ('暂存模式收尾：问落点并搬走', '问一次成品放哪'),
+ ('落点候选：学习工作区／桌面／文档／家目录', '**学习工作区**（`LEARN_WORKSPACE`，平时都在那，放进去就能续学）／**桌面**／**文档文件夹**／**用户根目录**'),
+ ('有默认落点就排第一并标 Recommended', '**有默认落点就把它放第一项并标"(Recommended)"**'),
+ ('落点写进会话侧偏好文件（零提权）', '`<SESSION_DIR>/.studymate-stage/prefs.md`'),
+ ('偏好只改一行、不整文件覆盖', '就**只改这一行**，别整文件覆盖'),
+ ('开场恢复落点偏好、存在就不重复问', '记成**默认落点**，收尾时它排在第一项、**不再重复问**'),
+ ('改全局定位要先问学生', '要改就先问学生一句"以后默认就用这个位置吗"'),
+ ('默认不动全局 workspace 键', '`workspace` 是**机器全局**的、在会话写边界外，**不要默默去改**'),
+ ('会话结束也要确认落点已持久化', '**落点持久化**：这次收尾搬过东西的话'),
+ ('落到工作区时刷新根主页', "gen_home.py '<LEARN_WORKSPACE>'"),
+ ('暂存模式下不默默改配置', '**不要默默去改**'),
+ ('cp 搬入后清掉 .stage/', 'rm -rf` 掉 `.stage/'),
  ('新科目并行：RESOURCES.md 落位后同时派两支', '**建池与拟大纲并行**——`RESOURCES.md` 落位后，同时派下面两个（别串着等）'),
  ('并行两支各自的输入与汇合点一条链', '├─ image-scout（爬图片库）         ← 值 = RESOURCES.md 的绝对路径 + 点名要抓的条目\n        └─ curriculum-designer（设计大纲）← 值 = 盘问结果摘要 + RESOURCES.md 路径\n     两边都回来 → 你写 curriculum.yaml、核对 pool.md'),
  ('图片库为空不阻塞', '图片库为空不阻塞'),
@@ -101,6 +125,73 @@ RULES = {
  ('刷新主页命令', 'gen_home.py'),
  ('大纲插/删节点后跑 renumber 脚本重排重渲', 'python3 <root>/scripts/renumber_lessons.py <subject_path> [--dry-run] [--render]'),
  ('renumber 的时机：报告受影响节点之后、刷新主页之前', '报告受影响节点之后、**刷新主页之前**'),
+ ('探索入口先于首次记忆写入', '可选方向入口（首次写记忆之前）'),
+ ('明确科目与恢复学习直达原流程', '已有明确科目直接走原流程，恢复已有科目不拦截'),
+ ('总控按需加载探索协议', '加载 [`learning-discovery`](../learning-discovery/SKILL.md)'),
+ ('探索结束标准不替代新科目盘问', '探索预算不替代本节的结束标准'),
+ ('科目前探索不套用科目摘要', '不把探索套入下面的科目摘要与主页刷新规则'),
+],
+'learning-discovery': [
+ ('由总控执行，不增角色', '本协议由你亲自执行，不派新的角色'),
+ ('仅显式需要选方向时触发', '仅“不知道学什么”“帮我选方向”或主动选择探索才进入'),
+ ('宽泛科目不自动触发', '宽泛的科目名本身不等于同意探索'),
+ ('探索只保留会话状态', '只维护会话状态，不落盘'),
+ ('复用已有信息与允许读取的记忆', '只读允许读取的 `MEMORY.md` 相关分节，复用本轮表达'),
+ ('保留来源与确认状态，不认证自述', '自述不是实测掌握证据'),
+ ('确认建课之前不建科目、不写记忆或进度', '用户确认建课之前不创建科目，不写 `MEMORY.md`，不修改掌握度与学习进度，不建立持久化探索档案'),
+ ('科目前不生成摘要与主页', '不为探索生成会话摘要、学习记录或刷新主页'),
+ ('建课前不做知识小测', '建课前不做有标准答案的知识小测，不生成题库、自动评分或能力认证'),
+ ('评估 owner 与输入仍真实', '题目的唯一 owner 仍为 `practice-evaluator`；禁止为调用它伪造 `subject_path`、节点或 assessment'),
+ ('一次一问，独立问题不能合并计数', '一次只问一个实质问题'),
+ ('禁止以一张卡片包装多个问题', '禁止把多个独立问题塞进一条消息或一张卡片'),
+ ('退出只收尾，不报告或继续提问', '只简短收尾，不报告、不提问、不加推动继续的“下一步”'),
+ ('跳过探索回选择而不自动建课', '否则回到科目选择，不替学生选方向或自动建课'),
+ ('跳过本题仍计数', '当前项记为未知，已问的问题仍计数，再继续必要问题'),
+ ('不确定不猜测、不反复逼答', '记为未知，不猜测答案，不换说法反复逼答'),
+ ('发问前递增，补问设备问题也计数', '每发一问先令 `asked_count += 1`；补问、追问、冲突确认、设备问题均计数'),
+ ('复用不计数，改答案不重置预算', '不能通过换话题、修改答案或重新命名阶段重置预算'),
+ ('五问或关键项已覆盖即给阶段建议', '五个关键项已覆盖（包括明确未知），或 `asked_count == 5` 时，先给简短阶段建议'),
+ ('信息已够不机械补五问', '足够时可以少于五问，不机械补问五遍'),
+ ('五问后仅必要区分才补问', '五问后仅在有必要区分候选时补问'),
+ ('八问或要求建议就停止追问', '`asked_count >= 8` 或用户要求先给建议时，哪怕信息不足也必须停问'),
+ ('未知时间、设备、基础不编造', '不得假定未知的时间、设备或基础'),
+ ('选择菜单不暗藏新信息问题', '建议后的选择菜单不夹带新的信息问题'),
+ ('兴趣与自评选项不作推荐', '兴趣、基础、自评、时间和偏好选项不标“推荐”或 `(Recommended)`'),
+ ('工具强制推荐则普通对话提问', '若提问工具强制推荐标记，改用普通对话逐题问'),
+ ('讲法偏好可变而非人格标签', '偏好只是本次可调整的讲法选择，不是固定人格或能力标签'),
+ ('追加探索由用户主动要求并明示', '只有用户主动要求更深入时才加深，明确告知“这是追加探索”'),
+ ('禁止自动追加绕过预算', '不得由总控自动开启追加轮来绕过上限'),
+ ('入口说明在按需参考文件', '按需读 [七个学习入口](references/directions.md)'),
+ ('先修不足不淘汰兴趣方向', '基础不足通常转成先修建议，不直接淘汰兴趣方向'),
+ ('二三候选，单一有据时解释', '二至三个简短候选；证据确实只支持一个时说明原因'),
+ ('候选附成果与回答证据', '理由对应学生哪条回答；已知基础及证据来源、未知项、必要先修'),
+ ('候选有真实取舍而非换名凑数', '候选应在具体成果或主要取舍上有区别'),
+ ('候选默认短版但保留决定性约束', '保留能改变选择的先修、设备限制与证据来源'),
+ ('共同信息集中说，选择菜单只出现一次', '不逐项重复菜单'),
+ ('阶段路径不替代 DAG', '两三阶段概览及主要取舍，不生成正式课程 DAG'),
+ ('可比较、修改或暂不决定', '也可比较候选、修改答案、暂不决定'),
+ ('不承诺就业或伪精确匹配', '不要承诺职业适配、就业结果、固定精通期限或伪精确的匹配百分比'),
+ ('选方向后明示进入开课准备', '方向已选定，接下来进入开课准备，只补齐建课需要的信息'),
+ ('交接不回首次三问或写记忆', '不重新走首次使用三问或首次记忆写入'),
+ ('交接展示已知与待确认，不要求重填', '首次交接只展示一次简短的“已知／待确认”'),
+ ('补问前复用摘要，只澄清具体缺口', '每次补问前先对照会话摘要'),
+ ('修改答案只更新受影响决策', '学生修改答案时只更新受影响的决策，不重开整轮访谈'),
+ ('单卡不得夹带第二个信息项', '提问工具只放一张卡片，正文不另加问题'),
+ ('退出不附续聊口令', '不附“随时回来”“下次说某个口令”等续聊提示'),
+ ('已知字段跨轮保留', '本轮未提及的字段保留旧值与来源，不重置为未知'),
+ ('五维信息不当作实际问数', '五项信息不等于五次发问'),
+ ('工具选型不凑方向数量', '不要把同一成果的 Python／PowerShell 等工具选型硬凑成不同方向'),
+ ('建议菜单后不继续问需求', '建议回复写到选择菜单即结束'),
+ ('开课前深度载体缺项不能省掉', '没选的深度和载体仍在 frontier'),
+ ('首次开始确认前不生成课件', '尚未同意开始时不派 `learning-coach`／`practice-evaluator` 产首课'),
+ ('未知不是已回答，盘问仍 frontier 空', '原新科目盘问仍以 **frontier 空** 结束'),
+ ('方向成果不等于项目与载体已同意', '方向成果只是候选，不等于项目与载体已获同意'),
+ ('开课前回顾确认而非方向即授权', '选择方向不等于同意全部项目与开课操作'),
+ ('写入仍由原 owner 执行', '确认后才按总控原落地顺序建科目；所有写入仍由原 owner 执行'),
+ ('已确认盘问摘要传正式大纲 owner', '已确认的盘问摘要**随原派工 prompt 传给 `curriculum-designer`'),
+ ('保留最终开始确认', '“下一步／开始吗”确认'),
+ ('当前节点先同意才开始与更新', '学生同意开始当前节点后才进入首课与进度更新'),
+ ('记忆更新仍确认', '需要确认的 `memory_updates` 仍先确认'),
 ],
 'record-keeping': [
  ('工作区目录树', '.learning/'),
@@ -126,6 +217,7 @@ RULES = {
  ('实验通过置位硬规则', '已通过项目验证'),
  ('current 变更先确认', '先跟学生确认'),
  ('主页刷新命令与非零退出', '非零退出看 stderr'),
+ ('主页命令显式传工作区根（暂存模式要传临时工作区）', '`python3 -B <root>/scripts/gen_home.py <WS>`'),
  ('刷新时机', '会话结束前'),
  ('增量修改', '增量修改'),
  ('写后对照 schema', 'session-summary.schema.json'),
@@ -140,6 +232,11 @@ RULES = {
  ('评估记录 cp 搬入', '`deliver/assessments/NNNN-<节点id>.md`，**你 `cp` 搬入**'),
  ('科目隔离', '科目之间隔离'),
  ('只写工作区', '绝不写会话目录'),
+ ('工作区根由开场探测决定（可写=LEARN_WORKSPACE，否则暂存区）', '路径都以**工作区根 `<WS>`** 为前缀'),
+ ('暂存模式是默认走法（跨工具接力、.stage 清空、搬走）', '暂存模式（默认走法；`<WS>` = `<SESSION_DIR>/.studymate-stage/<slug>`）的额外规则'),
+ ('暂存模式禁止拿 /tmp 当中转（两个命名空间）', '别拿 `/tmp` 当中转'),
+ ('角色产出走科目内的 .stage/', '角色产出走 `<subject_path>/.stage/`'),
+ ('交付前 .stage 必须为空', '**交付前 `.stage/` 必须为空**'),
 ],
 'local-qa': [
  ('你亲自答不派 agent', '亲自回答'),
@@ -342,7 +439,7 @@ RULES = {
  ('不出题', '不出题'),
  ('不盘问用户', '不盘问用户'),
  ('交付报规模与校验器原文输出', '交付时报出规模'),
- ('大纲落 deliver/curriculum.yaml', '`/tmp/curriculum-designer-<slug>/deliver/curriculum.yaml`'),
+ ('大纲落 deliver/curriculum.yaml', '`<subject_path>/.stage/curriculum-designer-<slug>/deliver/curriculum.yaml`'),
  ('不派子 agent、不调 ask_user_question', '不派子 agent、不调用 `ask_user_question`'),
  ('草稿只写总控指定的暂存目录', '草稿只写总控指定的暂存目录'),
  ('位次挪动：报告受影响节点，命令与时机指向 learning-system', '改名与重渲的命令与时机见 `learning-system`'),
@@ -459,6 +556,51 @@ for skill, rules in RULES.items():
             print(f'       · {desc}  （找的是 {frag!r}）')
     else:
         print(f'PASS {skill}: {len(rules)} 条规则全部在位')
+
+# 这是静态协议检查，不执行模型，也不能证明真实对话会遵守问数与写入边界。
+def contract(label, condition):
+    global bad, total
+    total += 1
+    bad += not condition
+    print(f"{'PASS' if condition else 'FAIL'}  {label}")
+
+
+discovery_dir = Path(SK) / 'learning-discovery'
+discovery = (discovery_dir / 'SKILL.md').read_text(encoding='utf-8')
+reference_links = re.findall(r'\]\((references/[^)]+)\)', discovery)
+references = [discovery_dir / link for link in reference_links]
+contract('探索协议仅引用一份实际存在的本地参考文件',
+         len(references) == 1 and references[0].is_file())
+reference_text = references[0].read_text(encoding='utf-8') if len(references) == 1 and references[0].is_file() else ''
+entrances = re.findall(r'^\| ([^|]+) \|', reference_text, re.M)[1:]
+contract('参考表保持七个可交叉入口', entrances == [
+    '应用开发与自动化', '数据分析与数据工程', '机器学习与 AI 原理',
+    '系统、可靠性与性能', '图形与游戏开发', '嵌入式、机器人与控制', '数学探索与基础',
+])
+contract('设备路径先确认条件，设备问题也计入预算',
+         '先询明设备条件，再提出具体路径' in reference_text
+         and '设备问题另轮单问且计数' in reference_text)
+system = (Path(SK) / 'learning-system' / 'SKILL.md').read_text(encoding='utf-8')
+interview = system.split('## 新科目盘问（你亲自执行）', 1)[-1].split('## 对话节奏', 1)[0]
+contract('原新科目盘问保留七步及 frontier 空结束规则',
+         re.findall(r'^([1-7])\. ', interview, re.M) == list('1234567')
+         and '6. **结束标准**：frontier 空' in interview)
+contract('总控保持指针接入，不复制七入口参考表',
+         '| 应用开发与自动化 |' not in system and '| 数学探索与基础 |' not in system)
+
+# 只检查合成场景文件可用，不发送模型请求，也不把其 checks 当作已通过。
+cases = json.loads((Path(__file__).parent / 'fixtures' / 'learning_discovery_cases.json')
+                   .read_text(encoding='utf-8'))['cases']
+case_ids = [case['id'] for case in cases]
+contract('十二个对话场景标识不重复', len(case_ids) == len(set(case_ids)) == 12)
+contract('对话场景有用户输入、后续回复、停止条件和独立判据', all(
+    isinstance(case.get('initial_user'), str) and case['initial_user'].strip()
+    and isinstance(case.get('adaptive_answers'), dict)
+    and isinstance(case.get('turns'), list)
+    and all(turn.get('when') and turn.get('user') for turn in case['turns'])
+    and case.get('stop_when') and case.get('checks')
+    and isinstance(case.get('max_user_turns'), int) and case['max_user_turns'] > 0
+    for case in cases))
 
 print(f'\n合计 {total - bad}/{total} 条规则在位')
 sys.exit(1 if bad else 0)
