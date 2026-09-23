@@ -155,7 +155,10 @@ def main():
         ('UTF-8 不带 BOM 写盘', 'UTF8Encoding($false)'),
     ):
         check(f'install.ps1 与 install.sh 对齐：{label}', needle in ps1)
-
+    # 脚本自己被 PowerShell 5.1 读时也要按 UTF-8 解码：没有 BOM 时它按系统 ANSI（中文 Windows 是GBK）解码，中文注释与提示串错乱，整个脚本变成语法错误（issue #8）。
+    check('install.ps1 带 UTF-8 BOM',
+          ps1_path.read_bytes()[:3] == b'\xef\xbb\xbf',
+          ps1_path.read_bytes()[:3])
     # ①b 委派工具的口径：角色跑全新上下文，且角色不得再往下派。    # 这两条是"角色反过来当总控"那次的修复（fork 会把总控已完成的回合注进角色），
     # 行被改回去就等于把那个故障放回来——所以钉在安装产物上。
     parse_detail = ''

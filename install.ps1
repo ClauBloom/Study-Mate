@@ -1,4 +1,4 @@
-# StudyMate 安装脚本（Windows / PowerShell 5.1+）
+﻿# StudyMate 安装脚本（Windows / PowerShell 5.1+）
 # 与 install.sh 等价：装「学习模式」预设到 <DSH_HOME 或 %USERPROFILE%\.dsh>\ + 建学习工作区
 #
 # 用法（在项目根目录）：
