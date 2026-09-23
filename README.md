@@ -25,15 +25,13 @@
 
 我觉得这样的东西对不起这么多的信任与star，我会直视这些问题，并且人工修改审查每一个文件，在未来的更新维护中给大家带来更好的体验，感谢大家的使用与支持，有任何建议都可以提个issue，本项目将长期维护。
 
-
-
 ## 快速开始
 
 **依赖**：DSH、Python 3.9+、pyyaml、bash、coreutils、sed（Windows 只要 DSH + Python 3.9+ + pyyaml）
 
-**通过 npm 安装**
+**通过 npm 安装（推荐）**
 
-适用于 DSH 0.1.5-rc.2 及以上，安装器会按 DSH 版本选择预设格式。原生命令安装和切换安装方式见 [安装说明](docs/安装.md)。
+更新也可使用以下命令，原生命令安装见 [安装说明](docs/安装.md)。
 
 ```bash
 npx @yunmiao/studymate@latest install
