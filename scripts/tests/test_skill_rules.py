@@ -4,6 +4,7 @@
 每条 = (技能, 说明, 必须出现的片段)。片段取自旧版原文里**承载规则**的词
 （阈值、字段名、文件名、命令、时机、禁止项），不是文风词。
 """
+import json
 import os
 import re
 import sys
@@ -142,11 +143,25 @@ RULES = {
  ('先修不足不淘汰兴趣方向', '基础不足通常转成先修建议，不直接淘汰兴趣方向'),
  ('二三候选，单一有据时解释', '二至三个简短候选；证据确实只支持一个时说明原因'),
  ('候选附成果与回答证据', '理由对应学生哪条回答；已知基础及证据来源、未知项、必要先修'),
+ ('候选有真实取舍而非换名凑数', '候选应在具体成果或主要取舍上有区别'),
+ ('候选默认短版但保留决定性约束', '保留能改变选择的先修、设备限制与证据来源'),
+ ('共同信息集中说，选择菜单只出现一次', '不逐项重复菜单'),
  ('阶段路径不替代 DAG', '两三阶段概览及主要取舍，不生成正式课程 DAG'),
  ('可比较、修改或暂不决定', '也可比较候选、修改答案、暂不决定'),
  ('不承诺就业或伪精确匹配', '不要承诺职业适配、就业结果、固定精通期限或伪精确的匹配百分比'),
  ('选方向后明示进入开课准备', '方向已选定，接下来进入开课准备，只补齐建课需要的信息'),
  ('交接不回首次三问或写记忆', '不重新走首次使用三问或首次记忆写入'),
+ ('交接展示已知与待确认，不要求重填', '首次交接只展示一次简短的“已知／待确认”'),
+ ('补问前复用摘要，只澄清具体缺口', '每次补问前先对照会话摘要'),
+ ('修改答案只更新受影响决策', '学生修改答案时只更新受影响的决策，不重开整轮访谈'),
+ ('单卡不得夹带第二个信息项', '提问工具只放一张卡片，正文不另加问题'),
+ ('退出不附续聊口令', '不附“随时回来”“下次说某个口令”等续聊提示'),
+ ('已知字段跨轮保留', '本轮未提及的字段保留旧值与来源，不重置为未知'),
+ ('五维信息不当作实际问数', '五项信息不等于五次发问'),
+ ('工具选型不凑方向数量', '不要把同一成果的 Python／PowerShell 等工具选型硬凑成不同方向'),
+ ('建议菜单后不继续问需求', '建议回复写到选择菜单即结束'),
+ ('开课前深度载体缺项不能省掉', '没选的深度和载体仍在 frontier'),
+ ('首次开始确认前不生成课件', '尚未同意开始时不派 `learning-coach`／`practice-evaluator` 产首课'),
  ('未知不是已回答，盘问仍 frontier 空', '原新科目盘问仍以 **frontier 空** 结束'),
  ('方向成果不等于项目与载体已同意', '方向成果只是候选，不等于项目与载体已获同意'),
  ('开课前回顾确认而非方向即授权', '选择方向不等于同意全部项目与开课操作'),
@@ -544,6 +559,20 @@ contract('原新科目盘问保留七步及 frontier 空结束规则',
          and '6. **结束标准**：frontier 空' in interview)
 contract('总控保持指针接入，不复制七入口参考表',
          '| 应用开发与自动化 |' not in system and '| 数学探索与基础 |' not in system)
+
+# 只检查合成场景文件可用，不发送模型请求，也不把其 checks 当作已通过。
+cases = json.loads((Path(__file__).parent / 'fixtures' / 'learning_discovery_cases.json')
+                   .read_text(encoding='utf-8'))['cases']
+case_ids = [case['id'] for case in cases]
+contract('十二个对话场景标识不重复', len(case_ids) == len(set(case_ids)) == 12)
+contract('对话场景有用户输入、后续回复、停止条件和独立判据', all(
+    isinstance(case.get('initial_user'), str) and case['initial_user'].strip()
+    and isinstance(case.get('adaptive_answers'), dict)
+    and isinstance(case.get('turns'), list)
+    and all(turn.get('when') and turn.get('user') for turn in case['turns'])
+    and case.get('stop_when') and case.get('checks')
+    and isinstance(case.get('max_user_turns'), int) and case['max_user_turns'] > 0
+    for case in cases))
 
 print(f'\n合计 {total - bad}/{total} 条规则在位')
 sys.exit(1 if bad else 0)

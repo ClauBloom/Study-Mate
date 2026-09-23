@@ -45,6 +45,8 @@ bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 
 
 方向探索的验收场景与待验证项见 [学习方向探索验收](../../docs/learning-discovery-validation.md)。这里的规则断言与人工走读均不能代替实际模型对话验证；尤其八问上限、退出后停问、确认前无写入，需要在学习模式中观察对话与工具调用。技能调用面另用 `python scripts/check_skill.py .dsh/skills/learning-discovery --expect-model-invocable` 校验。
 
+[learning_discovery_cases.json](fixtures/learning_discovery_cases.json) 提供 12 个合成多轮场景、按问题披露的用户回答与独立评审判据。它是可重复使用的测试数据，**不是通过记录或自动评分器**。真实模型验证按每场景 3 次执行；使用隔离学习目录，保存对话、工具调用和文件变化。不要把 `checks`／`review_only` 作为用户输入发给被测模型，也不要将这些联网、消耗模型额度的运行加入默认快测或发布检查。目标 DSH 版本不同可用界面逐轮执行，无须依赖其内部 API。
+
 `fixtures.py` 负责造一份**能过检查**的最小科目（`curriculum.yaml` + 课件 + 正确的上下节课指针），
 测试只往里注入自己那一处偏差，断言就不会被无关的 FAIL 污染：
 
