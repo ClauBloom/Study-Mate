@@ -9,6 +9,7 @@
       "items": {
         "type": "object",
         "required": ["id", "title", "objective", "prerequisites", "status", "kind"],
+        "additionalProperties": false,
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$" },
           "title": { "type": "string" },
@@ -35,11 +36,6 @@
           "practice": { "type": "string" },
           "pitfalls": { "type": "array", "items": { "type": "string" } },
           "realworld": { "type": "string" },
-          "过关标准": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "过关标准：学完凭什么算做到了（可观察、可核对）。原字段名 evidence，2026-xx 题目系统重构时正名。"
-          },
           "status": { "enum": ["未开始", "学习中", "初步理解", "能独立应用", "需要复习", "已通过项目验证"] },
           "mastery": { "type": "number", "minimum": 0, "maximum": 1 }
         }

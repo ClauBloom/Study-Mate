@@ -171,6 +171,55 @@ ATTACH_ROW_TEMPLATE = '''    <a class="learn-attachment" href="{href}">
       <span class="learn-attachment__meta">{meta}</span>
     </a>'''
 
+ATTACHMENT_PAGE_TEMPLATE = '''<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title} · {subject_name}</title>
+<link rel="stylesheet" href="{assets_rel}/sayo/sayo.css">
+<link rel="stylesheet" href="{assets_rel}/learn-theme.css">
+{extra_style}
+<script src="{assets_rel}/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
+<style>
+.lesson h1 {{
+  margin: var(--syo-space-2, 8px) 0 var(--syo-space-4, 16px);
+  font-size: clamp(1.6rem, 3.2vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--syo-fg-default);
+}}
+</style>
+</head>
+<body class="lesson-body">
+<nav class="lesson-bar">
+  <a href="{back_href}">← 返回科目</a>
+  <span>{subject_name}</span>
+  <span class="lesson-bar__no">{tag_name}</span>
+  <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
+    <input type="checkbox" id="attachment-theme-checkbox" checked>
+    <span class="syo-toggle-track"></span>
+    <span class="syo-toggle-knob">
+      <svg class="syo-toggle-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.5" stroke="#f57c00" stroke-width="1.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.34 4.34l1.77 1.77M13.89 13.89l1.77 1.77M4.34 15.66l1.77-1.77M13.89 6.11l1.77-1.77" stroke="#f57c00" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <svg class="syo-toggle-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 12.5A6 6 0 019 4.5a6 6 0 007.5 8z" stroke="#5c6bc0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </span>
+  </label>
+</nav>
+
+<article class="lesson">
+{body}
+  <footer class="lesson-footer">
+    StudyMate · {footer_title} · 本地学习工作区
+  </footer>
+</article>
+
+<script src="{assets_rel}/sayo/sayo.js"></script>
+<script>LearnTheme.wire(document.getElementById('attachment-theme-checkbox'));</script>
+</body>
+</html>'''
+
 # ══════════════════════════════════════════════════════════════════
 # 小工具
 # ══════════════════════════════════════════════════════════════════
@@ -423,7 +472,7 @@ def curriculum_nodes(cur, prog, slug=None):
     if live and slug:
         warn(f'{slug}: progress.yaml 里有 curriculum.yaml 之外的节点，已忽略：{"、".join(sorted(live))}')
     if slug:
-        # 卡片字段的软上限：只提醒，不阻断（细节写进 problem/practice/过关标准，那些不上卡片）
+        # 卡片字段的软上限：只提醒，不阻断（细节写进 problem/practice，那些不上卡片）
         long_titles = [n for n in nodes if len(n['title']) > TITLE_SOFT_LIMIT]
         if long_titles:
             sample = '、'.join(f'{n["title"]}（{len(n["title"])}）' for n in long_titles[:3])
@@ -802,12 +851,244 @@ def reference_items(sdir):
     return items
 
 
-def resource_items(sdir):
-    """术语与资源：GLOSSARY.md / RESOURCES.md（存在才列）。"""
+def render_inline_markdown(text):
+    code_spans = []
+
+    def save_code(m):
+        code_spans.append(m.group(1))
+        return f'\x00CODE_{len(code_spans)-1}\x00'
+
+    text = re.sub(r'`([^`]+)`', save_code, text)
+    text = html.escape(text, quote=False)
+
+    def make_img(m):
+        alt, src = m.group(1), m.group(2)
+        clean_src = esc(src.strip(), attr=True)
+        clean_alt = esc(alt.strip(), attr=True)
+        return f'<img src="{clean_src}" alt="{clean_alt}">'
+
+    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', make_img, text)
+
+    def make_link(m):
+        label, url = m.group(1), m.group(2)
+        clean_url = esc(url.strip(), attr=True)
+        extra = ' target="_blank" rel="noopener"' if SCHEME_RE.match(url.strip()) else ''
+        return f'<a href="{clean_url}"{extra}>{label}</a>'
+
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', make_link, text)
+    text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'(?<!\w)_([^_]+)_(?!\w)', r'<em>\1</em>', text)
+    text = re.sub(r'(?<!\*)\*([^*]+)\*(?!\*)', r'<em>\1</em>', text)
+    text = re.sub(r'~~([^~]+)~~', r'<del>\1</del>', text)
+
+    def restore_code(m):
+        idx = int(m.group(1))
+        return f'<code>{html.escape(code_spans[idx], quote=False)}</code>'
+
+    text = re.sub(r'\x00CODE_(\d+)\x00', restore_code, text)
+    return text
+
+
+def markdown_to_html(md_text):
+    md_text = FRONTMATTER_RE.sub('', md_text, count=1)
+    lines = md_text.replace('\r\n', '\n').split('\n')
+    output = []
+    i = 0
+    n = len(lines)
+
+    in_list = False
+    list_type = 'ul'
+
+    def close_list():
+        nonlocal in_list, list_type
+        if in_list:
+            output.append(f'</{list_type}>')
+            in_list = False
+
+    while i < n:
+        line = lines[i]
+        stripped = line.strip()
+
+        if stripped.startswith('```'):
+            close_list()
+            lang = stripped[3:].strip()
+            code_lines = []
+            i += 1
+            while i < n and not lines[i].strip().startswith('```'):
+                code_lines.append(lines[i])
+                i += 1
+            i += 1
+            code_str = html.escape('\n'.join(code_lines))
+            cls = f' class="language-{esc(lang, attr=True)}"' if lang else ''
+            output.append(f'<pre><code{cls}>{code_str}</code></pre>')
+            continue
+
+        if not stripped:
+            close_list()
+            i += 1
+            continue
+
+        if re.match(r'^(?:---|\*\*\*|___)\s*$', stripped):
+            close_list()
+            output.append('<hr>')
+            i += 1
+            continue
+
+        h_match = re.match(r'^(#{1,6})\s+(.*)$', stripped)
+        if h_match:
+            close_list()
+            level = len(h_match.group(1))
+            h_content = render_inline_markdown(h_match.group(2))
+            output.append(f'<h{level}>{h_content}</h{level}>')
+            i += 1
+            continue
+
+        if stripped.startswith('>'):
+            close_list()
+            quote_lines = []
+            while i < n and lines[i].strip().startswith('>'):
+                quote_lines.append(re.sub(r'^>\s?', '', lines[i].strip()))
+                i += 1
+            q_paras = []
+            cur_p = []
+            for ql in quote_lines:
+                if not ql:
+                    if cur_p:
+                        q_paras.append('<br>'.join(render_inline_markdown(x) for x in cur_p))
+                        cur_p = []
+                else:
+                    cur_p.append(ql)
+            if cur_p:
+                q_paras.append('<br>'.join(render_inline_markdown(x) for x in cur_p))
+            q_html = ''.join(f'<p>{p}</p>' for p in q_paras)
+            output.append(f'<blockquote>{q_html}</blockquote>')
+            continue
+
+        if stripped.startswith('|') and i + 1 < n and re.match(r'^\s*\|?[\s\-:|]+\|?\s*$', lines[i+1].strip()):
+            close_list()
+            headers = [c.strip() for c in stripped.strip('|').split('|')]
+            i += 2
+            rows = []
+            while i < n and lines[i].strip().startswith('|'):
+                cells = [c.strip() for c in lines[i].strip().strip('|').split('|')]
+                rows.append(cells)
+                i += 1
+
+            tbl = ['<div class="syo-table-wrap"><table class="syo-table"><thead><tr>']
+            for h in headers:
+                tbl.append(f'<th>{render_inline_markdown(h)}</th>')
+            tbl.append('</tr></thead><tbody>')
+            for r in rows:
+                tbl.append('<tr>')
+                for idx, c in enumerate(r):
+                    cell_html = render_inline_markdown(c) if idx < len(r) else ''
+                    tbl.append(f'<td>{cell_html}</td>')
+                tbl.append('</tr>')
+            tbl.append('</tbody></table></div>')
+            output.append(''.join(tbl))
+            continue
+
+        ul_match = re.match(r'^[-*+]\s+(.*)$', stripped)
+        ol_match = re.match(r'^\d+\.\s+(.*)$', stripped)
+        if ul_match or ol_match:
+            cur_type = 'ol' if ol_match else 'ul'
+            content = [ol_match.group(1) if ol_match else ul_match.group(1)]
+            i += 1
+            while i < n:
+                next_raw = lines[i]
+                next_s = next_raw.strip()
+                if not next_s:
+                    if i + 1 < n and (lines[i+1].startswith('  ') or lines[i+1].startswith('\t')):
+                        i += 1
+                        continue
+                    else:
+                        break
+                if re.match(r'^([-*+]|\d+\.)\s+', next_s):
+                    break
+                if next_raw.startswith('  ') or next_raw.startswith('\t'):
+                    content.append(next_s)
+                    i += 1
+                else:
+                    break
+
+            if in_list and list_type != cur_type:
+                close_list()
+            if not in_list:
+                in_list = True
+                list_type = cur_type
+                output.append(f'<{list_type}>')
+            item_html = '<br>'.join(render_inline_markdown(c) for c in content)
+            output.append(f'<li>{item_html}</li>')
+            continue
+
+        close_list()
+        para_lines = [stripped]
+        i += 1
+        while i < n:
+            next_s = lines[i].strip()
+            if not next_s or next_s.startswith('#') or next_s.startswith('>') or next_s.startswith('```') or re.match(r'^([-*+]|\d+\.)\s+', next_s) or next_s.startswith('|'):
+                break
+            para_lines.append(next_s)
+            i += 1
+        p_content = '<br>'.join(render_inline_markdown(pl) for pl in para_lines)
+        output.append(f'<p>{p_content}</p>')
+
+    close_list()
+    return '\n'.join(output)
+
+
+def compile_attachment(sdir, rel_md_path, title, subject_name, tag_name):
+    """把 md 附件编译为同名 html，返回相对 sdir 的 html 路径；出错则告警并退回原 md 路径。"""
+    md_abs = os.path.join(sdir, rel_md_path)
+    if not os.path.isfile(md_abs):
+        return rel_md_path
+    rel_base, _ = os.path.splitext(rel_md_path)
+    rel_html = f'{rel_base}.html'
+    html_abs = os.path.join(sdir, rel_html)
+    try:
+        raw_text = read_text_quiet(md_abs, f'附件 {rel_md_path}')
+        clean_text = FRONTMATTER_RE.sub('', raw_text, count=1)
+        body = markdown_to_html(raw_text)
+        if not MD_HEADING_RE.search(clean_text):
+            body = f'<h1>{esc(title)}</h1>\n' + body
+
+        parts = os.path.normpath(rel_html).split(os.sep)
+        depth = len(parts) - 1
+        assets_rel = ('../' * (depth + 2)) + 'assets'
+        back_href = ('../' * depth) + 'index.html'
+
+        style_abs = os.path.join(sdir, 'assets', 'style.css')
+        if os.path.isfile(style_abs):
+            style_rel = ('../' * depth) + 'assets/style.css'
+            extra_style = f'<link rel="stylesheet" href="{esc(style_rel, attr=True)}">'
+        else:
+            extra_style = ''
+
+        rendered = ATTACHMENT_PAGE_TEMPLATE.format(
+            title=esc(title),
+            subject_name=esc(subject_name),
+            assets_rel=esc(assets_rel, attr=True),
+            extra_style=extra_style,
+            back_href=esc(back_href, attr=True),
+            tag_name=esc(tag_name),
+            body=body,
+            footer_title=esc(title),
+        )
+        write_text(html_abs, rendered)
+        return rel_html
+    except Exception as exc:
+        warn(f'编译附件 {rel_md_path} 到 HTML 失败，回退到原文件：{exc}')
+        return rel_md_path
+
+
+def resource_items(sdir, subject_name=None):
+    """术语与资源：GLOSSARY.md / RESOURCES.md（存在才列，编译成 HTML 保证本地浏览器排版正常）。"""
     items = []
+    subj_name = subject_name or os.path.basename(sdir)
     for name, title in (('GLOSSARY.md', '术语表'), ('RESOURCES.md', '资源清单')):
         if os.path.isfile(os.path.join(sdir, name)):
-            items.append((name, title, name))
+            href = compile_attachment(sdir, name, title, subj_name, title)
+            items.append((href, title, name))
     return items
 
 
@@ -818,8 +1099,8 @@ def md_title(path, fallback):
     return match.group(1).strip() if match else fallback
 
 
-def learning_record_items(sdir):
-    """学习记录：learning-records/*.md，按编号升序。"""
+def learning_record_items(sdir, subject_name=None):
+    """学习记录：learning-records/*.md，按编号升序（编译为 HTML 离线查看）。"""
     rows = []
     for path in glob.glob(os.path.join(glob.escape(sdir), 'learning-records', '*.md')):
         name = os.path.basename(path)
@@ -827,15 +1108,18 @@ def learning_record_items(sdir):
         rows.append((match.group(1) if match else 'zzzz', name, path))
     rows.sort(key=lambda row: (row[0], row[1]))
     items = []
+    subj_name = subject_name or os.path.basename(sdir)
     for number, name, path in rows:
         fallback = f'学习记录 {number}' if number != 'zzzz' else os.path.splitext(name)[0]
-        href = f'learning-records/{name}'
-        items.append((href, md_title(path, fallback), href))
+        title = md_title(path, fallback)
+        rel_md = f'learning-records/{name}'
+        href = compile_attachment(sdir, rel_md, title, subj_name, '学习记录')
+        items.append((href, title, rel_md))
     return items
 
 
-def session_items(sdir):
-    """会话摘要：sessions/*.md，按日期倒序（最新的在前）。"""
+def session_items(sdir, subject_name=None):
+    """会话摘要：sessions/*.md，按日期倒序（最新的在前，编译为 HTML 离线查看）。"""
     rows = []
     for path in glob.glob(os.path.join(glob.escape(sdir), 'sessions', '*.md')):
         name = os.path.basename(path)
@@ -843,21 +1127,27 @@ def session_items(sdir):
         rows.append((match.group(1) if match else '', name, path))
     rows.sort(key=lambda row: (row[0], row[1]), reverse=True)
     items = []
+    subj_name = subject_name or os.path.basename(sdir)
     for date, name, path in rows:
         fallback = f'{date} 会话摘要' if date else os.path.splitext(name)[0]
-        href = f'sessions/{name}'
-        items.append((href, md_title(path, fallback), href))
+        title = md_title(path, fallback)
+        rel_md = f'sessions/{name}'
+        href = compile_attachment(sdir, rel_md, title, subj_name, '会话摘要')
+        items.append((href, title, rel_md))
     return items
 
 
-def render_attachments_html(slug, ws):
+def render_attachments_html(slug, ws, subject_name=None):
     """附件分组（参考文档/术语与资源/学习记录/会话摘要）；空分组整组省略，全空出空状态。"""
     sdir = subject_dir(ws, slug)
+    if not subject_name:
+        subj = load_yaml_quiet(os.path.join(sdir, 'subject.yaml'), f'{slug}/subject.yaml') or {}
+        subject_name = str(subj.get('name') or slug)
     groups = (
         ('参考文档', reference_items(sdir)),
-        ('术语与资源', resource_items(sdir)),
-        ('学习记录', learning_record_items(sdir)),
-        ('会话摘要', session_items(sdir)),
+        ('术语与资源', resource_items(sdir, subject_name)),
+        ('学习记录', learning_record_items(sdir, subject_name)),
+        ('会话摘要', session_items(sdir, subject_name)),
     )
     blocks = []
     for label, items in groups:
@@ -876,14 +1166,15 @@ def render_subject_index(slug, cur, prog, ws):
     """读 templates/subject-index.html → 替换区块+字段占位符 → 写科目目录 index.html。"""
     sdir = subject_dir(ws, slug)
     subj = load_yaml_quiet(os.path.join(sdir, 'subject.yaml'), f'{slug}/subject.yaml') or {}
+    subj_name = str(subj.get('name') or slug)
     template = read_text_once(os.path.join(TEMPLATES, 'subject-index.html'))
-    page = replace_field(template, PLACEHOLDER_TITLE, esc(subj.get('name') or slug), 'subject-index.html')
+    page = replace_field(template, PLACEHOLDER_TITLE, esc(subj_name), 'subject-index.html')
     page = replace_field(page, PLACEHOLDER_STATUS,
                          status_tag(subj.get('status'), 'syo-tag learn-status'), 'subject-index.html')
     page = replace_field(page, PLACEHOLDER_MISSION, esc(mission_excerpt(slug, ws)), 'subject-index.html')
     page = replace_block(page, PLACEHOLDER_PROJECT, render_project_html(prog), 'subject-index.html')
     page = replace_block(page, PLACEHOLDER_ROADMAP, render_roadmap_html(slug, cur, prog, ws), 'subject-index.html')
-    page = replace_block(page, PLACEHOLDER_ATTACHMENTS, render_attachments_html(slug, ws), 'subject-index.html')
+    page = replace_block(page, PLACEHOLDER_ATTACHMENTS, render_attachments_html(slug, ws, subj_name), 'subject-index.html')
     write_text(os.path.join(sdir, 'index.html'), page)
 
 

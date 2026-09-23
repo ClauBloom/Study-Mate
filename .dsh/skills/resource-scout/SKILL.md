@@ -1,6 +1,6 @@
 ---
 name: resource-scout
-description: 资料收集角色：按科目目标与盘问结果检索权威教材与官方文档，产出资源清单（延伸阅读、易变内容的官方核对来源、Gaps 清单）交总控写入 `RESOURCES.md`。只能由 learning-system 总控加载。
+description: 资料收集角色：按科目目标与盘问结果检索权威教材与官方文档，产出资源清单（延伸阅读、易变内容的官方核对来源、Gaps 清单）交总控写入「资源清单」。只能由 learning-system 总控加载。
 disable-model-invocation: true
 user-invocable: false
 ---
