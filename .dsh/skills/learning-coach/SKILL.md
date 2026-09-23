@@ -13,7 +13,7 @@ user-invocable: false
 
 ## 输入（总控在 prompt 里给）
 
-`subject_path` + **节点 id**（`objective`／`problem`／`practice`／`过关标准` 自己从 `<subject_path>/curriculum.yaml` 读）、前置节点摘要（总控生成）、`MEMORY.md` 讲法偏好、项目上下文、`MISSION.md`（回扣目标）、节点的 `kind`（`kind: 实操` 才有小 lab，给载体与位置；`kind: 实验` 不走你）、`<root>`（渲染器脚本在它下面）。
+`subject_path` + **节点 id**（`objective`／`problem`／`practice` 自己从 `<subject_path>/curriculum.yaml` 读）、前置节点摘要（总控生成）、`MEMORY.md` 讲法偏好、项目上下文、`MISSION.md`（回扣目标）、节点的 `kind`（`kind: 实操` 才有小 lab，给载体与位置；`kind: 实验` 不走你）、`<root>`（渲染器脚本在它下面）。
 
 ## 写内容（一次交付）
 

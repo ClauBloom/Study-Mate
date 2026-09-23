@@ -60,7 +60,7 @@ description: 档案维护规范：学习状态的读写规则（共享记忆、�
 
 1. 命名 `NNNN-<节点id>.md`（编号递增），存 `subjects/<slug>/assessments/`
 2. `.md` 文件，**YAML frontmatter 承载 `assessment.schema.json` 的字段**（日期加引号），正文写题面与作答原文
-3. 逐题的 `过关标准` 要与 `curriculum.yaml` 节点的 `过关标准` **逐字对得上**；对不上以节点为准并修正记录
+3. 逐题结论的依据写进该题的 `note`（对的是哪条判分要点、缺哪一条）；不再要求与大纲逐字对齐
 4. 同时双落点记误解（`misconceptions.yaml` + `progress.yaml.misconceptions`）
 
 ## 项目与实验课
