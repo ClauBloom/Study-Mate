@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分层模型与封装 · 计算机网络</title>
+
+<!-- 共享层在 .learning/assets/，课件在 .learning/subjects/<slug>/lessons/ 下，所以是 ../../../assets/ -->
+<link rel="stylesheet" href="../../../assets/sayo/sayo.css">
+<link rel="stylesheet" href="../../../assets/learn-theme.css">
+<link rel="stylesheet" href="../assets/style.css">
+
+<!-- 主题要在首帧前应用，避免闪白/闪黑 -->
+<script src="../../../assets/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
+</head>
+
+<body class="lesson-body">
+
+<nav class="lesson-bar">
+  <a href="../index.html">← 返回课程</a>
+  <span>计算机网络</span>
+  <span class="lesson-bar__no">0001</span>
+  <!-- 课件页自带主题开关：学生从文件管理器直接打开课件时也能切暗色 -->
+  <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
+    <input type="checkbox" id="lesson-theme-checkbox" checked>
+    <span class="syo-toggle-track"></span>
+    <span class="syo-toggle-knob">
+      <svg class="syo-toggle-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.5" stroke="#f57c00" stroke-width="1.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.34 4.34l1.77 1.77M13.89 13.89l1.77 1.77M4.34 15.66l1.77-1.77M13.89 6.11l1.77-1.77" stroke="#f57c00" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <svg class="syo-toggle-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 12.5A6 6 0 019 4.5a6 6 0 007.5 8z" stroke="#5c6bc0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </span>
+  </label>
+</nav>
+
+<article class="lesson">
+
+  <header class="lesson-header">
+    <span class="lesson-header__eyebrow">0001 · 分层模型与封装</span>
+    <h1>分层模型与封装</h1>
+    <p class="lesson-goal"><b>本节目标：</b>能画出一次网页请求经过的各层，并说清每层加了什么头。</p>
+  </header>
+
+  <!-- ── 正文：渲染器按内容文件（lessons/<序号>-<节点id>.md）产出，块词汇见 docs/课件内容格式.md ── -->
+
+  <h2>回车之后发生了什么</h2>
+
+  <p>在浏览器地址栏敲下 <code>example.com</code> 再回车，页面大约两百毫秒后出现。这两百毫秒里机器做了一长串动作：把域名换成 IP 地址，跟对方建立起一条能重发的连接，把请求文本切成小块，每块装进信封送上线路，收到回信后再按相反的顺序拆回来。</p>
+
+  <p>要把这一长串一次讲完，很少有人能记住。工程上的办法是把它切开，一段只解决一个问题，再规定段与段之间怎么交接。切出来的每一段叫<b>一层</b>。</p>
+
+  <h2>分层这个想法从哪来</h2>
+
+  <p>1974 年，Vint Cerf 与 Robert Kahn 发表论文《A Protocol for Packet Network Intercommunication》，第一次把"多个网络互联"这个问题拆成若干层来描述。当时每家厂商的机器各有一套通信做法，互相接不上；把职责分开、只固定层与层之间的接口之后，不同厂商的设备才可能拼在一起。</p>
+
+  <p>1984 年 ISO 提出七层的 OSI 参考模型，定义很细，实现与市场都没跟上。真正铺开的是 IETF 维护的 TCP/IP 模型，它把同样的想法压成四层：</p>
+
+  <table>
+    <thead>
+      <tr><th>层</th><th>管什么</th><th>这一层用的地址</th><th>数据单元</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>应用层</td><td>这次通信要办什么事</td><td>域名、URL</td><td>报文</td></tr>
+      <tr><td>传输层</td><td>哪两个程序在说话，丢了要不要重发</td><td>端口号</td><td>报文段</td></tr>
+      <tr><td>网际层</td><td>从哪台机器到哪台机器，走哪条路</td><td>IP 地址</td><td>分组（包）</td></tr>
+      <tr><td>网络接口层</td><td>这一段线路上，帧交给哪块网卡</td><td>MAC 地址</td><td>帧</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>分层</b>（layering）指的就是这件事：把一次通信的职责拆成若干层，每层只跟自己的上下邻居打交道；跨机器通信时，只有对端的同一层才读得懂这一层写的首部。</p>
+
+  <p>层数怎么切是人为约定。不少教材把最下面那层再拆成"数据链路层 + 物理层"，凑成五层；两种切法描述同一个系统，只是粗细不同。本课统一用四层。</p>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "把一次网络通信拆成四层来做，最直接的收益是什么？",
+    "opts": [
+      "每层可以单独换实现",
+      "每层内部不用协议",
+      "每层都能看到全文",
+      "每层带宽自动变大"
+    ],
+    "ans": 0,
+    "why": "分层买到的是隔离变化：以太网换成 WiFi、IPv4 换成 IPv6，只要接口不变，其他层不必重写。\n层内仍然要有协议，每层也只处理自己那一段信息，看不到也不需要看到全部内容。"
+  }
+]'></div>
+
+  <div class="lesson-note">
+    <b>层的名字会变，职责不会</b>
+    <p>同一件事在不同书里叫法不同：网际层也叫网络层，网络接口层也叫链路层。认职责比记名字有用——听到一个新叫法，先问它管的是地址、是重发、还是线路。</p>
+  </div>
+
+  <h2>封装：每层加一个首部</h2>
+
+  <p>邮政系统寄一封信是层层套封的：信纸装进信封，信封上写收件地址；邮局再把一批信装进邮袋，袋子上写目的地城市。每层只读自己这层封面上写的字，不拆开里面的东西。</p>
+
+  <p>网络里做法相同，术语叫<b>封装</b>（encapsulation）：上层交下来的整块数据被当作<b>载荷</b>（payload），本层在它前面加上自己的<b>首部</b>（header），再交给下一层。首部里装的全是本层要用的信息，载荷对它只是一串不解释的字节。</p>
+
+  <ul>
+    <li>应用层写好的 HTTP 请求交给传输层，传输层在它前面加上 TCP 首部（无选项时 20 字节）</li>
+    <li>传输层交下来的报文段交给网际层，网际层在前面加上 IP 首部（IPv4 无选项时 20 字节）</li>
+    <li>IP 包交给网络接口层，这一层在前面加 14 字节帧头，在末尾再加 4 字节校验</li>
+  </ul>
+
+  <p>"首部"这个叫法来自早期报文格式：地址、长度、校验这些字段写在整块数据的最前面。字段多了以后也有写在后面的，那叫尾部，以太网的校验就属于尾部。</p>
+
+  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="一次 HTTP 请求逐层被加上首部">
+<svg viewBox="0 0 760 260" role="img" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.2">
+    <rect x="110" y="20" width="300" height="44"/>
+    <rect x="110" y="80" width="88" height="44"/>
+    <rect x="198" y="80" width="300" height="44"/>
+    <rect x="110" y="140" width="88" height="44"/>
+    <rect x="198" y="140" width="88" height="44"/>
+    <rect x="286" y="140" width="300" height="44"/>
+    <rect x="110" y="200" width="76" height="44"/>
+    <rect x="186" y="200" width="88" height="44"/>
+    <rect x="274" y="200" width="88" height="44"/>
+    <rect x="362" y="200" width="300" height="44"/>
+    <rect x="662" y="200" width="44" height="44"/>
+  </g>
+  <g fill="currentColor" font-size="11" text-anchor="middle">
+    <text x="260" y="38">HTTP 请求</text>
+    <text x="260" y="54">78 字节</text>
+    <text x="154" y="98">TCP 首部</text>
+    <text x="154" y="114">20 字节</text>
+    <text x="348" y="98">HTTP 请求</text>
+    <text x="348" y="114">78 字节</text>
+    <text x="154" y="158">IP 首部</text>
+    <text x="154" y="174">20 字节</text>
+    <text x="242" y="158">TCP 首部</text>
+    <text x="242" y="174">20 字节</text>
+    <text x="436" y="158">HTTP 请求</text>
+    <text x="436" y="174">78 字节</text>
+    <text x="148" y="218">帧头</text>
+    <text x="148" y="234">14 字节</text>
+    <text x="230" y="218">IP 首部</text>
+    <text x="230" y="234">20 字节</text>
+    <text x="318" y="218">TCP 首部</text>
+    <text x="318" y="234">20 字节</text>
+    <text x="512" y="218">HTTP 请求</text>
+    <text x="512" y="234">78 字节</text>
+    <text x="684" y="218" font-size="9">FCS</text>
+    <text x="684" y="234" font-size="9">4 字节</text>
+  </g>
+  <g fill="currentColor" font-size="11" text-anchor="end">
+    <text x="100" y="46">应用层</text>
+    <text x="100" y="106">传输层</text>
+    <text x="100" y="166">网际层</text>
+    <text x="100" y="226">网络接口层</text>
+  </g>
+</svg>
+    <figcaption>图 1 · 请求往下走，每层在前面加一段首部</figcaption>
+  </figure>
+
+  <h2>一个具体数字走一遍</h2>
+
+  <p>设一条 <code>GET /index.html HTTP/1.1</code> 的请求连同几个请求头共 78 字节，从应用层往下走：</p>
+
+  <ul>
+    <li>传输层加 20 字节 TCP 首部，98 字节</li>
+    <li>网际层加 20 字节 IP 首部，118 字节</li>
+    <li>网络接口层加 14 字节帧头与 4 字节帧尾校验，136 字节</li>
+  </ul>
+
+  <p>真正跑在线路上的是 136 字节，其中 78 字节是内容，58 字节是各层加的首部，占四成还多。小请求上这个比例一直很难看，这也是后来 HTTP/2 要做头部压缩的原因之一。</p>
+
+  <p>对方收到后反过来做：网卡核对校验、去掉帧头，网际层去掉 IP 首部，传输层去掉 TCP 首部，应用层拿到那 78 字节原文。这个过程叫<b>解封装</b>。整条路上，中间设备只看得到自己那一层：交换机看帧头，路由器看 IP 首部。</p>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "一条 78 字节的 HTTP 请求走到网线上变成 136 字节。\n多出来的 58 字节是什么？",
+    "opts": [
+      "各层依次加的首部",
+      "HTTP 请求的正文",
+      "重传用的备份数据",
+      "网卡自己写的日志"
+    ],
+    "ans": 0,
+    "why": "20 字节 TCP 首部 + 20 字节 IP 首部 + 14 字节帧头 + 4 字节帧尾校验 = 58 字节。\n首部是各层自己要读的信息（地址、长度、校验），载荷原样带下去，内容一个字节都没多。"
+  },
+  {
+    "q": "把以太网的 MTU 从 1500 改成 1200 字节。\nTCP 一次能交给 IP 的数据（MSS）最多是多少？\n写出你的算式。",
+    "answer": "MSS = MTU − IP 首部 − TCP 首部 = 1200 − 20 − 20 = 1160 字节。\n首部与数据挤在同一帧里，MTU 少 300 字节，MSS 就跟着少 300 字节。",
+    "criteria": "① 写出 1200 − 20 − 20 这个算式，两个 20 分别对应 IP 与 TCP 首部；② 结果 1160 字节；③ 能说清首部与数据同在一个帧里，所以 MTU 变小、MSS 必然跟着变小。"
+  }
+]'></div>
+
+  <h2>边界与反例</h2>
+
+  <p>四层模型写的是职责分工，真实实现经常越界：</p>
+
+  <ul>
+    <li>家用路由器做地址转换时要同时改 IP 首部里的地址与 TCP 首部里的端口，一次动两层</li>
+    <li>TLS 夹在应用层与传输层中间，两层都不完全属于</li>
+    <li>HTTP/3 把传输层的 TCP 换成基于 UDP 的 QUIC，四层骨架没变，某一层的实现整个换掉</li>
+    <li>负载均衡与防火墙要看端口甚至请求内容，它们读的层次比"路由器只看到第三层"高得多</li>
+  </ul>
+
+  <p>模型的价值在定位问题：网页打不开时，先分清是名字没解析、路径不通、还是对方程序没响应，再挑对应的那层去查。反过来，把模型当成"实现必须逐层调用、谁也不许跨界"的规定，就会得出跟现实对不上的结论。</p>
+
+  <p>顺手记两个数字：以太网一个帧能装的载荷上限是 1500 字节（MTU），减去 20 字节 IP 首部与 20 字节 TCP 首部，TCP 一次能交给 IP 的数据最多 1460 字节（MSS）。下一课讲帧的时候还会回到这两个数。</p>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "家用路由器做地址转换时要改 IP 地址和端口号。\n这件事说明什么？",
+    "opts": [
+      "分层是模型，实现可跨层",
+      "分层模型已经被淘汰了",
+      "端口号属于网际层",
+      "路由器工作在应用层"
+    ],
+    "ans": 0,
+    "why": "地址转换要同时改 IP 首部与 TCP/UDP 首部，是典型的跨层实现。\n模型描述职责划分，它不禁止实现上的例外；排查问题时按层定位依然有效。"
+  }
+]'></div>
+
+  <div class="lesson-practice">
+    <div class="lesson-practice__head">
+      <span class="lesson-practice__level">上手做</span>
+      <span class="lesson-practice__title">第 1 步 · 在输出里认层</span>
+    </div>
+
+      <p>打开浏览器按 <code>F12</code>，切到 Network 面板，刷新一次页面，点开第一条请求看 Headers。把 <code>Host</code>、<code>User-Agent</code>、<code>Accept</code> 三行抄下来，回答两个问题：这三行是谁写进去的？它们属于哪一层的首部？</p>
+
+      <p>再在终端里跑一次 <code>curl</code>，输出里每一行的归属层都能对上号：</p>
+
+      <pre data-lang="term"><code>$ curl -v http://example.com
+*   Trying 93.184.216.34:80...
+* Connected to example.com (93.184.216.34) port 80
+&gt; GET / HTTP/1.1
+&gt; Host: example.com
+&gt; User-Agent: curl/8.5.0
+&gt;
+&lt; HTTP/1.1 200 OK</code></pre>
+
+      <p><code>*</code> 开头的是 curl 报告的本地过程：域名解析出地址、与 80 端口建立连接，落在网际层与传输层。 <code>&gt;</code> 是它发出去的应用层首部，<code>&lt;</code> 是对方回的应用层首部。把这三类逐行指出来，再往下看。</p>
+  </div>
+
+  <ul class="lesson-resources">
+    <li><a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Overview">MDN · HTTP 概览</a><span class="lesson-resources__meta">官方文档 · 应用层那一端的报文与状态码</span></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc1122.html">RFC 1122 · 互联网主机要求</a><span class="lesson-resources__meta">规范原文 · 四层模型各层的职责划分</span></li>
+    <li><a href="https://www.wireshark.org/docs/wsug_html_chunked/">Wireshark 用户指南</a><span class="lesson-resources__meta">官方手册 · 下一课起要用它按层看真实流量</span></li>
+  </ul>
+
+  <!-- ── 提问提示：固定写法，别删 ── -->
+
+  <div class="lesson-ask">
+    <b>没看懂？随时问</b>
+    把看不懂的段落（或报错）原样复制回会话，说一句哪里不懂就行，我只解释这一段，不打断你的进度。
+  </div>
+
+  <!-- ── 上/下节课指针由渲染器按 curriculum.yaml 的 nodes 顺序算（第一课无 --prev、最后一课无 --next） ── -->
+
+  <nav class="lesson-nav" aria-label="上一课 / 下一课">
+    <a class="lesson-nav__link lesson-nav__link--next" href="0002-net.link.html">
+      <span class="lesson-nav__dir">下节课</span>
+      <span class="lesson-nav__title">链路层与以太网帧</span>
+    </a>
+  </nav>
+
+  <footer class="lesson-footer">
+    StudyMate · 0001 分层模型与封装 · 本地学习工作区
+  </footer>
+
+</article>
+
+<script src="../../../assets/sayo/sayo.js"></script>
+<script src="../assets/quiz.js" defer></script>
+<script src="../assets/lesson-toc.js" defer></script>
+<script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
+</body>
+</html>

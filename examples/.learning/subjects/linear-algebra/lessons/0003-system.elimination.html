@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>高斯消元与解的结构 · 线性代数</title>
+
+<!-- 共享层在 .learning/assets/，课件在 .learning/subjects/<slug>/lessons/ 下，所以是 ../../../assets/ -->
+<link rel="stylesheet" href="../../../assets/sayo/sayo.css">
+<link rel="stylesheet" href="../../../assets/learn-theme.css">
+<link rel="stylesheet" href="../assets/style.css">
+
+<!-- 主题要在首帧前应用，避免闪白/闪黑 -->
+<script src="../../../assets/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
+</head>
+
+<body class="lesson-body">
+
+<nav class="lesson-bar">
+  <a href="../index.html">← 返回课程</a>
+  <span>线性代数</span>
+  <span class="lesson-bar__no">0003</span>
+  <!-- 课件页自带主题开关：学生从文件管理器直接打开课件时也能切暗色 -->
+  <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
+    <input type="checkbox" id="lesson-theme-checkbox" checked>
+    <span class="syo-toggle-track"></span>
+    <span class="syo-toggle-knob">
+      <svg class="syo-toggle-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.5" stroke="#f57c00" stroke-width="1.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.34 4.34l1.77 1.77M13.89 13.89l1.77 1.77M4.34 15.66l1.77-1.77M13.89 6.11l1.77-1.77" stroke="#f57c00" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <svg class="syo-toggle-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 12.5A6 6 0 019 4.5a6 6 0 007.5 8z" stroke="#5c6bc0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </span>
+  </label>
+</nav>
+
+<article class="lesson">
+
+  <header class="lesson-header">
+    <span class="lesson-header__eyebrow">0003 · 高斯消元与解的结构</span>
+    <h1>高斯消元与解的结构</h1>
+    <p class="lesson-goal"><b>本节目标：</b>能手写消元把线性方程组解出来，并判断解的存在性与自由度。</p>
+  </header>
+
+  <!-- ── 正文：渲染器按内容文件（lessons/<序号>-<节点id>.md）产出，块词汇见 docs/课件内容格式.md ── -->
+
+  <h2>一行报错引出的问题</h2>
+
+  <p>你在写一个小脚本，要把一次实验里五组测量拟合成三个参数的模型，于是有了三个未知量、五个方程的超定方程组。标准库里没有 <code>solve</code>，你打算自己消元；写到一半，屏幕上跳出一句：</p>
+
+  <pre data-lang="text"><code>ValueError: 这个方程组没有唯一解：要么无解，要么有无穷多解</code></pre>
+
+  <p>这句报错就是本课要回答的问题：只看消元的结果，怎么知道它属于哪一种？</p>
+
+  <h2>术语：消元的来历</h2>
+
+  <p>「高斯消元」这个名字挂在高斯名下，但方法本身比他早两千年：《九章算术》的方程章里就有「遍乘直除」的算法，用行与行相减来解出未知量；欧洲在 17 世纪由莱布尼茨、18 世纪由高斯在测量数据的最小二乘计算中系统使用，19 世纪的教科书把它整理成今天的样子，于是用了高斯的名字。</p>
+
+  <p>「消元」二字说的是动作：把未知量一个一个消掉，直到某一行只剩一个未知量。手的动作很简单—— <b>方程两边同乘一个非零数、两个方程相减、交换两个方程的位置</b>，这三件事都不会改变方程组的解集。把未知量的名字藏起来，只抄系数，就得到<b>增广矩阵</b>（augmented matrix）：系数与等号右边的常数并排写在同一个数表里，消元时两边一起变，不用每步重抄。</p>
+
+  <pre data-lang="text"><code>方程                          增广矩阵
+2x +  y +  z = 9              [ 2   1   1 | 9 ]
+ x + 3y + 2z = 10             [ 1   3   2 | 10 ]
+ x +  y -  z = 2              [ 1   1  -1 | 2 ]</code></pre>
+
+  <h2>手写一遍消元</h2>
+
+  <p>拿上面这个方程组走一遍，每一步只做一件事。先交换第 1、3 行，让首位变成 1，再把第一列消干净：</p>
+
+  <pre data-lang="text"><code>第 1、3 行交换        第 2 行 − 第 1 行       第 3 行 − 2×第 1 行
+[ 1  1 -1 | 2 ]     [ 1  1 -1 | 2 ]        [ 1  1 -1 | 2 ]
+[ 1  3  2 | 10 ] →  [ 0  2  3 | 8 ]     →  [ 0  2  3 | 8 ]
+[ 2  1  1 | 9 ]     [ 2  1  1 | 9 ]        [ 0 -1  3 | 5 ]</code></pre>
+
+  <p>接着处理第二列：把第 2 行化成 1，第 3 行除以 5，再用它们把这一列的 3、1.5 消掉，第三行就只剩一个未知量了。</p>
+
+  <pre data-lang="text"><code>第 2 行 ÷ 2           第 3 行 × 3           第 2 行 − 第 3 行      第 3 行 ÷ 3
+[ 1  1 -1 | 2 ]     [ 1  1 -1 | 2 ]      [ 1  1 -1 | 2 ]       [ 1  1 -1 | 2 ]
+[ 0  1 1.5| 4 ]  →  [ 0  1 1.5| 4 ]  →   [ 0  1  1 | 3 ]   →   [ 0  1  1 | 3 ]
+[ 0  0  1 | 2 ]     [ 0  0 1.5| 3 ]      [ 0  0 1.5| 3 ]       [ 0  0  1 | 2 ]</code></pre>
+
+  <p>最后把上面两行里的 z 也消掉，就得到<b>最简行阶梯形</b>（reduced row echelon form，缩写 rref）：</p>
+
+  <pre data-lang="text"><code>第 2 行 − 第 3 行      第 1 行 + 第 3 行      第 1 行 − 第 2 行
+[ 1  1 -1 | 2 ]      [ 1  1  0 | 4 ]       [ 1  0  0 | 3 ]
+[ 0  1  1 | 3 ]  →   [ 0  1  0 | 1 ]   →   [ 0  1  0 | 1 ]
+[ 0  0  1 | 2 ]      [ 0  0  1 | 2 ]       [ 0  0  1 | 2 ]</code></pre>
+
+  <p>它有两个特征：每个主元都是 1，且主元所在列的其他位置全是 0。答案直接读出来，一行一个：<code>x = 3</code>， <code>y = 1</code>，<code>z = 2</code>。代回原来的方程组验证：<code>6 + 1 + 2 = 9</code>、<code>3 + 3 + 4 = 10</code>、<code>3 + 1 − 2 = 2</code>，与右端项一致。</p>
+
+  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="行阶梯形的形状，主元下方全为零">
+<svg viewBox="0 0 300 130" role="img" aria-hidden="true" font-family="sans-serif" font-size="11">
+  <g stroke="currentColor" fill="none" opacity="0.5">
+    <rect x="35" y="25" width="230" height="24"/><rect x="35" y="49" width="230" height="24"/>
+    <rect x="35" y="73" width="230" height="24"/>
+    <line x1="215" y1="25" x2="215" y2="97" stroke-dasharray="4 3"/>
+  </g>
+  <g stroke="currentColor" stroke-width="2" fill="none">
+    <rect x="43" y="29" width="26" height="16"/><rect x="103" y="53" width="26" height="16"/>
+    <rect x="163" y="77" width="26" height="16"/>
+  </g>
+  <g fill="currentColor" opacity="0.85">
+    <text x="59" y="41">1</text><text x="119" y="65">1</text><text x="179" y="89">1</text>
+    <text x="35" y="120">主元：每行第一个非零元，逐行右移</text>
+  </g>
+</svg>
+    <figcaption>图 1 · 行阶梯形：主元逐行右移，且主元所在列的下方全是零</figcaption>
+  </figure>
+
+  <h2>三种解：判据与自由变量</h2>
+
+  <p>把增广矩阵化成行阶梯形之后，只看两件事：有没有矛盾行、主元够不够。两种判据都要在「没有矛盾行」的前提下使用，所以顺序是先看矛盾行，再看主元个数。</p>
+
+  <figure class="lesson-figure">
+    <img src="../assets/img/pool/线性代数-消元-三种解的情形对照-本机-03.png" alt="三种解并列对照：交于一点、平行、同一条线">
+    <figcaption>图 2 · 三种解的几何对照：交于一点（唯一解）、平行（无解）、同一条线（无穷多解）（来源：本机生成（脚本 assets/img/gen/linear-algebra-diagrams.py），许可：本项目自产）</figcaption>
+  </figure>
+
+  <p>落到矩阵上，判据是这样两条：出现 <code>[0 0 … 0 | 非零]</code> 这样的行（也就是 <code>0 = 非零</code>）就是<b>无解</b>；没有矛盾行时，主元个数等于未知量个数就是<b>唯一解</b>，少于未知量个数就是<b>无穷多解</b>，差几个主元就有几个自由变量。</p>
+
+  <p>没有主元的那些未知量叫<b>自由变量</b>（free variable）：它可以任取一个值，其余未知量随之被定下来。自由变量的个数就是解集的维数——一个自由变量，解集是一条直线；两个自由变量，解集是一个平面。</p>
+
+  <table>
+    <thead>
+      <tr><th>情形</th><th>行阶梯形的特征</th><th>主元个数</th><th>自由变量个数</th><th>解集</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>唯一解</td><td>没有矛盾行</td><td>等于未知量个数</td><td>0</td><td>一个点</td></tr>
+      <tr><td>无穷多解</td><td>没有矛盾行</td><td>少于未知量个数</td><td>至少 1 个</td><td>直线、平面或更高维</td></tr>
+      <tr><td>无解</td><td>有 <code>[0 … 0 | 非零]</code> 行</td><td>与解无关</td><td>与解无关</td><td>空集</td></tr>
+    </tbody>
+  </table>
+
+  <p>拿两个例子对照。无解的方程组：</p>
+
+  <pre data-lang="text"><code>x + 2y = 1
+2x + 4y = 3</code></pre>
+
+  <p>消元后第二行变成 <code>[0 0 | 1]</code>，即 <code>0 = 1</code>，无解。把右端项换成 <code>(1, 2)</code>，第二行变成全零，只剩一个主元而未知量有两个：<code>y</code> 是自由变量，解是 <code>(1 − 2t, t)</code>，一条直线上的无穷多个点。</p>
+
+  <div class="lesson-warn">
+    <b>一整行零不等于无解</b>
+    <p><code>[0 0 | 0]</code> 表示「这一行没提供新信息」，它在说这个方程是前几个方程的线性组合，解集一点没变。只有右边也非零时才矛盾。看到一整行零就写「无解」，是最常见的误判。</p>
+  </div>
+
+  <h2>解的结构：特解加零空间</h2>
+
+  <p>无穷多解的情形值得多看一步。<code>x + 2y = 1</code> 的解可以写成</p>
+
+  <pre data-lang="text"><code>(x, y) = (1, 0) + t · (-2, 1)</code></pre>
+
+  <p>右边第一项是取 <code>t = 0</code> 得到的一个<b>特解</b>；第二项是齐次方程 <code>x + 2y = 0</code> 的全部解，也就是第 2 课讲过的<b>零空间</b>。这不是巧合：若 <code>x<sub>p</sub></code> 是 <code>Ax = b</code> 的一个解，<code>v</code> 是 <code>Av = 0</code> 的任意解，那么 <code>A(x<sub>p</sub> + v) = Ax<sub>p</sub> + Av = b + 0 = b</code>，所以 <code>x<sub>p</sub> + v</code> 也是解；反过来两个解的差必然落在零空间里。</p>
+
+  <p>于是解集永远长这个样子：</p>
+
+  <pre data-lang="text"><code>Ax = b 的全部解 = 一个特解 + 零空间的任意元素</code></pre>
+
+  <p>这也是「自由变量的个数 = 零空间维数」的来源：两者都是解集维数，只是一个从方程组看、一个从变换看。</p>
+
+  <h2>用 Python 算一遍</h2>
+
+  <p>下面这段把消元写成代码，用的还是第 1 课的逐行列表运算。它只做一件事：把增广矩阵化成最简行阶梯形。</p>
+
+  <pre data-lang="python"><code>def rref(M):
+    """原地把 M 化成最简行阶梯形（主元为 1，主元列其余位置为 0）。"""
+    M = [row[:] for row in M]                 # 拷贝一份，别改到调用方的矩阵
+    rows, cols, r = len(M), len(M[0]) - 1, 0  # r 是当前要处理的行的下标
+    for c in range(cols):                     # 逐列找主元
+        p = next((i for i in range(r, rows) if M[i][c] != 0), None)
+        if p is None:                         # 这一列没有可用主元
+            continue
+        M[r], M[p] = M[p], M[r]               # 把主元换到当前行
+        pivot = M[r][c]
+        M[r] = [v / pivot for v in M[r]]      # 主元化成 1
+        for i in range(rows):                 # 其余各行消掉这一列
+            if i != r and M[i][c] != 0:
+                f = M[i][c]
+                M[i] = [a - f * b for a, b in zip(M[i], M[r])]
+        r += 1
+    return M</code></pre>
+
+  <pre data-lang="python"><code>A = [[2, 1, 1], [1, 3, 2], [1, 1, -1]]
+b = [9, 10, 2]
+aug = [row + [rhs] for row, rhs in zip(A, b)]     # 拼成增广矩阵
+for row in rref(aug):
+    print(row)                    # [1,0,0,3] / [0,1,0,1] / [0,0,1,2] → x=3, y=1, z=2</code></pre>
+
+  <p>三行打印出来分别是 <code>[1, 0, 0, 3]</code>、<code>[0, 1, 0, 1]</code>、<code>[0, 0, 1, 2]</code>，与手算的结果一致。这里用的是浮点除法，结果看着干净是因为这些数恰好能整除；把矩阵里的数换成 <code>fractions.Fraction</code> 再跑，遇到 <code>1/3</code> 这类结果时就不会有误差。</p>
+
+  <div class="lesson-practice">
+    <div class="lesson-practice__head">
+      <span class="lesson-practice__level">上手做</span>
+      <span class="lesson-practice__title">第 1 步 · 用代码核对三种情形</span>
+    </div>
+
+      <p>把上面两段存成 <code>rref_demo.py</code>，然后分别跑下面三个方程组（只改 <code>A</code> 与 <code>b</code>）：</p>
+
+      <pre data-lang="text"><code>① 唯一解：   A = [[2, 1, 1], [1, 3, 2], [1, 1, -1]]      b = [9, 10, 2]
+② 无解：     A = [[1, 2], [2, 4]]                        b = [1, 3]
+③ 无穷多解： A = [[1, 2], [2, 4]]                        b = [1, 2]</code></pre>
+
+      <p>每个都先手写出「有没有矛盾行、主元几个、自由变量几个」，再用代码验证。第 ③ 个的最简行阶梯形第二行会变成 <code>[0, 0, 0]</code>，主元只剩一个——这就是自由变量 <code>y</code> 的来历。</p>
+  </div>
+
+  <div class="lesson-practice">
+    <div class="lesson-practice__head">
+      <span class="lesson-practice__level">练习</span>
+      <span class="lesson-practice__title">第 2 步 · 进 lab 把它写完整</span>
+    </div>
+
+      <p>上面这段代码只负责化简，还不会<b>判断</b>解的结构，也还不会把解<b>回代</b>出来。剩下的活分给它：</p>
+
+      <p>完整任务、环境与跑法见 <a href="../lab/README.md">lab 说明</a>，里面四个函数要你亲手实现：</p>
+
+      <ul>
+        <li><code>rref(A)</code>：化成最简行阶梯形；</li>
+        <li><code>pivot_columns(A)</code> 与 <code>rank(A)</code>：给出主元所在列、数出秩；</li>
+        <li><code>solve(A, b)</code>：用化简结果判断「唯一解 / 无解 / 无穷多解」，并给出自由变量的个数。</li>
+      </ul>
+
+      <pre data-lang="bash"><code>cd ../lab/0003-system-elimination
+python3 -m unittest -v      # 现在是红的：20 条报 NotImplementedError，那是待办清单</code></pre>
+
+      <p>卡住时按这个顺序来：先读断言的报错原文 → 再看函数上方注释里的边界 → 还不行把报错贴回会话。我不直接给答案，会先问你哪一行不对。参考解在 <code>../lab/solutions/0003-system-elimination/</code>，做完再对照。</p>
+  </div>
+
+  <h2>这台机器与后面三课</h2>
+
+  <p>消元是本课程第一个成型的工具：它把「有没有解、有几个解」变成可以机械执行、也可以写成代码的判定过程。它的三个副产品后面还要用：主元位置决定哪些变量自由（第 4 课的基就是主元列给出的）；秩是主元的个数；零空间是所有 <code>Av = 0</code> 的解（第 5 课求特征向量时，解的就是 <code>(A − λI)v = 0</code> 这个齐次方程组）。</p>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "把方程组的增广矩阵消元，最后得到\n\n```text\n[ 1  2  0 | 1.5 ]\n[ 0  0  1 | 2.5 ]\n```\n\n这个方程组的解是什么？",
+    "opts": [
+      "x = 1.5，y = 0，z = 2.5，所以解是唯一的一组数",
+      "y 是自由变量，解是 (1.5 − 2t, t, 2.5)，有无穷多组",
+      "z 是自由变量，解是 (1.5, 0, 2.5 − t)，有无穷多组",
+      "x 是自由变量，解是 (t, 1.5 − 2t, 2.5)，有无穷多组"
+    ],
+    "ans": 1,
+    "why": "两个主元分别落在第 1、3 列，第 2 列没有主元，所以 y 是自由变量。\n第一行读作 x + 2y = 1.5，即 x = 1.5 − 2y；第二行读作 z = 2.5。\n每给 y 一个值就得到一组解，因此有无穷多组。\n少一个主元只说明解集不是单点，与有没有解无关。"
+  }
+]'></div>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "一位同学手算消元，得到下面三行，然后写「无解」。\n他的判断错在哪里？\n\n```text\n[ 1  2 | 1 ]\n[ 0  0 | 0 ]\n[ 0  0 | 0 ]\n```",
+    "opts": [
+      "他把一整行零当成了矛盾行，其实它只表示这个方程多余",
+      "他忘了把消元时对左边做的运算同样做在等号右边",
+      "他应该先数自由变量的个数，再判断这个方程组有没有解",
+      "他没有把主元化成 1，所以这一行零还不能用来下结论"
+    ],
+    "ans": 0,
+    "why": "矛盾行要求左边全零而右边非零，形如 [0 0 | 1]，它代表 0 = 1。\n这里的 [0 0 | 0] 是 0 = 0，说明这一行没有提供新信息，解集不受影响。\n本例有两个未知量、一个主元，y 是自由变量，解是 (1 − 2t, t)，有无穷多组。\n左边右边的同步、主元是否化 1，都是消元过程的问题，与这一行的含义无关。"
+  }
+]'></div>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "对方程组 Ax = b，其中 A = [[1, 2, 3], [2, 4, 6]]（第二行是第一行的两倍），b = (6, 12)：\n① 化成行阶梯形，指出主元列与自由变量；\n② 写出它的通解（特解 + 零空间的元素）；\n③ 从解集本身判断自由变量的个数，并说明它为什么等于列数减秩。",
+    "answer": "① 增广矩阵消元：第二行减去 2 倍的第一行，得到\n\n```text\n[ 1  2  3 | 6 ]\n[ 0  0  0 | 0 ]\n```\n\n主元只有一个，落在第 1 列；第 2、3 列没有主元，y 与 z 是自由变量。\n\n② 第一行读作 x + 2y + 3z = 6，即 x = 6 − 2y − 3z。取 y = s、z = t，通解是\n(6, 0, 0) + s·(−2, 1, 0) + t·(−3, 0, 1)，其中 (6, 0, 0) 是取 s = t = 0 得到的特解，\n后面两项分别是 y、z 取 1 时解的变化量，它们构成零空间的一组基。\n\n③ 解集有两个自由方向（两个自由变量），而列数 3、秩 1：3 − 1 = 2，两者相等。\n道理是每一列要么被主元“认领”，要么落在零空间里，没有第三种去向。",
+    "criteria": "① 消元结果正确、并明确指出第 2、3 列没有主元，得 2 分；\n   把「一整行零」当成无解的，这一问不得分；\n② 通解写成「一个特解加自由变量的组合」得 2 分，只写 x = 6 − 2y − 3z 得 1 分；\n③ 说出自由变量个数 = 列数 − 秩（或 3 − 1 = 2）并给出一句理由，得 2 分。\n通解里漏掉自由变量、或把零空间元素写成非齐次方程的解，判部分通过。"
+  }
+]'></div>
+
+  <ul class="lesson-resources">
+    <li><a href="https://ocw.mit.edu/courses/18-06sc-linear-algebra-fall-2011/">MIT 18.06 线性代数（Gilbert Strang）</a><span class="lesson-resources__meta">公开课 · 第 1~2 讲完整演算消元与回代</span></li>
+    <li><a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html">NumPy 官方文档 · numpy.linalg.solve</a><span class="lesson-resources__meta">官方文档 · 现成库的接口与奇异矩阵的报错，用于对照自己写的版本</span></li>
+    <li><a href="https://docs.python.org/zh-cn/3/library/fractions.html">Python 官方文档 · fractions.Fraction</a><span class="lesson-resources__meta">官方文档 · lab 里做精确消元用到的分数类型</span></li>
+  </ul>
+
+  <!-- ── 提问提示：固定写法，别删 ── -->
+
+  <div class="lesson-ask">
+    <b>没看懂？随时问</b>
+    把看不懂的段落（或报错）原样复制回会话，说一句哪里不懂就行，我只解释这一段，不打断你的进度。
+  </div>
+
+  <!-- ── 上/下节课指针由渲染器按 curriculum.yaml 的 nodes 顺序算（第一课无 --prev、最后一课无 --next） ── -->
+
+  <nav class="lesson-nav" aria-label="上一课 / 下一课">
+    <a class="lesson-nav__link lesson-nav__link--prev" href="0002-matrix.transform.html">
+      <span class="lesson-nav__dir">上节课</span>
+      <span class="lesson-nav__title">矩阵与线性变换</span>
+    </a>
+    <a class="lesson-nav__link lesson-nav__link--next" href="0004-space.basis.html">
+      <span class="lesson-nav__dir">下节课</span>
+      <span class="lesson-nav__title">基、维数与坐标</span>
+    </a>
+  </nav>
+
+  <footer class="lesson-footer">
+    StudyMate · 0003 高斯消元与解的结构 · 本地学习工作区
+  </footer>
+
+</article>
+
+<script src="../../../assets/sayo/sayo.js"></script>
+<script src="../assets/quiz.js" defer></script>
+<script src="../assets/lesson-toc.js" defer></script>
+<script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
+</body>
+</html>

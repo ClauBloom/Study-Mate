@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>向量与线性组合 · 线性代数</title>
+
+<!-- 共享层在 .learning/assets/，课件在 .learning/subjects/<slug>/lessons/ 下，所以是 ../../../assets/ -->
+<link rel="stylesheet" href="../../../assets/sayo/sayo.css">
+<link rel="stylesheet" href="../../../assets/learn-theme.css">
+<link rel="stylesheet" href="../assets/style.css">
+
+<!-- 主题要在首帧前应用，避免闪白/闪黑 -->
+<script src="../../../assets/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
+</head>
+
+<body class="lesson-body">
+
+<nav class="lesson-bar">
+  <a href="../index.html">← 返回课程</a>
+  <span>线性代数</span>
+  <span class="lesson-bar__no">0001</span>
+  <!-- 课件页自带主题开关：学生从文件管理器直接打开课件时也能切暗色 -->
+  <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
+    <input type="checkbox" id="lesson-theme-checkbox" checked>
+    <span class="syo-toggle-track"></span>
+    <span class="syo-toggle-knob">
+      <svg class="syo-toggle-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.5" stroke="#f57c00" stroke-width="1.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.34 4.34l1.77 1.77M13.89 13.89l1.77 1.77M4.34 15.66l1.77-1.77M13.89 6.11l1.77-1.77" stroke="#f57c00" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <svg class="syo-toggle-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 12.5A6 6 0 019 4.5a6 6 0 007.5 8z" stroke="#5c6bc0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </span>
+  </label>
+</nav>
+
+<article class="lesson">
+
+  <header class="lesson-header">
+    <span class="lesson-header__eyebrow">0001 · 向量与线性组合</span>
+    <h1>向量与线性组合</h1>
+    <p class="lesson-goal"><b>本节目标：</b>能把方程组读成列向量的线性组合，并说清线性无关的几何含义。</p>
+  </header>
+
+  <!-- ── 正文：渲染器按内容文件（lessons/<序号>-<节点id>.md）产出，块词汇见 docs/课件内容格式.md ── -->
+
+  <h2>一个推荐系统的难题</h2>
+
+  <p>假设你在做电影推荐。每部电影有两个可量的属性：动作场面占比、情感戏占比，于是每部电影就是两个数组成的一对。用户看过的几部电影，能不能拼出一部他大概会喜欢的新片？</p>
+
+  <p>「拼」的意思是：把看过的电影各自乘上一个权重再相加。如果前两部是 (0.8, 0.2) 与 (0.2, 0.8)，各自乘 0.5 再相加，就得到 (0.5, 0.5)。这就叫<b>线性组合</b>：把若干向量各自乘一个数再相加。</p>
+
+  <p>「线性」来自拉丁文 <em>linearis</em>，本意是「属于线的」——17 世纪笛卡尔用它指两个量成比例。后来这个词被借去描述这类只有「数与和」的运算；「组合」是中文的意译，说的是把几样东西拼起来。整门线性代数只有两个基本动作：向量相加、向量乘一个数，后面的张成、矩阵、秩、特征值都是它们的推论。</p>
+
+  <h2>从加法到线性组合</h2>
+
+  <p>向量相加是逐分量相加：<code>(1, 2) + (3, -1) = (4, 1)</code>；向量乘一个数（叫<b>标量</b>）是逐分量乘： <code>2 · (1, 2) = (2, 4)</code>。两者合起来就是线性组合：给 n 个向量 <code>v<sub>1</sub>, …, v<sub>n</sub></code> 配上 n 个系数 <code>c<sub>1</sub>, …, c<sub>n</sub></code>，<code>c<sub>1</sub>v<sub>1</sub> + … + c<sub>n</sub>v<sub>n</sub></code> 就是它们的一个线性组合。</p>
+
+  <p>系数可以取零、可以取负数，也可以取分数，这决定了组合能覆盖多大范围。所有可能的系数配出来的结果放在一起，构成这组向量的<b>张成</b>（span）。一个向量张成一条过原点的直线；两个不共线的向量张成整个平面；共线的两个向量张成的还是那条直线。</p>
+
+  <h2>术语：线性无关</h2>
+
+  <p>先有来历再给定义。18 世纪的数学家处理方程组时发现，有些方程是多余的：第三个方程能由前两个加减乘除凑出来，解集一点没变。他们把这个现象叫「相依」（dependent），反过来就叫「无关」（independent）。这个词后来被搬到向量上，因为方程组与向量组是同一件事的两面。</p>
+
+  <p>一组向量称为<b>线性无关</b>，如果它们的线性组合只有在系数全为零时才等于零向量：</p>
+
+  <pre data-lang="text"><code>c₁v₁ + c₂v₂ + … + cₙvₙ = 0   当且仅当   c₁ = c₂ = … = cₙ = 0</code></pre>
+
+  <p>只要存在一组不全为零的系数能让组合等于零向量，这组向量就叫<b>线性相关</b>。几何上，线性无关意味着每个向量都提供了别处拿不到的新方向：平面里两个不共线的向量线性无关，三个向量必然相关；三维空间里，三个不共面的向量才线性无关。</p>
+
+  <figure class="lesson-figure lesson-figure--inline" role="img" aria-label="两个不共线的向量张成整个平面，共线的两个向量只张成一条直线">
+<svg viewBox="0 0 360 150" role="img" aria-hidden="true" font-family="sans-serif" font-size="11">
+  <g stroke="currentColor" stroke-width="1" opacity="0.45">
+    <line x1="20" y1="75" x2="150" y2="75"/><line x1="85" y1="15" x2="85" y2="140"/>
+    <line x1="210" y1="75" x2="340" y2="75"/><line x1="275" y1="15" x2="275" y2="140"/>
+  </g>
+  <g stroke="currentColor" stroke-width="2">
+    <line x1="85" y1="75" x2="135" y2="45"/><line x1="85" y1="75" x2="105" y2="115"/>
+    <line x1="275" y1="75" x2="325" y2="45"/><line x1="275" y1="75" x2="325" y2="45"/>
+  </g>
+  <g fill="currentColor">
+    <circle cx="85" cy="75" r="2.5"/><circle cx="275" cy="75" r="2.5"/>
+  </g>
+  <g fill="currentColor" opacity="0.85">
+    <text x="140" y="42">v₁</text><text x="106" y="128">v₂</text>
+    <text x="330" y="42">v₁ 与 v₂ 同向</text>
+    <text x="55" y="148">张成整个平面</text><text x="248" y="148">张成一条直线</text>
+  </g>
+</svg>
+    <figcaption>图 1 · 张成：不共线的两向量铺满平面（左），共线的两向量只铺出一条线（右）</figcaption>
+  </figure>
+
+  <h2>把方程组读成列向量</h2>
+
+  <p>看这个方程组，先用中学的办法解一遍：<code>2x + y = 4</code>、<code>x - y = -1</code>。两式相加得 <code>3x = 3</code>，所以 <code>x = 1</code>；代回去得 <code>y = 2</code>。答案没错，但这个做法没有告诉你方程组长什么样。换一种读法：把每个未知量的系数收成一列，第一个未知量的系数是 <code>(2, 1)</code>，第二个是 <code>(1, -1)</code>，等号右边的常数是 <code>(4, -1)</code>。于是方程组等价于一个向量等式：</p>
+
+  <pre data-lang="text"><code>2x + y = 4            x · (2, 1) + y · (1, -1) = (4, -1)
+x - y = -1</code></pre>
+
+  <p>解方程组，就是<b>找一组系数，让列向量的线性组合等于右端向量</b>。代入验证： <code>1 · (2, 1) + 2 · (1, -1) = (2 + 2, 1 - 2) = (4, -1)</code>，正好是右端项。</p>
+
+  <figure class="lesson-figure">
+    <img src="../assets/img/pool/线性代数-向量-列向量拼出右端向量-本机-01.png" alt="两个列向量首尾相接，落点是右端向量">
+    <figcaption>图 2 · 先走 1 倍的列向量 (2, 1)，再走 2 倍的列向量 (1, −1)，落点正好是 (4, −1)（来源：本机生成（脚本 assets/img/gen/linear-algebra-diagrams.py），许可：本项目自产）</figcaption>
+  </figure>
+
+  <p>这个读法把三种情况一次说清：</p>
+
+  <table>
+    <thead>
+      <tr><th>解的情形</th><th>列向量的说法</th><th>几何图像</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>唯一解</td><td>拼法只有一种，两个列向量线性无关</td><td>两条不平行的直线交于一点</td></tr>
+      <tr><td>无穷多解</td><td>拼法不止一种，列向量线性相关</td><td>两个列向量共线，目标向量也在这条线上</td></tr>
+      <tr><td>无解</td><td>拼不出来</td><td>目标向量落在列向量张成的那条线之外</td></tr>
+    </tbody>
+  </table>
+
+  <div class="lesson-tip">
+    <b>为什么值得换这个读法</b>
+    <p>按行读是两条直线求交点；按列读是「用若干列拼出目标」——后者正是矩阵乘法的定义，也是最小二乘这类方法一开始的出发点。</p>
+  </div>
+
+  <h2>矩阵：把列排起来</h2>
+
+  <p>把上面两个列向量并排写成一个数表，就得到<b>矩阵</b>（matrix，拉丁文原意是「母体」，19 世纪西尔维斯特借它表示「数的出生地」）：</p>
+
+  <pre data-lang="text"><code>A = [ 2   1 ]
+    [ 1  -1 ]</code></pre>
+
+  <p>未知量写成向量 <code>x = (x, y)</code>，右端项写成 <code>b = (4, -1)</code>，方程组就浓缩成一行 <code>Ax = b</code>。矩阵乘法的定义是：<b><code>Ax</code> 是 A 的各列按 x 的分量加权拼出来的线性组合</b>。按行读也能算——结果的第一行是「A 的第一行与 x 逐项相乘再相加」，也就是 <code>2x + y</code>；两种读法算出同一个数，但只有列读法能解释「为什么解方程组等于拼向量」。</p>
+
+  <div class="lesson-warn">
+    <b>矩阵乘向量与逐元素相乘是两回事</b>
+    <p>前者是列向量的线性组合，结果的每个分量由整个向量决定；后者在 NumPy 里对应 <code>A * v</code>，它根本不是矩阵乘法。写代码时先确认自己用的是哪一个。</p>
+  </div>
+
+  <h2>用 Python 算一遍</h2>
+
+  <p><code>zip(*A)</code> 把 <code>[[2, 1], [1, -1]]</code> 转置成两列，下面这段把两种读法都算一遍，用你已经在用的语法：</p>
+
+  <pre data-lang="python"><code>A = [[2, 1], [1, -1]]
+x = [1, 2]                      # 待验证的系数
+
+# 列视角：每一列乘上对应系数，再逐分量相加
+result = [sum(c * k for c, k in zip(col, x)) for col in zip(*A)]
+# 行视角：每一行与 x 做点积，结果应当相同
+rows = [sum(a * k for a, k in zip(row, x)) for row in A]
+print(result, rows == result)   # [4, -1] True</code></pre>
+
+  <div class="lesson-practice">
+    <div class="lesson-practice__head">
+      <span class="lesson-practice__level">上手做</span>
+      <span class="lesson-practice__title">第 1 步 · 亲手拼一次</span>
+    </div>
+
+      <p>把上面那段存成 <code>combine.py</code> 跑一遍，然后做两件事：</p>
+
+      <ol>
+        <li>把 <code>x</code> 改成 <code>[2, -1]</code>，先猜结果再跑，看猜得对不对；</li>
+        <li>把 <code>A</code> 换成第二列与第一列同向的矩阵，观察结果落在哪条直线上。</li>
+      </ol>
+
+      <pre data-lang="sh"><code>python3 -c "
+A = [[2, 2], [1, 1]]
+x = [1, 1]
+print([sum(c * k for c, k in zip(col, x)) for col in zip(*A)])
+"</code></pre>
+
+      <p>第 2 步的输出是 <code>(4, 2)</code>，它一定是 <code>(2, 1)</code> 的倍数：共线的两个列向量只能张成一条直线。</p>
+  </div>
+
+  <div class="lesson-practice">
+    <div class="lesson-practice__head">
+      <span class="lesson-practice__level">练习</span>
+      <span class="lesson-practice__title">第 2 步 · 判断有解与唯一</span>
+    </div>
+
+      <p>拿一个 3 元方程组，先判断它的列向量是否线性相关，猜它有几个解，再动手验证：</p>
+
+      <pre data-lang="text"><code>x + 2y + 3z = 6
+2x + 4y + 6z = 12
+x + y + z = 3</code></pre>
+
+      <p>第二行是第一行的两倍：它提供的信息与前两列的组合重复。先自己算出结论，下一课用消元验证。</p>
+  </div>
+
+  <h2>这一课的几何模型</h2>
+
+  <p>整节课只有一个模型：<b>解方程组 = 用 A 的列向量拼出 b</b>。拼得出来就至少有一个解，拼法唯一就是唯一解，拼不出来就是无解。第 2 课把 A 从「一堆列」升级成「一个动作」，第 3 课给你一台机器，任何方程组丢进去都能立刻说出它属于哪一种。</p>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "三维空间里有三个向量 u、v、w。已知 w 能写成 u 与 v 的线性组合，\n那么这三个向量满足下面哪一条？",
+    "opts": [
+      "线性相关，它们都落在同一个过原点的平面上",
+      "线性无关，三个向量各自提供了新的方向",
+      "线性相关，因为三个向量一定互相平行",
+      "线性无关，只要 u 与 v 不互相平行即可"
+    ],
+    "ans": 0,
+    "why": "w 由 u、v 拼得出来，说明它没有带来第三个新方向：\n三个向量的全部组合都摊在 u、v 张成的那个过原点的平面上。\n按定义，这就有一组不全为零的系数使组合为零，所以线性相关。\n三个向量互相平行只是相关的一种极端情形，不是相关的全部。"
+  },
+  {
+    "q": "平面上的两个向量 a = (1, 2) 与 b = (t, 4)。t 取下面哪个值时，\n它们线性相关？",
+    "opts": [
+      "t = 2，此时 b 正好是 a 的两倍",
+      "t = 3，此时两个向量互相垂直",
+      "t = 4，此时两个向量长度相等",
+      "t = 0，此时 b 落在纵轴上"
+    ],
+    "ans": 0,
+    "why": "两个平面向量线性相关，等价于它们共线，也就是一个能写成另一个的倍数。\n2 · (1, 2) = (2, 4)，所以 t = 2 时相关。\n垂直、等长、落在坐标轴上都不影响相关性：t = 4 时 (1, 2) 与 (4, 4) 依然无关。"
+  }
+]'></div>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "对方程组\n\n```text\nx + 2y = 3\n2x + 4y = 7\n```\n\n按列读，它的列向量与右端项各是什么，结论是？",
+    "opts": [
+      "列是 (1, 2) 与 (2, 4)，与 (3, 7) 不共线，无解",
+      "列是 (1, 2) 与 (2, 4)，与 (3, 7) 不共线，有唯一解",
+      "列是 (1, 2) 与 (3, 7)，与 (2, 4) 不共线，有无穷多解",
+      "列是 (1, 2) 与 (2, 4)，与 (3, 7) 共线，所以有无穷多解"
+    ],
+    "ans": 0,
+    "why": "两列 (1, 2) 与 (2, 4) 共线，它们的线性组合只能落在那条直线上。\n右端项 (3, 7) 不在这条直线上，怎么配系数都拼不出来，所以方程组无解。\n注意这与「列向量相关」并不矛盾：相关只说明拼法可能不唯一，\n真正决定有没有解的是右端项在不在张成出来的那条线上。"
+  },
+  {
+    "q": "用自己的话说清下面两句话的区别，并各举一个方程组为例：\n① 这个方程组的列向量线性无关；\n② 这个方程组有唯一解。",
+    "answer": "① 说的是矩阵自身：列向量之间谁也拼不出谁，拼法至多一种。\n② 说的是这一次求解的结果：右端项确实被拼出来了，而且拼法只有一种。\n两者合起来才有唯一解。\n\n例一（列无关但无解）：\n\n```text\nx + y = 1\nx - y = 2\n```\n\n两列 (1, 1) 与 (1, -1) 不共线，但右端项写错时照样可能拼不出——\n把右端项改成 (1, 2) 之外的值，方程组的解就不存在。\n\n例二（列相关但有无穷多解）：\n\n```text\nx + 2y = 3\n2x + 4y = 6\n```\n\n两列 (1, 2) 与 (2, 4) 共线，但右端项 (3, 6) 正好落在这条线上，\n于是有解，而且每给 y 一个值都能算出对应的 x，解有无穷多个。",
+    "criteria": "① 答出「线性无关是矩阵自身性质、与右端项无关」，得 2 分；\n② 答出「有解与否取决于右端项在不在列的张成里」，得 2 分；\n③ 两个例子分别落在「列无关但无解」与「列相关但有无穷多解」，每个 1 分；\n④ 例子里的数字自洽（代进去能验证），得 1 分。\n把两者当成同一件事、或说不出区别，判不通过。"
+  }
+]'></div>
+
+  <div class="quiz" data-quiz='[
+  {
+    "q": "一个 3×3 方程组 Ax = b，A 的三个列向量都落在同一条过原点的直线上。\nb 落在别的直线上时，这个方程组有几个解？",
+    "opts": [
+      "无解，列向量只能拼出那条直线上的向量",
+      "唯一解，三个未知量正好对应三个方程",
+      "无穷多解，因为三个列向量之间线性相关",
+      "无解，因为这三个列向量互相平行且同向"
+    ],
+    "ans": 0,
+    "why": "列向量都共线，它们的任意线性组合仍然落在那条直线上，\n张成出来的只是空间里的一条线。\nb 不在这条线上就拼不出来，所以无解。\n「无穷多解」只在 b 也落在那条线上时才成立；相关本身不保证有解。"
+  }
+]'></div>
+
+  <ul class="lesson-resources">
+    <li><a href="https://www.3blue1brown.com/lessons/vectors">3Blue1Brown · 向量究竟是什么</a><span class="lesson-resources__meta">视频 · 三种视角看同一个向量</span></li>
+    <li><a href="https://www.3blue1brown.com/lessons/span">3Blue1Brown · 线性组合、张成与基向量</a><span class="lesson-resources__meta">视频 · 张成与线性无关的动画解释</span></li>
+    <li><a href="https://mml-book.github.io/">Mathematics for Machine Learning 第 2 章</a><span class="lesson-resources__meta">书 · 官方 PDF，符号更工程化，用来对照术语</span></li>
+  </ul>
+
+  <!-- ── 提问提示：固定写法，别删 ── -->
+
+  <div class="lesson-ask">
+    <b>没看懂？随时问</b>
+    把看不懂的段落（或报错）原样复制回会话，说一句哪里不懂就行，我只解释这一段，不打断你的进度。
+  </div>
+
+  <!-- ── 上/下节课指针由渲染器按 curriculum.yaml 的 nodes 顺序算（第一课无 --prev、最后一课无 --next） ── -->
+
+  <nav class="lesson-nav" aria-label="上一课 / 下一课">
+    <a class="lesson-nav__link lesson-nav__link--next" href="0002-matrix.transform.html">
+      <span class="lesson-nav__dir">下节课</span>
+      <span class="lesson-nav__title">矩阵与线性变换</span>
+    </a>
+  </nav>
+
+  <footer class="lesson-footer">
+    StudyMate · 0001 向量与线性组合 · 本地学习工作区
+  </footer>
+
+</article>
+
+<script src="../../../assets/sayo/sayo.js"></script>
+<script src="../assets/quiz.js" defer></script>
+<script src="../assets/lesson-toc.js" defer></script>
+<script>LearnTheme.wire(document.getElementById('lesson-theme-checkbox'));</script>
+</body>
+</html>

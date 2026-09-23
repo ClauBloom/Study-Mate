@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>会话摘要 2026-09-24 · 计算机网络</title>
+<link rel="stylesheet" href="../../../assets/sayo/sayo.css">
+<link rel="stylesheet" href="../../../assets/learn-theme.css">
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../../../assets/learn-theme.js"></script>
+<script>LearnTheme.apply();</script>
+<style>
+.lesson h1 {
+  margin: var(--syo-space-2, 8px) 0 var(--syo-space-4, 16px);
+  font-size: clamp(1.6rem, 3.2vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--syo-fg-default);
+}
+</style>
+</head>
+<body class="lesson-body">
+<nav class="lesson-bar">
+  <a href="../index.html">← 返回科目</a>
+  <span>计算机网络</span>
+  <span class="lesson-bar__no">会话摘要</span>
+  <label class="syo-toggle syo-toggle--theme lesson-bar__toggle" title="切换深浅主题" aria-label="切换深浅主题">
+    <input type="checkbox" id="attachment-theme-checkbox" checked>
+    <span class="syo-toggle-track"></span>
+    <span class="syo-toggle-knob">
+      <svg class="syo-toggle-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.5" stroke="#f57c00" stroke-width="1.5"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.34 4.34l1.77 1.77M13.89 13.89l1.77 1.77M4.34 15.66l1.77-1.77M13.89 6.11l1.77-1.77" stroke="#f57c00" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <svg class="syo-toggle-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 12.5A6 6 0 019 4.5a6 6 0 007.5 8z" stroke="#5c6bc0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </span>
+  </label>
+</nav>
+
+<article class="lesson">
+<h1>会话摘要 2026-09-24</h1>
+<h2>这次做了什么</h2>
+<ul>
+<li>复习回看：第二课的帧字段与 MAC 地址（<code>初步理解</code>）用三分钟复述，能说出目的 MAC / 源 MAC / 类型 / FCS 的位置与作用</li>
+<li>新节点 <code>net.ip</code> 置「学习中」，过完正文：IP 地址的来历与 CIDR、掩码与网段、算一个网段、逐跳转发与默认网关</li>
+<li>手算三张表：<code>172.16.8.200/26</code>、<code>10.0.0.14/30</code>、以及 <code>192.168.10.50</code> 与 <code>192.168.10.200</code> 是否同网段（第三张算错一次，见下）</li>
+<li>开 lab：跑了一次任务留白态的测试，看见教程 3 条绿、任务 9 条红，开始写 <code>parse_cidr</code></li>
+</ul>
+<h2>卡在哪里、怎么过的</h2>
+<ol>
+<li><strong><code>/26</code> 的块大小算成 26</strong>：把前缀长度当成了"每段有多少个地址"。提示"主机位剩几位"之后自己算出 2^6 = 64，并把四个子网边界全部重算了一遍</li>
+<li><strong><code>192.168.10.50</code> 与 <code>192.168.10.200</code> 判成不同网段</strong>：理由是"一个在 0 段、一个在 200 段"。这说明块大小的用法还没稳住——<code>/24</code> 的块大小是 256，整段只有一个网段。已记入误解库（子网掩码一条），下节课开头用 lab 的 <code>same_subnet</code> 再验一次</li>
+<li><strong>抓包里 MAC 每跳更换</strong>：第二课留下的疑问，今天用逐跳转发那张图接上了，学生自己说出"换的是信封，不是信"</li>
+</ol>
+<h2>下次的安排</h2>
+<ul>
+<li>先跑绿 lab 三个函数（<code>parse_cidr</code> / <code>same_subnet</code> / <code>split_subnet</code>），再回课件答两处「应用」题</li>
+<li>通过后进入 <code>net.tcp</code>（TCP 与可靠传输），届时把今天讲的地址与端口接起来</li>
+<li>距上次评估（09-23，<code>net.layers</code> 通过）已走 1 个节点；走完 <code>net.tcp</code> 后做一次阶段评估，覆盖 <code>net.link</code> 与 <code>net.ip</code></li>
+</ul>
+  <footer class="lesson-footer">
+    StudyMate · 会话摘要 2026-09-24 · 本地学习工作区
+  </footer>
+</article>
+
+<script src="../../../assets/sayo/sayo.js"></script>
+<script>LearnTheme.wire(document.getElementById('attachment-theme-checkbox'));</script>
+</body>
+</html>
