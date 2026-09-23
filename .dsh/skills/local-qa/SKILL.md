@@ -15,7 +15,7 @@ description: 局部提问与答疑规范：学生贴回一段看不懂的内容�
 
 ## 答完写一条记录
 
-立即追加到该科目 `misconceptions.yaml`（你自己落盘）：
+立即追加到该科目「误解库」（你自己落盘）：
 
 | 字段 | 写什么 |
 |---|---|
@@ -26,7 +26,7 @@ description: 局部提问与答疑规范：学生贴回一段看不懂的内容�
 | `follow_up` | 建议的跟进练习，可选——没有就整行省略 |
 | `importance` | `low`／`medium`／`high` |
 
-同一份记录要进 `progress.yaml` 的 `misconceptions` 数组，那个 schema 要求字符串——**任何字段都不写 `null`**（没有内容就写「无」或省略可选行）。`importance`：影响后续学习的（前置知识错）记 `high`，一次性小疑问记 `low`。落盘后上下文里只留一行"已处理局部提问（topic，importance）"。
+同一份记录要进「学习进度」的 `misconceptions` 数组，那个 schema 要求字符串——**任何字段都不写 `null`**（没有内容就写「无」或省略可选行）。`importance`：影响后续学习的（前置知识错）记 `high`，一次性小疑问记 `low`。落盘后上下文里只留一行"已处理局部提问（topic，importance）"。
 
 ## 边界
 
