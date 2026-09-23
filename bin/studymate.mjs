@@ -192,7 +192,9 @@ function install(workspaceArg, profile) {
       }));
     }
     const stagedPreset = path.join(staging, 'learning');
-    fs.cpSync(path.join(stagedEngine, 'preset', 'learning'), stagedPreset, { recursive: true });
+    // A filter avoids Node 22.19's native Windows copy crash on Unicode paths.
+    // https://github.com/nodejs/node/issues/59636
+    fs.cpSync(path.join(stagedEngine, 'preset', 'learning'), stagedPreset, { recursive: true, filter: () => true });
     const agentFile = path.join(stagedPreset, 'agent.cordis.yml');
     const agent = fs.readFileSync(agentFile, 'utf8');
     if (!agent.includes('__STUDYMATE_SKILLS__')) throw new Error('预设缺少 __STUDYMATE_SKILLS__，安装包不完整。');
