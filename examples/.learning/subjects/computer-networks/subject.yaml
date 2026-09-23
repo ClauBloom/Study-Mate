@@ -1,0 +1,5 @@
+name: 计算机网络
+slug: computer-networks
+goal: "网络零基础起步、每周 3~4 次每次 40 分钟：能独立解释一次网页请求的分层封装、逐跳转发与 TCP 会话，并用抓包与自写 Python 代码验证"
+created_at: "2026-09-20"
+status: 进行中

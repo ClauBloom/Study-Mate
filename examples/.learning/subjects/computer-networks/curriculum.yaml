@@ -1,0 +1,119 @@
+nodes:
+  - id: net.layers
+    title: 分层模型与封装
+    kind: 概念
+    objective: "能画出一次网页请求经过的各层，并说清每层加了什么头"
+    problem: "一次网页请求中间到底发生了什么"
+    prerequisites: []
+    concepts: [协议, 分层, 封装, 首部与载荷, 对等层]
+    resources:
+      - title: MDN · HTTP 概览
+        url: https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Overview
+        type: official-doc
+      - title: RFC 1122 · 互联网主机要求
+        url: https://www.rfc-editor.org/rfc/rfc1122.html
+        type: official-doc
+    practice: "在开发者工具里指出三个请求头属于哪一层，再用 curl -v 的输出逐行认层"
+    pitfalls: [把四层当成必须逐级调用的函数, 以为中间设备要读懂每一层的首部]
+    realworld: "浏览器开发者工具的 Network 面板，以及网页打不开时的分层排查"
+    status: 未开始
+    mastery: 0
+  - id: net.link
+    title: 链路层与以太网帧
+    kind: 概念
+    objective: "能读出一个以太网帧的字段，并说清 MAC 地址与交换机的作用"
+    problem: "同一段线路上的几十台机器，一个帧该交给谁"
+    prerequisites: [net.layers]
+    concepts: [以太网帧, MAC 地址, 交换机, MAC 地址表, ARP]
+    resources:
+      - title: RFC 894 · IP over Ethernet
+        url: https://www.rfc-editor.org/rfc/rfc894.html
+        type: official-doc
+      - title: RFC 826 · ARP
+        url: https://www.rfc-editor.org/rfc/rfc826.html
+        type: official-doc
+    practice: "用 ip link / ip neigh 读出本机 MAC 与网关 MAC，并把第一个字节拆成二进制指出单播位与本地管理位"
+    pitfalls: [以为 MAC 地址和 IP 一样端到端有效, 把交换机当成会看 IP 的设备]
+    realworld: "机房里同一台交换机下机器的互访，以及换网卡后 ARP 缓存里的旧记录"
+    status: 未开始
+    mastery: 0
+  - id: net.ip
+    title: IP 地址、子网与路由
+    kind: 实操
+    objective: "能算出一个网段的可用地址范围，并说清一个包怎么被逐跳转发"
+    problem: "两台机器不在同一个网里，包怎么找到对方"
+    prerequisites: [net.layers, net.link]
+    concepts: [IP 地址, 子网掩码, 前缀长度, 网段, 广播地址, 默认网关, 路由表, 逐跳转发]
+    resources:
+      - title: RFC 791 · Internet Protocol
+        url: https://www.rfc-editor.org/rfc/rfc791.html
+        type: official-doc
+      - title: RFC 1918 · 私有网络地址分配
+        url: https://www.rfc-editor.org/rfc/rfc1918.html
+        type: official-doc
+      - title: Python 官方文档 · ipaddress
+        url: https://docs.python.org/zh-cn/3/library/ipaddress.html
+        type: official-doc
+    practice: "手算三个地址的网段与可用范围，再在 lab/0003-ip-subnet/ 里实现 parse_cidr、same_subnet、split_subnet 并通过测试"
+    pitfalls: [把网络地址或广播地址当主机地址用, 以为前三段相同就在同一网段, 忘记掩码决定网段边界]
+    realworld: "配静态 IP 时填的地址、掩码与网关三件套，以及 ssh 连不上时的路由排查"
+    status: 未开始
+    mastery: 0
+  - id: net.tcp
+    title: TCP 与可靠传输
+    kind: 概念
+    objective: "能解释三次握手、确认重传与流量控制在解决什么问题"
+    problem: "线路会丢包、会乱序，怎么让上层拿到完整有序的数据"
+    prerequisites: [net.ip]
+    concepts: [端口, 三次握手, 序号与确认, 超时重传, 滑动窗口, 流量控制]
+    resources:
+      - title: RFC 9293 · Transmission Control Protocol
+        url: https://www.rfc-editor.org/rfc/rfc9293.html
+        type: official-doc
+    practice: "在抓包里认出 SYN / SYN-ACK / ACK 三个报文段并读出各自的序号"
+    pitfalls: [把三次握手理解成三次数据传输, 以为重传是应用层的事]
+    realworld: "下载大文件时进度条能对上、网页少一个字节浏览器就会报错"
+    status: 未开始
+    mastery: 0
+  - id: net.experiment
+    title: 实验：TCP 回显客户端与抓包
+    kind: 实验
+    objective: "能用真实抓包解释一次完整 TCP 会话的建立、传输与关闭"
+    problem: "学完了四课，能不能拿真实流量把整条路讲一遍"
+    prerequisites: [net.layers, net.link, net.ip, net.tcp]
+    concepts: [socket, 回显协议, 抓包过滤, 会话关闭]
+    resources:
+      - title: Python 官方文档 · socket
+        url: https://docs.python.org/zh-cn/3/library/socket.html
+        type: official-doc
+      - title: Wireshark 用户指南
+        url: https://www.wireshark.org/docs/wsug_html_chunked/
+        type: official-doc
+    practice: "写一个 TCP 回显客户端，边跑边抓包，按报文段讲出建立、传输与关闭三个阶段"
+    status: 未开始
+    mastery: 0
+edges:
+  - from: net.layers
+    to: net.link
+    reason: "先知道每层各管一段，才看得懂帧这一层在解决什么"
+  - from: net.layers
+    to: net.ip
+    reason: "IP 包被逐层封装这件事，前提是知道首部与载荷的分工"
+  - from: net.link
+    to: net.ip
+    reason: "同一链路内怎么找到邻居（ARP 与帧头）是逐跳转发的前半段"
+  - from: net.ip
+    to: net.tcp
+    reason: "IP 只负责把包送到主机，端到端的可靠与有序是 TCP 的事"
+  - from: net.layers
+    to: net.experiment
+    reason: "实验验收分层与封装：抓包时要按层读出每一段首部"
+  - from: net.link
+    to: net.experiment
+    reason: "实验验收链路层：抓到的帧里要认出 MAC 地址与类型字段"
+  - from: net.ip
+    to: net.experiment
+    reason: "实验验收 IP 与路由：抓包里要读出地址、端口与 TTL 的变化"
+  - from: net.tcp
+    to: net.experiment
+    reason: "实验验收 TCP：建立、传输与关闭三个阶段要在抓包里指出来"
