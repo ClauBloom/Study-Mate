@@ -71,6 +71,13 @@ def config_of(home):
         return {key: os.path.normpath(value) for key, value in yaml.safe_load(handle).items()}
 
 
+def same_path(actual, expected):
+    """路径须为绝对路径；Windows 的 8.3 短名与完整名称视为同一路径。"""
+    return (isinstance(actual, str) and os.path.isabs(actual)
+            and os.path.normcase(os.path.realpath(actual))
+            == os.path.normcase(os.path.realpath(expected)))
+
+
 def preset_skills(home):
     """读回预设里写死的 skill 目录。"""
     path = os.path.join(home, '.dsh', '.agent-presets', 'learning', 'agent.cordis.yml')
@@ -127,12 +134,12 @@ def main():
     check('预设装到 $DSH_HOME/.agent-presets/learning/',
           os.path.isfile(os.path.join(home, '.dsh', '.agent-presets', 'learning', 'agent.cordis.yml')))
     check('预设里的 skill 目录 = 引擎的 .dsh/skills',
-          preset_skills(home) == str(REPO / '.dsh' / 'skills'), preset_skills(home))
+          same_path(preset_skills(home), REPO / '.dsh' / 'skills'), preset_skills(home))
     check('配置写的是绝对路径',
-          config_of(home)['workspace'] == os.path.join(tmp, 'ws'), config_of(home))
+          same_path(config_of(home)['workspace'], os.path.join(tmp, 'ws')), config_of(home))
     check('工作区建出 .learning/subjects',
           os.path.isdir(os.path.join(tmp, 'ws', '.learning', 'subjects')))
-    check('配置里的 root = 当前引擎位置', config_of(home)['root'] == str(REPO), config_of(home))
+    check('配置里的 root = 当前引擎位置', same_path(config_of(home)['root'], REPO), config_of(home))
 
     # ①a 同时钉住两个安装器的关键动作，防止只改了一边。
     ps1_path = REPO / 'install.ps1'
@@ -168,7 +175,7 @@ def main():
     proc = run(home)
     check('重复跑退出码 0', proc.returncode == 0, proc.stderr)
     check('重复跑沿用已有工作区（没有被重置回 <root>/workspace）',
-          config_of(home)['workspace'] == os.path.join(tmp, 'ws'), config_of(home))
+          same_path(config_of(home)['workspace'], os.path.join(tmp, 'ws')), config_of(home))
 
     # ③ 首课流程要用的：工作区能生成主页（用沙箱配置，不碰真实 ~/.dsh）
     env = dict(os.environ, HOME=home, DSH_HOME=os.path.join(home, '.dsh'))
@@ -183,10 +190,10 @@ def main():
     # ④ 路径写法：~ 展开、相对路径变绝对（配置是机器全局的，留相对路径就找不到工作区）
     proc = run(home, workspace='~/tilde')
     check('`~/x` 展开成家目录下的绝对路径',
-          config_of(home)['workspace'] == os.path.join(home, 'tilde'), config_of(home))
+          same_path(config_of(home)['workspace'], os.path.join(home, 'tilde')), config_of(home))
     proc = run(home, workspace='relws', env_extra={'PWD': tmp}, cwd=tmp)
     check('相对路径落成绝对路径（且落在当时的当前目录下，不落到仓库里）',
-          config_of(home)['workspace'] == os.path.join(tmp, 'relws'), config_of(home))
+          same_path(config_of(home)['workspace'], os.path.join(tmp, 'relws')), config_of(home))
 
     # ⑤ 引擎被搬走：root 与预设里的 skills 路径都按当前位置重写
     moved = os.path.join(tmp, "moved [repo] O'Brien #1")
@@ -198,24 +205,25 @@ def main():
     shutil.copytree(REPO / '.dsh' / 'skills', os.path.join(moved, '.dsh', 'skills'))
     proc = run(home, script=os.path.join(moved, INSTALL.name))
     check('引擎搬走后重跑退出码 0', proc.returncode == 0, proc.stderr)
-    check('root 重写为新位置', config_of(home)['root'] == moved, config_of(home))
-    check('预设里的 skills 路径也重写', preset_skills(home) == os.path.join(moved, '.dsh', 'skills'),
+    check('root 重写为新位置', same_path(config_of(home)['root'], moved), config_of(home))
+    check('预设里的 skills 路径也重写', same_path(preset_skills(home), os.path.join(moved, '.dsh', 'skills')),
           preset_skills(home))
     try:
         moved_rows = preset_tool_rows(home)
+        skill_dirs = moved_rows['skill-filesystem']['config']['customSkillDirs']
         check('含单引号的引擎路径写入后预设仍是合法 YAML',
-              moved_rows['skill-filesystem']['config']['customSkillDirs'] ==
-              [Path(moved, '.dsh', 'skills').as_posix()])
+              isinstance(skill_dirs, list) and len(skill_dirs) == 1
+              and same_path(skill_dirs[0], Path(moved, '.dsh', 'skills')), skill_dirs)
     except Exception as exc:
         check('含单引号的引擎路径写入后预设仍是合法 YAML', False, exc)
 
     special_workspace = os.path.join(tmp, "work [1] O'Brien # notes")
     proc = run(home, workspace=special_workspace)
     check('特殊字符工作区可创建且配置可解析',
-          proc.returncode == 0 and config_of(home)['workspace'] == special_workspace, proc.stderr)
+          proc.returncode == 0 and same_path(config_of(home)['workspace'], special_workspace), proc.stderr)
     proc = run(home)
     check('再次安装保留特殊字符工作区',
-          proc.returncode == 0 and config_of(home)['workspace'] == special_workspace, proc.stderr)
+          proc.returncode == 0 and same_path(config_of(home)['workspace'], special_workspace), proc.stderr)
 
     # ⑥ 仓库不完整：宁可报错，也不要装出一个指不到技能的空预设
     broken = os.path.join(tmp, 'broken-repo')
