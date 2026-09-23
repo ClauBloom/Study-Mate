@@ -272,8 +272,9 @@ async function publish() {
     const result = command('npm', ['publish', pack.file, '--access', 'public', '--provenance', '--ignore-scripts', '--registry', REGISTRY], { allowFailure: true });
     process.stdout.write(result.stdout || '');
     process.stderr.write(result.stderr || '');
-    // A lost HTTP response may follow a successful immutable publication.
-    for (let attempt = 0; attempt < 12 && !remote; attempt++) {
+    // npm processes accepted publications asynchronously; allow up to five minutes.
+    // A lost HTTP response may also follow a successful immutable publication.
+    for (let attempt = 0; attempt < 60 && !remote; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 5000));
       remote = await registryVersion(pack.version);
     }
