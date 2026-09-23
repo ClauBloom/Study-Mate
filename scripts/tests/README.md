@@ -1,8 +1,8 @@
 # 回归测试
 
 ```bash
-bash scripts/tests/run_tests.sh              # 13 套快测（纯 Python/Node）
-bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 套（共 15 套）
+bash scripts/tests/run_tests.sh              # 14 套快测（纯 Python/Node）
+bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 套（共 16 套）
 ```
 
 只依赖 `python3` + `pyyaml`（跑检查要用）与 `node`（两套 DOM 测试）；没有 node 会自动跳过那两套。
@@ -33,6 +33,7 @@ npm run test:dsh-cli
 | `test_quiz_code.py` | 题面里的 ` ``` ` 代码围栏：成对放行、没闭合即拦（含 `answer` 字段）、行内单个反引号不算围栏（12 例） |
 | `test_lesson_figure.py` | 检查项 9（配图）：本地图存在放行、**不存在即拦**（学生看到裂图；`gen_home` 的链接自检只管它写出的主页，课件页不在其范围内）、外链图与缺 `alt` 只提示、内联 SVG 不需要文件（5 例） |
 | `test_lesson_links.py` | 检查项 10（本地引用可达）：页面里的 href/src 必须落到真实文件。正文链接指错文件、科目组件或共享层缺文件都拦；外链、锚点、协议相对 `//`、HTML 注释里的路径、上下节课指针（落空是设计内）一律跳过，`?查询串` 与 `#片段` 先剥掉再解析（10 例） |
+| `test_templates.py` | 模板与规格一致：`docs/文件归属.md` 要求术语表两节、「learning-system」要求使命三节、`docs/使用说明.md` 列出共享记忆四节，模板里必须真有；`templates/subject.yaml` 的键与 `subject.schema.json` 完全一致、`status` 取值在 enum 里（8 项）。防的是「规格改了名、模板没跟」这类静默漂移 |
 | `test_naming_nav.py` | 检查项 8：文件名与大纲位次一致、上/下节课指针指向大纲邻居、悬空指针只提示、归属查不出即 FAIL（9 个场景） |
 | `test_pool.py` | 图片库校验器 `check_pool.py`：表头七列齐全（分隔行跳过）、每行的图真在 `assets/img/pool/` 下、文件名合规（字符集 + ≤60 字符）、`来源 URL`/`许可`/`抓取日期` 非空、单张 ≤500 KB（按文件字节，不读 `尺寸` 列）（6 例） |
 | `test_lesson_scripts.py` | 总控的两件机械活做成脚本后的回归：`renumber_lessons.py`（大纲插/删节点后按 `nodes:` 顺序重排 `lessons/` 的文件名序号，三件保持一致、冲突即拒、`--dry-run` 不写盘、`--render` 调渲染器重算指针、认不出的名字不动）与 `apply_empty_reasons.py`（把出题人的 `empty_reason` 按 TSV 打进对应 `::: quiz` 块；锚点找不到／同锚点两块／块里已有理由／TSV 重复或空值一律先校验后写、出错一个文件都不动）（22 例） |
