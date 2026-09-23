@@ -103,6 +103,8 @@ StudyMate 是 DSH（DeepSeek Harness）的 **「学习模式」预设 + 一套 S
 
 <img src="docs/images/preview-lesson.png" width="640" alt="课件示例">
 
+想翻一遍真实产出：仓库里的 [`examples/`](examples/) 是一份完整示例工作区（**线性代数** + **计算机网络**），页面已经渲染入库——clone 下来用浏览器打开 `examples/index.html`，就能一路点到科目主页与课件。
+
 
 ## 用法示例
 
@@ -122,8 +124,8 @@ StudyMate 是 DSH（DeepSeek Harness）的 **「学习模式」预设 + 一套 S
 python3 scripts/gen_home.py                    # 生成根主页 + 全部科目主页（默认读配置里的 workspace）
 python3 scripts/preview_templates.py --open    # 用假数据渲染主页模板到 .preview/，只看样式与交互
 python3 scripts/render_lesson.py <subject_path> <节点id>   # 内容文件 + 题库 → 课件 HTML（--check 只校验不写盘）
-python3 scripts/check_curriculum.py examples/.learning/subjects/typescript-web-api/curriculum.yaml
-python3 scripts/check_lesson.py workspace/.learning/subjects/cpp-competitive-programming/lessons/0001-hello.first.html --subject workspace/.learning/subjects/cpp-competitive-programming --node hello.first
+python3 scripts/check_curriculum.py examples/.learning/subjects/computer-networks/curriculum.yaml
+python3 scripts/check_lesson.py examples/.learning/subjects/linear-algebra/lessons/0001-vector.space.html --subject examples/.learning/subjects/linear-algebra --node vector.space
 python3 scripts/check_pool.py <你的科目目录>    # 图片池：索引 pool.md 与 assets/img/pool/ 对不对得上
 python3 scripts/check_skill.py .dsh/skills/*    # 技能 frontmatter（改过技能就跑一次）
 bash scripts/tests/run_tests.sh                # 回归测试：检查/题目属性/命名指针/提示词规则/DOM（改引擎就跑一次）
@@ -158,7 +160,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 ├── schemas/                   # 5 份数据结构：大纲 / 进度 / 评估 / 会话摘要 / 科目
 ├── templates/                 # 页面骨架（主页、科目页、课件壳）与前端资源 assets/
 ├── scripts/                   # 主页生成 + 课件渲染器 + 四道校验检查（用法见上）+ tests/ 回归测试
-├── examples/                  # 示例学习工作区：两门示例科目，可拿来跑生成器看效果
+├── examples/                  # 示例学习工作区：线性代数 + 计算机网络，页面已生成，clone 即可点开
 ├── docs/                      # 使用说明、课件内容格式、设计方案、工程约束、文件归属、docs/images/ 截图
 └── workspace/                 # 你的学习数据（默认位置，可配置；也被 .gitignore 忽略）
 ```

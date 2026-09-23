@@ -3,60 +3,150 @@ nodes:
     title: 向量与线性组合
     kind: 概念
     objective: "能把方程组读成列向量的线性组合，并说清线性无关的几何含义"
-    problem: "为什么解方程组可以看成「用几个向量拼出目标向量」"
+    problem: "为什么解方程组可以看成「用几个向量拼出目标向量」——拼法有几种，解就有几种"
     prerequisites: []
-    concepts: [向量, 线性组合, 张成, 线性无关]
+    concepts: [向量, 线性组合, 张成, 线性无关, 列视角与行视角]
     resources:
-      - title: MIT 18.06 线性代数（Gilbert Strang）第 1 讲
-        url: https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/
-        type: video
-      - title: 3Blue1Brown：向量究竟是什么
+      - title: 3Blue1Brown · 线性代数的本质（第 1 集：向量究竟是什么）
         url: https://www.3blue1brown.com/lessons/vectors
         type: video
-    practice: "把 3 元方程组写成 Ax=b 的列向量组合，判断三个列向量是否线性无关"
-    pitfalls: [把矩阵乘法当「逐元素相乘」, 只记消元步骤不看几何意义]
-    realworld: "图像压缩与推荐系统里，一切数据都是向量，一切模型都是向量组合"
+      - title: 3Blue1Brown · 线性组合、张成与基向量
+        url: https://www.3blue1brown.com/lessons/span
+        type: video
+      - title: Mathematics for Machine Learning（Deisenroth 等）第 2 章
+        url: https://mml-book.github.io/
+        type: book
+    practice: "把 2×2 方程组写成两个列向量的线性组合，用 Python 算一遍组合结果，再判断给定的目标向量能不能拼出来"
+    pitfalls:
+      - 把矩阵乘向量当「逐元素相乘」
+      - 只会按行读方程组，看不出列向量能不能拼出右端项
+      - 把线性无关记成「向量互不相等」
+    realworld: "推荐系统把用户与商品都表示成向量，推荐就是找「与你的向量最接近的那些向量」"
     status: 能独立应用
-    mastery: 0.85
+    mastery: 0.8
+
   - id: matrix.transform
     title: 矩阵与线性变换
     kind: 概念
-    objective: "能把矩阵读成「对空间做的一次变换」，并算出它的秩与零空间"
-    problem: "同一个矩阵乘不同向量，为什么有的方向被压扁、有的方向不变"
+    objective: "能把矩阵读成对空间的变换，并说出秩与零空间的含义"
+    problem: "同一个矩阵乘不同向量，为什么有的方向被压扁、有的方向长度不变"
     prerequisites: [vector.space]
-    concepts: [线性变换, 秩, 零空间, 列空间]
+    concepts: [线性变换, 基向量的像, 秩, 零空间, 秩-零化度定理]
     resources:
-      - title: MIT 18.06 第 5-9 讲（列空间与零空间）
-        url: https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/
-        type: video
-      - title: 3Blue1Brown：线性变换与矩阵
+      - title: 3Blue1Brown · 线性变换与矩阵
         url: https://www.3blue1brown.com/lessons/linear-transformations
         type: video
-    practice: "给一个 3×3 矩阵，算出秩、零空间维数，并解释这个变换把空间压成了几维"
-    pitfalls: [把秩当成「矩阵里非零行的个数」而不看行之间的依赖, 混淆零空间与解空间]
-    realworld: "最小二乘拟合、图像旋转缩放，都是在矩阵这个「变换」上做的"
-    status: 学习中
-    mastery: 0.45
-  - id: eigen.basic
-    title: 特征值与特征向量
-    kind: 概念
-    objective: "能解出小矩阵的特征值与特征向量，并解释它们为什么方向不变"
-    problem: "为什么要找一个矩阵乘上去只伸缩、不转向的方向"
-    prerequisites: [matrix.transform]
-    concepts: [特征值, 特征向量, 特征多项式, 对角化]
-    resources:
-      - title: MIT 18.06 第 21-22 讲（特征值与对角化）
-        url: https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/
+      - title: MIT 18.06 线性代数（Gilbert Strang）第 5~9 讲
+        url: https://ocw.mit.edu/courses/18-06sc-linear-algebra-fall-2011/
         type: video
-    practice: "手算一个 2×2 矩阵的特征值与特征向量，再用 Python 的 numpy.linalg.eig 核对"
-    pitfalls: [把特征向量方向记反, 忘记特征值可以是复数]
-    realworld: "PCA 降维、PageRank、振动模态分析，核心都是特征分解"
+    practice: "给一个把平面压成一条线的矩阵，算它把几个具体向量送到了哪里，再解释秩和零空间各是几维"
+    pitfalls:
+      - 把秩当成「非零行的个数」而不看行与行之间是否成比例
+      - 把零空间当成「方程组无解时的那个空间」
+      - 以为矩阵乘法没有顺序，随手把两个矩阵交换
+    realworld: "图像旋转与缩放、数据降维，动作都是「用一个矩阵乘一遍所有向量」"
+    status: 初步理解
+    mastery: 0.55
+
+  - id: system.elimination
+    title: 高斯消元与解的结构
+    kind: 实操
+    objective: "能手写消元把线性方程组解出来，并判断解的存在性与自由度"
+    problem: "表面上一堆方程，怎么知道它到底有没有解、有几个解，而不是解到一半才发现白算"
+    prerequisites: [vector.space, matrix.transform]
+    concepts: [增广矩阵, 初等行变换, 行阶梯形, 主元, 自由变量, 解的结构]
+    resources:
+      - title: MIT 18.06 线性代数（Gilbert Strang）第 1~2 讲（消元法）
+        url: https://ocw.mit.edu/courses/18-06sc-linear-algebra-fall-2011/
+        type: video
+      - title: NumPy 官方文档 · numpy.linalg.solve
+        url: https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html
+        type: official-doc
+      - title: Python 官方文档 · fractions.Fraction
+        url: https://docs.python.org/zh-cn/3/library/fractions.html
+        type: official-doc
+    practice: "lab/0003-system-elimination：实现 rref(A) 与 solve(A, b)，让三种解的情形（唯一解 / 无解 / 无穷多解）的断言全部转绿"
+    pitfalls:
+      - 消元时只对系数动手术，忘了等号右边也要跟着变
+      - 把「某一行全变成零」当成无解（那只是这一行没提供新信息）
+      - 数自由变量时数错主元的个数，把解集的维数说错
+    realworld: "最小二乘拟合、电路网络求解、任何调 numpy.linalg.solve 的代码，底下都是这套消元"
+    status: 学习中
+    mastery: 0.3
+
+  - id: space.basis
+    title: 基、维数与坐标
+    kind: 概念
+    objective: "能为一组向量求基与维数，并在给定基下写出坐标"
+    problem: "换了观察角度之后，同一份数据为什么需要另一套坐标才能看清"
+    prerequisites: [matrix.transform]
+    concepts: [基, 维数, 坐标, 标准基, 换基]
+    resources:
+      - title: 3Blue1Brown · 基变换
+        url: https://www.3blue1brown.com/lessons/change-of-basis
+        type: video
+      - title: Mathematics for Machine Learning（Deisenroth 等）第 2.6 节
+        url: https://mml-book.github.io/
+        type: book
+    practice: "从四个三维向量里挑出一组基，把剩下的那个写成这组基的坐标，再用 Python 核对"
+    pitfalls:
+      - 把「基」当成「随便挑的几个向量」
+      - 以为坐标是向量自带的属性，而不是相对于某一组基才有的
+    realworld: "JPEG 把图像换到频域的一组基上看，同样的像素用更少的系数就能记住"
     status: 未开始
     mastery: 0
+
+  - id: eigen.basic
+    title: 特征值与特征向量
+    kind: 实验
+    objective: "能用特征分解解释一个真实变化过程（如人口迁移或图像压缩）"
+    problem: "反复用同一个矩阵去乘一个初始状态，长期之后它会走向哪里"
+    prerequisites: [vector.space, matrix.transform, system.elimination, space.basis]
+    concepts: [特征值, 特征向量, 特征多项式, 对角化, 迭代的长期行为]
+    resources:
+      - title: MIT 18.06 线性代数（Gilbert Strang）第 21~22 讲（特征值与对角化）
+        url: https://ocw.mit.edu/courses/18-06sc-linear-algebra-fall-2011/
+        type: video
+      - title: NumPy 官方文档 · numpy.linalg.eig
+        url: https://numpy.org/doc/stable/reference/generated/numpy.linalg.eig.html
+        type: official-doc
+    practice: "为一个可复现的变化过程（人口迁移或图像压缩）写出状态转移矩阵，用特征分解解释它的长期走向，并用代码验证"
+    pitfalls:
+      - 把特征向量的方向记反（`Av = λv` 里前后是同一个方向）
+      - 忘记特征值可以是复数，遇到二维旋转就以为算错了
+      - 把特征分解当成"任何矩阵都能做"的操作（有的矩阵不能对角化）
+    realworld: "人口迁移的长期预测、PageRank 的收敛、图像压缩里保留哪些主方向"
+    status: 未开始
+    mastery: 0
+
 edges:
   - from: vector.space
     to: matrix.transform
-    reason: "不会把方程组读成向量组合，就看不懂矩阵在做什么"
+    reason: "矩阵的每一列是基向量变换后的落点，先会读列向量才读得懂矩阵"
+  - from: vector.space
+    to: system.elimination
+    reason: "消元到底在干什么，要用列向量的组合来解释「解不存在」与「解不唯一」"
+  - from: matrix.transform
+    to: system.elimination
+    reason: "秩与零空间给出解集的维数，消元只是把它算出来"
+  - from: matrix.transform
+    to: space.basis
+    reason: "基是「变换后仍然独立的方向」这个想法的一般化"
+  - from: system.elimination
+    to: space.basis
+    reason: "求基与维数就是把矩阵化成阶梯形数主元，手上要有消元这套工具"
+  - from: vector.space
+    to: space.basis
+    reason: "张成与线性无关是基的两个条件，先分清这两件事"
+  - from: vector.space
+    to: eigen.basic
+    reason: "实验课验收线性组合：长期迭代的结果是特征向量的组合"
   - from: matrix.transform
     to: eigen.basic
-    reason: "特征向量是变换下不变的方向，先得会看变换"
+    reason: "实验课验收线性变换：特征方向就是变换下方向不变的方向"
+  - from: system.elimination
+    to: eigen.basic
+    reason: "实验课验收消元：求特征向量要解 (A - λI)v = 0 这个齐次方程组"
+  - from: space.basis
+    to: eigen.basic
+    reason: "实验课验收基与坐标：特征向量构成一组基，状态要在那组基下分解"
