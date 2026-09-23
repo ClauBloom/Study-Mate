@@ -14,6 +14,10 @@
   · 上/下节课指针 → 跳过（落空是设计内的，检查项 8 只提示）
   · `?查询串` 与 `#片段` 先剥掉再解析；`%xx` 先解码
 
+另外两条钉的是**条件引用**（检查项 11）：页面里有 `.math-inline` / `.math-block` 时，壳里必须有
+离线 KaTeX 三件（`katex/katex.min.css`、`katex/katex.min.js`、`lesson-math.js`）；没有数学式的
+页面不要求它们（老课件与非数学课零迁移）。
+
 用法：python3 scripts/tests/test_lesson_links.py
 """
 import os
@@ -91,7 +95,27 @@ def main():
     failures += not ok
     fixtures.check('下节课还没产出（放行，只有提示）', ok, out)
 
-    total = len(CASES) + 1
+    # 数学式：渲染器会自动注入 KaTeX 三件；把它们删掉就必须报（检查项 11）
+    subject2 = fixtures.write_subject(tmp)
+    fixtures.write_content(subject2, 1, 'overview-map', body='## 试\n\n行内 $Ax = b$ 一段。\n')
+    fixtures.run_render(subject2, 'overview-map')
+    page = fixtures.lesson_html(subject2, 1, 'overview-map')
+    code_math, out_math = fixtures.run_gate(page, subject2, 'overview-map')
+    ok = '页面里有数学式' not in out_math
+    failures += not ok
+    fixtures.check('有公式 + 渲染器注入的 KaTeX 引用（数学这一项不报）', ok, out_math)
+
+    import re as _re
+    with open(page, encoding='utf-8') as handle:
+        stripped = _re.sub(r'.*(katex\.min\.css|katex\.min\.js|lesson-math\.js).*\n', '', handle.read())
+    with open(page, 'w', encoding='utf-8') as handle:
+        handle.write(stripped)
+    code_math2, out_math2 = fixtures.run_gate(page, subject2, 'overview-map')
+    ok2 = '页面里有数学式' in out_math2
+    failures += not ok2
+    fixtures.check('有公式但引用被删（拦下，指到缺哪一件）', ok2, out_math2)
+
+    total = len(CASES) + 3
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)
     return 1 if failures else 0

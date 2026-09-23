@@ -51,8 +51,15 @@ USAGE = '用法：python3 scripts/render_lesson.py <科目目录> <节点id> [--
 # 模板占位符：名字 → 应出现次数（TITLE 在 <title> 与 <h1>；SUBJECT 在 <title> 与顶栏）
 TEMPLATE_PLACEHOLDERS = {
     'TITLE': 2, 'SUBJECT': 2, 'NUMBER': 1, 'EYEBROW': 1, 'GOAL': 1, 'BODY': 1, 'NAV': 1, 'FOOTER': 1,
+    'MATH': 1,
 }
 PLACEHOLDER = '<!-- @LEARN:{} -->'
+
+# 数学式：行内 `$…$`、块级 `$$…$$`（整段就是它）。作者写 TeX，渲染器只包成占位元素，
+# 排版在浏览器里由离线 KaTeX（共享层 templates/assets/katex/ + lesson-math.js）完成。
+# **有数学式的页面才注入这三个引用**：老课件与非数学课因此零改动、零 diff。
+MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
+BLOCK_MATH_RE = re.compile(r'^\$\$(.+)\$\$$', re.S)
 
 # 块级词汇：`:::` 指令名（其余一律报错）
 # 图注编号（`::: figure` / `::: svg` 的 `caption:`）：作者只写描述，编号由渲染器按页内顺序给。
@@ -355,6 +362,22 @@ def code_span_end(text, start):
     """
     close = text.find('`', start + 1)
     return close if close > start + 1 else None
+
+
+def math_close(text, index):
+    """`text[index]` 是 `$` 时返回配对收尾 `$` 的下标；不成立返回 None。
+
+    判据（避开散文里的美元号）：开 `$` 后面紧跟非空白、收 `$` 前面也是非空白、中间非空且不跨行。
+    与 `code_span_end` 一样，这是行内公式的**唯一判定**：`inline()` 与「没有收尾」的报错共用它。
+    """
+    if index + 1 >= len(text) or text[index + 1].isspace():
+        return None
+    close = text.find('$', index + 1)
+    if close <= index + 1 or text[close - 1].isspace() or text[close - 1] == '\\':
+        return None
+    if '\n' in text[index + 1:close]:
+        return None
+    return close
 
 
 def tag_shape_at(text, index):
@@ -817,6 +840,7 @@ class Renderer:
         self.quiz_name = quiz_name
         self.pool = pool
         self.figure_no = 0            # 页内图注编号（`::: figure` 与 `::: svg` 共用一条序列）
+        self.has_math = False         # 这一页有没有数学式（决定壳里注不注入 KaTeX）
 
     # ── 图注编号 ──────────────────────────────────────────────────
 
@@ -908,6 +932,38 @@ class Renderer:
                     out.append(f'<{tag}>' + self.inline(inner, line, False) + f'</{tag}>')
                     index = close + 1
                     continue
+            elif char == '\\' and index + 1 < length and text[index + 1] == '$':
+                out.append('$')                          # `\$`：正文里的字面美元号
+                index += 2
+                continue
+            elif char == '$' and text.startswith('$$', index):
+                close = text.find('$$', index + 2)      # 段落中间的 `$$…$$`：包成块级占位（span 合法）
+                if close > index + 2:
+                    tex = text[index + 2:close]
+                    self.has_math = True
+                    out.append('<span class="math-block">' + gen_home.esc(tex) + '</span>')
+                    index = close + 2
+                    continue
+                self.problems.add(self.path, line,
+                                  '块级公式 `$$…$$` 没有收尾——补上收尾的 `$$`')
+                out.append('$$')
+                index += 2
+                continue
+            elif char == '$':
+                close = math_close(text, index)
+                if close is not None:
+                    tex = text[index + 1:close]
+                    self.has_math = True
+                    out.append('<span class="math-inline">' + gen_home.esc(tex) + '</span>')
+                    index = close + 1
+                    continue
+                if not text[index + 1:index + 2].isspace() and text[index + 1:index + 2]:
+                    self.problems.add(self.path, line,
+                                      '行内公式 `$…$` 没有收尾——补上收尾的 `$`；'
+                                      '正文里真要写美元号就写成 `\\$`')
+                out.append('$')
+                index += 1
+                continue
             elif char == '[':
                 link = LINK_RE.match(text, index)
                 if link:
@@ -952,6 +1008,11 @@ class Renderer:
         if kind in ('h2', 'h3'):
             return f'{indent}<{kind}>{self.inline(block["text"], block["line"])}</{kind}>'
         if kind == 'p':
+            math = BLOCK_MATH_RE.match(block['text'].strip())
+            if math:
+                self.has_math = True
+                return (f'{indent}<div class="math-block">'
+                        f'{gen_home.esc(math.group(1).strip())}</div>')
             return f'{indent}<p>{self.inline(block["text"], block["line"])}</p>'
         if kind == 'code':
             attr = f' data-lang="{gen_home.esc(block["lang"], attr=True)}"' if block['lang'] else ''
@@ -1243,12 +1304,26 @@ def render_nav(outline, index):
     return '\n'.join(lines)
 
 
+def math_refs_html(enabled):
+    """有数学式的页面才注入 KaTeX 三个引用；没有就返回空串（模板那一行整行消失）。"""
+    if not enabled:
+        return ''
+    base = '../../../assets/'
+    lines = []
+    for ref in MATH_REFS:
+        if ref.endswith('.css'):
+            lines.append(f'<link rel="stylesheet" href="{base}{ref}">')
+        else:
+            lines.append(f'<script src="{base}{ref}" defer></script>')
+    return '\n'.join(lines)
+
+
 def fill_template(template, path, fields, problems):
     """用 gen_home 的 replace_block/replace_field 口径套模板（缺占位符即报错）。"""
     html = template
     html = gen_home.replace_field(html, PLACEHOLDER.format('TITLE'), fields['title'], path)
     html = gen_home.replace_field(html, PLACEHOLDER.format('SUBJECT'), fields['subject'], path)
-    for name in ('NUMBER', 'EYEBROW', 'GOAL', 'BODY', 'NAV', 'FOOTER'):
+    for name in ('NUMBER', 'EYEBROW', 'GOAL', 'BODY', 'NAV', 'FOOTER', 'MATH'):
         html = gen_home.replace_block(html, PLACEHOLDER.format(name), fields[name.lower()], path)
     for name in TEMPLATE_PLACEHOLDERS:
         leftover = PLACEHOLDER.format(name)
@@ -1350,6 +1425,7 @@ def main(argv):
         'body': body_html,
         'nav': render_nav(outline, index),
         'footer': f'StudyMate · {index:04d} {gen_home.esc(title)} · 本地学习工作区',
+        'math': math_refs_html(renderer.has_math),
     }
     page = fill_template(template, TEMPLATE, fields, problems)
 

@@ -884,6 +884,75 @@ caption: 只有这张有号
 
 
 # ══════════════════════════════════════════════════════════════════
+# ⑬″ 数学式：$…$ 行内 / $$…$$ 块级（离线 KaTeX，按需注入）
+# ══════════════════════════════════════════════════════════════════
+
+@case('数学式：行内与块级、代码里不解析、\\$ 转义、没收尾报错、没公式不注入 KaTeX')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map', body=r'''## 公式
+
+行内 $Ax = b$ 与 $\lambda_1 v_1$，不等式两个都要转义：$x < y$。
+
+$$
+\begin{bmatrix} 2 & 1 \\ 1 & 3 \end{bmatrix}
+$$
+
+段落中间的块级也认：价格 $$p = 3q$$ 一段。
+
+代码里不动：`$HOME` 与
+
+```bash
+echo $HOME
+```
+
+正文里的美元号写 \$5。
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.has(text,
+          '<span class="math-inline">Ax = b</span>',
+          '<span class="math-inline">\\lambda_1 v_1</span>',
+          '<span class="math-inline">x &lt; y</span>',
+          '<div class="math-block">\\begin{bmatrix} 2 &amp; 1 \\\\ 1 &amp; 3 \\end{bmatrix}</div>',
+          '<span class="math-block">p = 3q</span>',
+          label='行内/块级公式包成占位元素，TeX 里的 &<> 转义')
+    a.has(text, '<code>$HOME</code>', '<pre data-lang="bash"><code>echo $HOME</code></pre>',
+          label='代码 span 与代码围栏里的美元号不受影响')
+    a.has(text, '正文里的美元号写 $5。', label='`\\$` 转义成字面美元号')
+    a.has(text,
+          '<link rel="stylesheet" href="../../../assets/katex/katex.min.css">',
+          '<script src="../../../assets/katex/katex.min.js" defer></script>',
+          '<script src="../../../assets/lesson-math.js" defer></script>',
+          label='有公式的页面注入离线 KaTeX 三件')
+
+    # 没有公式的页面：不注入引用，也不留占位符残留（老课件与非数学课零 diff）
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map', body='## 试\n\n这一页只有文字。\n')
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.equal('无公式页渲染退出码 0', code2, 0)
+    a.hasnt(text2, 'katex', '@LEARN:MATH', label='无公式页不注入 KaTeX、不留占位符')
+
+    # 行内公式没收尾：公式写错时页面只显示 TeX 原文（看不出错），所以按确定性错误拦下
+    subject3 = new_subject()
+    md3 = fixtures.write_content(subject3, 1, 'overview-map',
+                                 body='## 试\n\n行内公式 $Ax = b 忘了收尾。\n')
+    code3, out3, text3, path3 = render(subject3, 1, 'overview-map')
+    a.ok('行内公式没收尾非零退出', code3 != 0, f'exit={code3}')
+    a.has(out3, f'{md3}:{line_of(md3, "行内公式 $Ax = b 忘了收尾。")}', label='报错指到那一行')
+    a.has(out3, '\\$', label='报错给出 `\\$` 的出路')
+    a.ok('报错时不写盘', not os.path.exists(path3))
+
+    # 块级公式没收尾：同样报错（别让它把后面整段吞成公式）
+    subject4 = new_subject()
+    md4 = fixtures.write_content(subject4, 1, 'overview-map',
+                                 body='## 试\n\n$$\n\\begin{bmatrix} 1 & 2 \\end{bmatrix}\n')
+    code4, out4, text4, path4 = render(subject4, 1, 'overview-map')
+    a.ok('块级公式没收尾非零退出', code4 != 0, f'exit={code4}')
+    a.has(out4, '块级公式 `$$…$$` 没有收尾', label='块级报错说清缺什么')
+
+
+# ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过检查（check_lesson.py）
 # ══════════════════════════════════════════════════════════════════
 

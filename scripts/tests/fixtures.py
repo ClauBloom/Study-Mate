@@ -43,7 +43,8 @@ VALID_QUIZ = ('<div class="quiz" data-quiz=\'[{"q":"这是题面？","opts":["A"
 # 课件引用的共享层与科目组件：检查项 10 会核对它们真实存在，所以 fixture 要落一份占位文件。
 # 课件的相对路径按**真实布局**写：`<root>/.learning/subjects/<slug>/lessons/x.html`
 #   → 共享层 `../../../assets/…`（= `<root>/.learning/assets/`）、科目组件 `../assets/…`。
-SHARED_STUBS = ('sayo/sayo.css', 'sayo/sayo.js', 'learn-theme.css', 'learn-theme.js')
+SHARED_STUBS = ('sayo/sayo.css', 'sayo/sayo.js', 'learn-theme.css', 'learn-theme.js',
+                'katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 COMPONENT_STUBS = ('style.css', 'quiz.js', 'lesson-toc.js')
 
 # 能过检查的最小课件：两类引用齐全、有主题开关与接线、有一个合法题目块、没有题目位置残留。

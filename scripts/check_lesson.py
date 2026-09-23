@@ -56,6 +56,9 @@
        lab 链接指错了文件名，检查照样全绿而学生点开是白板 / 404。
        跳过三类：外链与锚点（http(s)、协议相对 //、mailto:、data:、`#…`）；HTML 注释里的
        示例路径；上/下节课指针（落空是设计内的，第 8 项只提示）。
+   11 数学式：页面里有 `.math-inline` / `.math-block` 时，壳里必须引用离线 KaTeX 三件
+       （katex/katex.min.css、katex/katex.min.js、lesson-math.js）。**条件判定**：没有数学式的
+       页面不要求它们——老课件与非数学课因此零改动。少了引用公式就只显示 TeX 原文，等于没排版。
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
     · 题面/答案的散文里出现 Markdown/HTML 标记（`**加粗**`、行内反引号、`# 标题`、`- 列表`、
       `<b>`）：字段是**纯文本**，这些会原样显示（换行用 `\n`、代码用 ``` 围栏）。
@@ -129,6 +132,10 @@ MAX_H2_CHARS = 14
 
 # 检查项 6：主题开关元素 id
 THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
+
+# 检查项 11：有数学式的页面必须引用离线 KaTeX（渲染器写出的 .math-inline / .math-block）
+MATH_MARK_RE = re.compile(r'class="[^"]*\bmath-(?:inline|block)\b', re.I)
+MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 
 # 检查项 7：手写课件时代留下的题目位置标记（新流程由渲染器出页面；骨架注释里是示例，路径不同）
 PLACEHOLDER_RE = re.compile(r'^[ \t]*<!--[ \t]*题目位置', re.M)
@@ -914,6 +921,19 @@ def check_local_refs(text, path):
     return problems
 
 
+def check_math_refs(text):
+    """检查项 11：有数学式的页面必须引用离线 KaTeX（三件）。
+
+    条件判定，与检查项 5（按 `kind` 判 lab）同一路数：页面里没有 `.math-inline` / `.math-block`
+    就不要求这三个引用。少了它们公式只显示 TeX 原文——能读，但等于没排版。
+    """
+    if not MATH_MARK_RE.search(text):
+        return []
+    refs = ref_values(text)
+    return [f'页面里有数学式，但缺少引用：{required}' for required in MATH_REFS
+            if not any(required in ref for ref in refs)]
+
+
 def check_theme_toggle(text):
     """检查项 6：主题开关元素与接线未丢。"""
     problems = []
@@ -958,6 +978,7 @@ def check_file(path, subject=None, node=None):
     img_problems, img_notes = check_images(text, path)
     problems += img_problems
     problems += check_local_refs(text, path)
+    problems += check_math_refs(text)
     problems += check_theme_toggle(text)
     problems += check_placeholder(raw, path)
     return problems, notes + lab_notes + nav_notes + img_notes
