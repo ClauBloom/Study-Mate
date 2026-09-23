@@ -1,5 +1,53 @@
 # 更新日志
 
+<!-- studymate-release:v0.1.4 -->
+## [0.1.4](https://github.com/Miaotofu01/Study-Mate/releases/tag/v0.1.4) - 2026-09-23
+
+### 已合并的 Pull Request
+
+- Fix/dsh old host graceful degrade ([#7](https://github.com/Miaotofu01/Study-Mate/pull/7))
+
+### 所有提交
+
+- Update README to remove studymate commands ([14c44f1](https://github.com/Miaotofu01/Study-Mate/commit/14c44f144738ba83850d6bfa98338dc431a12881))
+
+  > Removed installation and upgrade instructions for studymate.
+
+- fix: let old DSH hosts skip native plugin loading ([fbf7399](https://github.com/Miaotofu01/Study-Mate/commit/fbf7399148d13fb7e9c62f4efcbde1af8dd24b11))
+- test: cover graceful fallback on old DSH hosts ([c42e81c](https://github.com/Miaotofu01/Study-Mate/commit/c42e81c2d349c087c34539d6712467d349358406))
+- Merge pull request \#7 from GodBlessRen/fix/dsh-old-host-graceful-degrade ([f839b93](https://github.com/Miaotofu01/Study-Mate/commit/f839b9359943b7eaa7115040d48110bfb8d19a24))
+
+  > Fix/dsh old host graceful degrade
+
+- docs(README):新增配图 ([263dd5f](https://github.com/Miaotofu01/Study-Mate/commit/263dd5f3585cd7dd4697a2c75f64faea84ec0e24))
+- docs(README):新增配图 ([1f0953a](https://github.com/Miaotofu01/Study-Mate/commit/1f0953a366a665d99755ca44da8677efd504c73e))
+- docs(README):新增配图 ([c9667b8](https://github.com/Miaotofu01/Study-Mate/commit/c9667b8dfe4c4343d497b659e9755798d99a9181))
+- fix(lesson-design):优化课件提示词 ([7813fb1](https://github.com/Miaotofu01/Study-Mate/commit/7813fb136eee3221ab31d84c030592699a904e05))
+- fix(layered-practice):优化课件提示词 ([9da9090](https://github.com/Miaotofu01/Study-Mate/commit/9da909011349f6f9c1ed538d7465995812745887))
+- 添加项目交流群 ([dc53a7c](https://github.com/Miaotofu01/Study-Mate/commit/dc53a7c74b7b21ad262d20b6dcbe3c7049288008))
+- fix: protect DSH downgrades and make installer migration explicit ([883829f](https://github.com/Miaotofu01/Study-Mate/commit/883829ffcb5a5d77cc08e43a769c8c823fcb06dc))
+- 修复：调整 CI 临时目录变量的使用位置 ([ca9bec0](https://github.com/Miaotofu01/Study-Mate/commit/ca9bec070cc452136149a15ae9d474f6f8dbd111))
+
+  > 将 DSH 测试路径从作业级环境变量移到对应测试步骤，避免 runner.temp 在工作流校验阶段不可用，恢复兼容性检查的执行。
+
+- fix：Readme 安装引导 ([261f15f](https://github.com/Miaotofu01/Study-Mate/commit/261f15f9bc8640b6e153e04f9dbb5b0a5faa8aae))
+
+  > Updated installation instructions and added emphasis on npm installation.
+
+- fix(ci)：等待 DSH 预设检查的异步结果 ([8dcc4fa](https://github.com/Miaotofu01/Study-Mate/commit/8dcc4fa82d12930d3638f6010b39312d407c8416))
+
+  > 为两处 inactiveRows 检查补充 await，兼容 DSH 0.1.6 的异步返回值及旧版同步返回值，修复发布流程中的测试失败。
+  > 
+  > 验证：DSH 0.1.6-alpha.2 的运行时和 CLI 测试 5 项通过；DSH 0.1.5-rc.2 的运行时测试 2 项通过。
+
+- fix(发布)：纠正修复代码后的重试说明 ([d868364](https://github.com/Miaotofu01/Study-Mate/commit/d8683643e328693ab27b6933966506fba766d7b1))
+
+  > 检查失败后若已有修复提交且尚未创建版本 tag，应从最新 main 新建发布；重跑旧任务不会包含新提交。已有版本 commit/tag 的任务仍重跑原任务，保留原版本的恢复机制。
+
+
+[完整比较](https://github.com/Miaotofu01/Study-Mate/compare/v0.1.3...v0.1.4)
+<!-- /studymate-release:v0.1.4 -->
+
 <!-- studymate-release:v0.1.3 -->
 ## [0.1.3](https://github.com/Miaotofu01/Study-Mate/releases/tag/v0.1.3) - 2026-09-23
 
