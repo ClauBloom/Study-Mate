@@ -64,7 +64,6 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
-      STUDYMATE_DSH_PACKAGE: ${{ runner.temp }}/studymate-dsh/node_modules/@deepseek-ai/dsh
       STUDYMATE_DSH_EXPECTED_VERSION: ${{ matrix.dsh }}
     steps:
       - uses: actions/checkout@v7
@@ -86,8 +85,12 @@ jobs:
           npm install --prefix "${{ runner.temp }}/studymate-dsh-older" --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org "@deepseek-ai/dsh@0.1.5-rc.2"
           echo "STUDYMATE_DSH_DOWNGRADE_PACKAGE=${{ runner.temp }}/studymate-dsh-older/node_modules/@deepseek-ai/dsh" >> "$GITHUB_ENV"
       - name: Boot Web and verify learning preset in temporary homes
+        env:
+          STUDYMATE_DSH_PACKAGE: ${{ runner.temp }}/studymate-dsh/node_modules/@deepseek-ai/dsh
         run: npm run test:dsh
       - name: Install pnpm for plugin CLI regression tests
         run: npm install --global pnpm@10.12.3 --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
       - name: Install, update and remove through the real DSH CLI
+        env:
+          STUDYMATE_DSH_PACKAGE: ${{ runner.temp }}/studymate-dsh/node_modules/@deepseek-ai/dsh
         run: npm run test:dsh-cli
