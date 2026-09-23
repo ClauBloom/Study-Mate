@@ -813,6 +813,77 @@ caption: 图 1 · 收拢过程
 
 
 # ══════════════════════════════════════════════════════════════════
+# ⑬′ 图注编号：渲染器按页内顺序给号（figure 与 svg 共用一条序列，手写旧号被剥掉重编）
+# ══════════════════════════════════════════════════════════════════
+
+@case('图注编号：页内顺序、figure 与 svg 共用序列、旧号被剥掉重编、没 caption 不占号')
+def _(a):
+    subject = new_subject()
+    write_pool(subject)
+    svg = ('<svg viewBox="0 0 40 20" role="img" aria-hidden="true">'
+           '<path d="M2 10h36" stroke="currentColor"/></svg>')
+    fixtures.write_content(subject, 1, 'overview-map', body=f'''## 画三张
+
+::: svg
+alt: 第一张示意图
+caption: 收拢过程
+
+{svg}
+:::
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 没有说明的图
+:::
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 作者写了旧号
+caption: 图 7 · 内存里挨着放
+:::
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.has(text,
+          '<figcaption>图 1 · 收拢过程</figcaption>',
+          '<figcaption>图 2 · 内存里挨着放（来源：'
+          'https://en.cppreference.com/w/cpp/language/array，许可：CC BY-SA 4.0）</figcaption>',
+          label='编号按页内顺序给（svg 先出场就是图 1），手写的「图 7 ·」被剥掉重编成图 2')
+    a.hasnt(text, '图 7', label='旧号不留在产物里')
+    a.ok('没写 caption 的图不编号、也不占号（只有来源那一行，且不出现图 3）',
+         '<figcaption>（来源：' in text and '图 3' not in text)
+
+    # 幂等：同一份内容再渲染一次，产物逐字相同（旧号已经不存在，重编结果不变）
+    code2, out2, text2, path2 = render(subject, 1, 'overview-map')
+    a.equal('重渲染幂等（产物不变）', text2, text)
+
+    # 只有空白的 caption：不生成 figcaption，也不占号
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map',
+                           body=f'## 画一张\n\n::: svg\ncaption:   \n{svg}\n:::\n')
+    code3, out3, text3, path3 = render(subject2, 1, 'overview-map')
+    a.equal('空白 caption 放行', code3, 0)
+    a.hasnt(text3, '<figcaption>', label='空白 caption 不生成图注')
+
+    # 两张都没写 caption：都不编号，后面那张写了号才从图 1 起（号跟着可见标签走）
+    subject3 = new_subject()
+    write_pool(subject3)
+    fixtures.write_content(subject3, 1, 'overview-map', body=f'''## 画两张
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 第一张没说明
+:::
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 第二张有说明
+caption: 只有这张有号
+:::
+''')
+    code4, out4, text4, path4 = render(subject3, 1, 'overview-map')
+    a.equal('两张图放行', code4, 0)
+    a.has(text4, '<figcaption>图 1 · 只有这张有号（来源：',
+          label='编号只数有说明的图：第二张才是图 1')
+
+
+# ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过检查（check_lesson.py）
 # ══════════════════════════════════════════════════════════════════
 

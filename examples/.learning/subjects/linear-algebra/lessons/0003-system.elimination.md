@@ -68,7 +68,7 @@ ValueError: 这个方程组没有唯一解：要么无解，要么有无穷多�
 
 ::: svg
 alt: 行阶梯形的形状，主元下方全为零
-caption: 图 1 · 行阶梯形：主元逐行右移，且主元所在列的下方全是零
+caption: 行阶梯形：主元逐行右移，且主元所在列的下方全是零
 
 <svg viewBox="0 0 300 130" role="img" aria-hidden="true" font-family="sans-serif" font-size="11">
   <g stroke="currentColor" fill="none" opacity="0.5">
@@ -94,7 +94,7 @@ caption: 图 1 · 行阶梯形：主元逐行右移，且主元所在列的下�
 
 ::: figure ../assets/img/pool/线性代数-消元-三种解的情形对照-本机-03.png
 alt: 三种解并列对照：交于一点、平行、同一条线
-caption: 图 2 · 三种解的几何对照：交于一点（唯一解）、平行（无解）、同一条线（无穷多解）
+caption: 三种解的几何对照：交于一点（唯一解）、平行（无解）、同一条线（无穷多解）
 :::
 
 落到矩阵上，判据是这样两条：出现 `[0 0 … 0 | 非零]` 这样的行（也就是 `0 = 非零`）就是**无解**；

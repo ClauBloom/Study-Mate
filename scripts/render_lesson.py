@@ -55,6 +55,10 @@ TEMPLATE_PLACEHOLDERS = {
 PLACEHOLDER = '<!-- @LEARN:{} -->'
 
 # 块级词汇：`:::` 指令名（其余一律报错）
+# 图注编号（`::: figure` / `::: svg` 的 `caption:`）：作者只写描述，编号由渲染器按页内顺序给。
+# 旧课件里手写的「图 N ·」会被剥掉重编——所以重渲染是幂等的，老写法不改也不会重号。
+CAPTION_NUMBER_RE = re.compile(r'^图\s*\d+\s*·\s*')
+
 DIRECTIVES = ('practice', 'quiz', 'figure', 'svg', 'tip', 'warn', 'note', 'resources', 'related')
 CONTAINER_DIRECTIVES = ('practice', 'tip', 'warn', 'note')          # 块里还能写普通块
 CARD_CLASS = {'tip': 'lesson-tip', 'warn': 'lesson-warn', 'note': 'lesson-note'}
@@ -812,6 +816,22 @@ class Renderer:
         self.quiz = quiz
         self.quiz_name = quiz_name
         self.pool = pool
+        self.figure_no = 0            # 页内图注编号（`::: figure` 与 `::: svg` 共用一条序列）
+
+    # ── 图注编号 ──────────────────────────────────────────────────
+
+    def numbered_caption(self, caption):
+        """给图注编号：剥掉作者可能手写的旧号，按**页内出现顺序**重编。
+
+        编号是可推导的信息（这一页第几张图），手写必然漂移——同页重号、跨课口径不一都发生过。
+        只给**有说明文字**的图编号：没 caption 的图没有可见标签，不该占号（否则学生会看到跳号）。
+        返回空串＝这张图不编号。
+        """
+        text = CAPTION_NUMBER_RE.sub('', caption.strip()).strip()
+        if not text:
+            return ''
+        self.figure_no += 1
+        return f'图 {self.figure_no} · {text}'
 
     # ── 行内 ──────────────────────────────────────────────────────
 
@@ -1050,7 +1070,7 @@ class Renderer:
         # alt: 是属性值（纯文本，不解析行内标记），但和 caption: 一样**不许真标签**：文档把
         # alt: 列进了「会报错的位置」，代码就得真查（`<b>`/`<script>` 曾经静默进属性出厂）。
         self.check_inline_html(alt, block.get('alt_line', line), '::: figure 的 alt:')
-        caption = block['caption']
+        caption = self.numbered_caption(block['caption'])
         if '来源：' not in caption:                    # 作者自己写了来源就不重复补
             caption += self.pool_source(src)
         lines = [f'{indent}<figure class="lesson-figure">',
@@ -1070,9 +1090,10 @@ class Renderer:
             attr = f' role="img" aria-label="{gen_home.esc(block["alt"], attr=True)}"'
         lines = [f'{indent}<figure class="lesson-figure lesson-figure--inline"{attr}>',
                  block['raw']]
-        if block['caption']:
+        caption = self.numbered_caption(block['caption'])
+        if caption:
             lines.append(f'{indent}  <figcaption>'
-                         f'{self.inline(block["caption"], block.get("caption_line", block["line"]))}'
+                         f'{self.inline(caption, block.get("caption_line", block["line"]))}'
                          f'</figcaption>')
         lines.append(f'{indent}</figure>')
         return '\n'.join(lines)

@@ -31,7 +31,7 @@ step '模板与规格一致（8 项）'              python3 scripts/tests/test_
 step '命名与上下节课指针（检查，9 例）'    python3 scripts/tests/test_naming_nav.py
 step '图片库索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
 step '位次重排与 empty_reason（脚本，22 例）'  python3 scripts/tests/test_lesson_scripts.py
-step '课件渲染（渲染器，26 例）'           python3 scripts/tests/test_render_lesson.py
+step '课件渲染（渲染器，27 例）'           python3 scripts/tests/test_render_lesson.py
 step '提示词规则清单（410 条）'            python3 scripts/tests/test_skill_rules.py
 step '附件 Markdown 渲染（32 项）'         python3 scripts/tests/test_attachment_render.py
 

@@ -65,12 +65,12 @@ A = [ 1   0.5 ]
 
 ::: figure ../assets/img/pool/线性代数-矩阵-斜切变换前后网格对比-本机-02.png
 alt: 单位网格被斜切成平行四边形网格
-caption: 图 1 · 斜切变换：网格的线仍然相交于原点、仍然互相平行，只是不再垂直
+caption: 斜切变换：网格的线仍然相交于原点、仍然互相平行，只是不再垂直
 :::
 
 ::: svg
 alt: 斜切变换前后：正方形网格被拉成平行四边形网格
-caption: 图 2 · 斜切：基向量 e₁ 不动，e₂ 向右倒；网格线仍相交于原点、仍互相平行
+caption: 斜切：基向量 e₁ 不动，e₂ 向右倒；网格线仍相交于原点、仍互相平行
 
 <svg viewBox="0 0 360 170" role="img" aria-hidden="true" font-family="sans-serif" font-size="11">
   <g stroke="currentColor" stroke-width="1" opacity="0.35">

@@ -43,7 +43,7 @@ c₁v₁ + c₂v₂ + … + cₙvₙ = 0   当且仅当   c₁ = c₂ = … = c�
 
 ::: svg
 alt: 两个不共线的向量张成整个平面，共线的两个向量只张成一条直线
-caption: 图 1 · 张成：不共线的两向量铺满平面（左），共线的两向量只铺出一条线（右）
+caption: 张成：不共线的两向量铺满平面（左），共线的两向量只铺出一条线（右）
 
 <svg viewBox="0 0 360 150" role="img" aria-hidden="true" font-family="sans-serif" font-size="11">
   <g stroke="currentColor" stroke-width="1" opacity="0.45">
@@ -82,7 +82,7 @@ x - y = -1
 
 ::: figure ../assets/img/pool/线性代数-向量-列向量拼出右端向量-本机-01.png
 alt: 两个列向量首尾相接，落点是右端向量
-caption: 图 2 · 先走 1 倍的列向量 (2, 1)，再走 2 倍的列向量 (1, −1)，落点正好是 (4, −1)
+caption: 先走 1 倍的列向量 (2, 1)，再走 2 倍的列向量 (1, −1)，落点正好是 (4, −1)
 :::
 
 这个读法把三种情况一次说清：
