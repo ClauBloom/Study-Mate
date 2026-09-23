@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # StudyMate 回归测试：纯 Python / Node，不需要浏览器（默认）。
-#   bash scripts/tests/run_tests.sh              # 11 套快测
-#   bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 套（共 13 套）
+#   bash scripts/tests/run_tests.sh              # 12 套快测
+#   bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 2 套（共 14 套）
 set -u
 cd "$(dirname "$0")/../.." || exit 1
 
@@ -22,7 +22,7 @@ if ! python3 -c 'import yaml' 2>/dev/null; then
   exit 1
 fi
 
-step '安装脚本（沙箱 HOME，30 项）'        python3 scripts/tests/test_install.py
+step '安装脚本（沙箱 HOME，39 项）'        python3 scripts/tests/test_install.py
 step '题目属性转义（检查，9 例）'          python3 scripts/tests/test_quiz_attr.py
 step '题目里的代码围栏（检查，12 例）'     python3 scripts/tests/test_quiz_code.py
 step '课件配图（检查，5 例）'              python3 scripts/tests/test_lesson_figure.py
@@ -30,8 +30,8 @@ step '命名与上下节课指针（检查，9 例）'    python3 scripts/tests/
 step '图片库索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
 step '位次重排与 empty_reason（脚本，22 例）'  python3 scripts/tests/test_lesson_scripts.py
 step '课件渲染（渲染器，26 例）'           python3 scripts/tests/test_render_lesson.py
-step '提示词规则清单（417 条）'            python3 scripts/tests/test_skill_rules.py
-step '附件 Markdown 渲染（29 项）'         python3 scripts/tests/test_attachment_render.py
+step '提示词规则清单（410 条）'            python3 scripts/tests/test_skill_rules.py
+step '附件 Markdown 渲染（32 项）'         python3 scripts/tests/test_attachment_render.py
 
 if command -v node >/dev/null 2>&1; then
   step 'quiz.js 渲染（33 项）'             node scripts/tests/quiz_dom_test.js
