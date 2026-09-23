@@ -42,7 +42,8 @@
      围栏没闭合检查会拦（`scripts/check_lesson.py`）。
 
    渲染约定（字段进页面长什么样——**写的是纯文本，不是 Markdown**）：
-     - 四个字段都是纯文本，渲染器只认两样排版：`\n` 换行、``` 围栏代码块。
+     - 四个字段都是纯文本，渲染器只认三样排版：`\n` 换行、``` 围栏代码块、
+       `$…$` 行内公式（交给离线 KaTeX，判据与课件正文一致；正文里的美元号写 `\$`）。
        **Markdown 与 HTML 标记一律原样显示**：`**加粗**` 会出现星号、`- 列表`/`# 标题`
        不变成列表或标题、行内 `` `code` `` 带反引号、`<b>` 露出尖括号。要强调就用短句
        与空行；要代码就用围栏。检查对这类标记给 WARN（`check_lesson.py`）。
@@ -90,6 +91,52 @@
      单个反引号是普通字符，不做解析（shell 题面里合法）。语言标签可省（自动识别）。 */
   var FENCE_RE = /^[ \t]*```[ \t]*([A-Za-z0-9+#.-]*)[ \t]*$/;
 
+  /* ── 题面里的公式：`$…$` 交给离线 KaTeX ──────────────────────────
+     字段是纯文本（不走 innerHTML，避免注入），所以这里把字符串按 `$…$` 切成
+     文本节点 + <span class="math-inline">，再让 lesson-math.js 去排版。
+     判据与渲染器 math_close() 一致：开 `$` 后、收 `$` 前都不能是空白，中间不跨行；
+     `\$` 是字面美元号。成不了对就按普通字符。 */
+  function mathInto(el, text) {
+    var body = String(text == null ? '' : text);
+    var plain = '';
+    var index = 0;
+    function flush() {
+      if (plain) { el.appendChild(document.createTextNode(plain)); plain = ''; }
+    }
+    while (index < body.length) {
+      var char = body.charAt(index);
+      if (char === '\\' && body.charAt(index + 1) === '$') { plain += '$'; index += 2; continue; }
+      if (char === '$' && !/\s/.test(body.charAt(index + 1) || '')) {
+        var close = -1;
+        for (var scan = index + 1; scan < body.length; scan += 1) {
+          if (body.charAt(scan) === '\n') break;
+          if (body.charAt(scan) === '$' && !/\s/.test(body.charAt(scan - 1))) { close = scan; break; }
+        }
+        if (close > index + 1) {
+          flush();
+          var span = document.createElement('span');
+          span.className = 'math-inline';
+          span.textContent = body.slice(index + 1, close);
+          el.appendChild(span);
+          index = close + 1;
+          continue;
+        }
+      }
+      plain += char;
+      index += 1;
+    }
+    flush();
+    return el;
+  }
+
+  /* 排版本块里的公式（不是本块里的不管）：结构与 highlight() 同理——
+     lesson-math.js 挂在 head，DOMContentLoaded 先于本文件建块，所以这里要再排一次 */
+  function typeset(block) {
+    if (window.LessonMath && typeof window.LessonMath.render === 'function') {
+      try { window.LessonMath.render(block); } catch (e) { /* 忽略 */ }
+    }
+  }
+
   function renderRich(el, text) {
     var lines = String(text == null ? '' : text).split(/\r?\n/);
     var prose = [];
@@ -97,7 +144,7 @@
 
     function flushProse() {
       var body = prose.join('\n').replace(/^\n+|\n+$/g, '');
-      if (body) el.appendChild(document.createTextNode(body));
+      if (body) mathInto(el, body);
       prose = [];
     }
     function flushCode() {
@@ -159,7 +206,7 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'quiz__opt';
-      btn.textContent = text;
+      mathInto(btn, text);
 
       btn.addEventListener('click', function () {
         var ok = i === item.ans;
@@ -175,6 +222,7 @@
         feedback.textContent = '';
         feedback.appendChild(document.createTextNode((ok ? '✓ 对' : '✗ 再想想') + '　'));
         renderRich(feedback, item.why);
+        typeset(feedback);
         highlight(feedback);
 
         if (firstAnswer) {
@@ -307,6 +355,7 @@
 
       if (state.scoreEl) block.appendChild(state.scoreEl);
 
+      typeset(block);              /* 题面/选项/答案里的公式：建完立刻排（见 typeset 注释） */
       highlight(block);            /* 围栏渲染出的代码块：建完立刻上色（见 highlight 注释） */
     });
   });

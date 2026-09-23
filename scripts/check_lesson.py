@@ -58,9 +58,10 @@
        示例路径；上/下节课指针（落空是设计内的，第 8 项只提示）。
        另有一条**生成产物**：指向 `index.html`（壳里那条「返回课程」回链，目标是 gen_home.py
        的产物）而它还没生成时只提示——作者产不出这个文件，缺了是流水线顺序问题，不是课件缺陷。
-   11 数学式：页面里有 `.math-inline` / `.math-block` 时，壳里必须引用离线 KaTeX 三件
-       （katex/katex.min.css、katex/katex.min.js、lesson-math.js）。**条件判定**：没有数学式的
-       页面不要求它们——老课件与非数学课因此零改动。少了引用公式就只显示 TeX 原文，等于没排版。
+   11 数学式：页面里有 `.math-inline` / `.math-block` **或**题库数据（`data-quiz`）里带 `$…$`
+       公式时，壳里必须引用离线 KaTeX 三件（katex/katex.min.css、katex/katex.min.js、
+       lesson-math.js）。**条件判定**：都没有就不要求——老课件与非数学课因此零改动。
+       少了引用，公式只显示 TeX 原文（题面里的也一样），等于没排版。
   提示项（只回显、退出码不受影响）——质量线，值得看一眼：
     · 题面/答案的散文里出现 Markdown/HTML 标记（`**加粗**`、行内反引号、`# 标题`、`- 列表`、
       `<b>`）：字段是**纯文本**，这些会原样显示（换行用 `\n`、代码用 ``` 围栏）。
@@ -138,6 +139,9 @@ THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
 # 检查项 11：有数学式的页面必须引用离线 KaTeX（渲染器写出的 .math-inline / .math-block）
 MATH_MARK_RE = re.compile(r'class="[^"]*\bmath-(?:inline|block)\b', re.I)
 MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
+# 题目正文（data-quiz 里）的公式：静态看不到 .math-inline 元素，得扫属性
+QUIZ_ATTR_RE = re.compile(r'data-quiz\s*=\s*(["\'])(.*?)\1', re.S)
+MATH_PAIR_RE = re.compile(r'\$[^\s$][^$\n]*[^\s$]\$|\$[^\s$]\$')
 
 # 检查项 7：手写课件时代留下的题目位置标记（新流程由渲染器出页面；骨架注释里是示例，路径不同）
 PLACEHOLDER_RE = re.compile(r'^[ \t]*<!--[ \t]*题目位置', re.M)
@@ -931,13 +935,26 @@ def check_local_refs(text, path):
     return problems, notes
 
 
+def page_has_math(text):
+    """页面里有没有数学式：静态占位（`.math-inline` / `.math-block`）**或**题库数据里的 `$…$`。
+
+    题目正文由 quiz.js 在浏览器里排版，渲染产物里只有 `data-quiz` 属性——只看占位元素会漏掉
+    「整页的公式都在题面里」那种页面，而那正是线代/概率这类课件的常态。
+    """
+    if MATH_MARK_RE.search(text):
+        return True
+    # 属性引号必须**配对**捕获：JSON 的键都是双引号，用 ["'] 会把内容截在第一个 " 上
+    return any(MATH_PAIR_RE.search(html.unescape(match.group(2)))
+               for match in QUIZ_ATTR_RE.finditer(text))
+
+
 def check_math_refs(text):
     """检查项 11：有数学式的页面必须引用离线 KaTeX（三件）。
 
     条件判定，与检查项 5（按 `kind` 判 lab）同一路数：页面里没有 `.math-inline` / `.math-block`
     就不要求这三个引用。少了它们公式只显示 TeX 原文——能读，但等于没排版。
     """
-    if not MATH_MARK_RE.search(text):
+    if not page_has_math(text):
         return []
     refs = ref_values(text)
     return [f'页面里有数学式，但缺少引用：{required}' for required in MATH_REFS

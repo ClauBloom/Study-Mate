@@ -20,6 +20,8 @@
   · 生成产物（检查项 10 的例外）：壳里那条「返回课程」回链指向 `index.html`，它是 `gen_home.py`
     的产物——还没生成时只提示，**不阻断**（作者产不出这个文件；否则每门新科目在跑生成器之前
     都过不了检查）。
+  · 题库里的公式（检查项 11）：题目正文由 quiz.js 运行时插入，静态看不到 `.math-inline`，
+    所以 `data-quiz` 属性里出现 `$…$` 也算「页面有数学式」。
 
 用法：python3 scripts/tests/test_lesson_links.py
 """
@@ -128,7 +130,18 @@ def main():
     failures += not ok3
     fixtures.check('科目主页还没生成（放行，只有提示）', ok3, out_index)
 
-    total = len(CASES) + 4
+    # 题库里的公式也算「页面有数学式」：题目正文由 quiz.js 运行时插入，静态看不到 .math-inline
+    subject4 = fixtures.write_subject(tmp)
+    fixtures.clear_lessons(subject4)
+    quiz_with_math = ('<div class="quiz" data-quiz=\'[{"q":"矩阵 $A$ 的秩？",'
+                      '"opts":["$1$","$2$"],"ans":1,"why":"看主元。"}]\'></div>')
+    path4 = fixtures.write_lesson(subject4, 1, 'overview-map', quiz=quiz_with_math)
+    code_quiz, out_quiz = fixtures.run_gate(path4, subject4, 'overview-map')
+    ok4 = code_quiz != 0 and '页面里有数学式' in out_quiz
+    failures += not ok4
+    fixtures.check('公式只在题库里也算数学式（漏引用就拦）', ok4, out_quiz)
+
+    total = len(CASES) + 5
     print(f'\n{total - failures}/{total} 通过')
     shutil.rmtree(tmp, ignore_errors=True)
     return 1 if failures else 0

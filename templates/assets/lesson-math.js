@@ -10,19 +10,35 @@
  */
 (function () {
   'use strict';
-  if (typeof katex === 'undefined') return;
-  var nodes = document.querySelectorAll('.math-inline, .math-block');
-  for (var index = 0; index < nodes.length; index += 1) {
-    var node = nodes[index];
-    var tex = node.textContent;
-    try {
-      katex.render(tex, node, {
-        displayMode: node.classList.contains('math-block'),
-        throwOnError: false,      // TeX 写错时显示成红色原文，不炸整页
-        strict: 'ignore'
-      });
-    } catch (error) {
-      node.textContent = tex;     // 兜底：留着原文
+
+  /* 排 `root` 里所有还没排过的公式；返回排了几条。
+     题面/选项/解析是 quiz.js 建块时**动态**插进来的（本脚本在它之前跑完），
+     所以那个文件会拿着自己的块再调一次 LessonMath.render(block)。
+     排过的节点打标记跳过——重复排会把上一次的产物当成 TeX 再排一遍。 */
+  function renderWithin(root) {
+    if (typeof katex === 'undefined') return 0;
+    var scope = root || document;
+    var nodes = scope.querySelectorAll('.math-inline, .math-block');
+    var done = 0;
+    for (var index = 0; index < nodes.length; index += 1) {
+      var node = nodes[index];
+      if (node.getAttribute('data-math-done') === '1') continue;
+      var tex = node.textContent;
+      try {
+        katex.render(tex, node, {
+          displayMode: node.classList.contains('math-block'),
+          throwOnError: false,      // TeX 写错时显示成红色原文，不炸整页
+          strict: 'ignore'
+        });
+      } catch (error) {
+        node.textContent = tex;     // 兜底：留着原文
+      }
+      node.setAttribute('data-math-done', '1');
+      done += 1;
     }
+    return done;
   }
+
+  window.LessonMath = { render: renderWithin };
+  renderWithin(document);
 })();

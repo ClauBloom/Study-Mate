@@ -81,6 +81,15 @@ try {
       out.fontFamily = first ? getComputedStyle(first).fontFamily : '';
       out.errorShown = !!document.querySelector('.katex-error');
       out.tailText = document.body.textContent.includes('后面这段正常文字还要在');
+      // 题目里的公式：由 quiz.js 建块时插入，所以这里验的是「运行时插进来的也被排了」
+      out.quizBuilt = !!document.querySelector('.quiz__q');
+      out.quizMath = document.querySelectorAll('.quiz__q .math-inline').length;
+      out.quizRendered = document.querySelectorAll('.quiz__q .katex').length;
+      out.optRendered = document.querySelectorAll('.quiz__opt .katex').length;
+      // 选项点开后解析里的公式
+      const wrong = [...document.querySelectorAll('.quiz__opt')].pop();
+      if (wrong) wrong.click();
+      out.whyRendered = document.querySelectorAll('.feedback .katex').length;
       return JSON.stringify(out);
     })()`,
   });
@@ -92,6 +101,10 @@ try {
   check('KaTeX 样式生效（字体族是 KaTeX_*）', /KaTeX_/.test(out.fontFamily), out.fontFamily);
   check('两处以上公式都排了（不是只处理第一个）', out.katexNodes >= 3, `katex 节点 ${out.katexNodes}`);
   check('写错的公式按错误显示、不炸整页', out.errorShown && out.tailText, JSON.stringify(out));
+  check('题目建块了（quiz.js 跑到）', out.quizBuilt, JSON.stringify(out));
+  check('题面里的公式也排出来了（运行时插入的）', out.quizRendered >= 1, JSON.stringify(out));
+  check('选项里的公式排出来了', out.optRendered >= 2, JSON.stringify(out));
+  check('点选后解析里的公式排出来了', out.whyRendered >= 1, JSON.stringify(out));
 } catch (error) {
   check('浏览器套件跑完（chrome 起来、页面能打开）', false, String(error));
 } finally {

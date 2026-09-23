@@ -176,6 +176,7 @@ RULES = {
 'layered-practice': [
  ('唯一 owner', 'practice-evaluator'),
  ('字段契约指向 quiz.js', 'quiz.js` 顶部注释'),
+ ('题面里的数学写 $…$（LaTeX，页面由 KaTeX 排版）', '**题面里的数学写 `$…$`**'),
  ('四层表 L1 理解', 'L1 理解'),
  ('L2 改造', 'L2 改造'),
  ('L3 排错', 'L3 排错'),

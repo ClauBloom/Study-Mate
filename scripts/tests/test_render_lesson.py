@@ -952,6 +952,35 @@ echo $HOME
     a.has(out4, '块级公式 `$$…$$` 没有收尾', label='块级报错说清缺什么')
 
 
+@case('题库里只有公式：正文没有 $…$，也要给页面注入 KaTeX（quiz.js 在浏览器里排版）')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map',
+                           body='## 试\n\n这一页正文一个公式都没有。\n\n::: quiz 理解 锚点：本节校验\n:::\n')
+    fixtures.write_quiz(subject, 1, 'overview-map', {
+        '本节校验': [{'q': '矩阵 $\\begin{bmatrix} 2 & 1 \\\\ 1 & 3 \\end{bmatrix}$ 的行列式？',
+                      'opts': ['$1$', '$6$'], 'ans': 1, 'why': '用 $ad - bc$ 算。'}],
+    })
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.has(text,
+          '<link rel="stylesheet" href="../../../assets/katex/katex.min.css">',
+          '<script src="../../../assets/katex/katex.min.js" defer></script>',
+          '<script src="../../../assets/lesson-math.js" defer></script>',
+          label='公式只在题库里 → 壳里照样注入 KaTeX')
+    a.hasnt(text, '<span class="math-inline">', label='正文里确实没有静态公式占位')
+
+    # 反过来：题库与正文都没有公式时，一个引用都不该有
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map',
+                           body='## 试\n\n没有公式。\n\n::: quiz 理解 锚点：本节校验\n:::\n')
+    fixtures.write_quiz(subject2, 1, 'overview-map',
+                        {'本节校验': [{'q': '题干', 'opts': ['A', 'B'], 'ans': 0, 'why': '解释'}]})
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.equal('无公式页渲染退出码 0', code2, 0)
+    a.hasnt(text2, 'katex', label='题面也没有公式时不注入')
+
+
 # ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过检查（check_lesson.py）
 # ══════════════════════════════════════════════════════════════════

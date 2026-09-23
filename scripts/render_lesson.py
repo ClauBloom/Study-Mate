@@ -60,6 +60,8 @@ PLACEHOLDER = '<!-- @LEARN:{} -->'
 # **有数学式的页面才注入这三个引用**：老课件与非数学课因此零改动、零 diff。
 MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 BLOCK_MATH_RE = re.compile(r'^\$\$(.+)\$\$$', re.S)
+# 题库里的行内公式（够用的近似：两个 $ 之间首尾非空白、不跨行）
+MATH_PAIR_RE = re.compile(r'\$[^\s$][^$\n]*[^\s$]\$|\$[^\s$]\$')
 
 # 块级词汇：`:::` 指令名（其余一律报错）
 # 图注编号（`::: figure` / `::: svg` 的 `caption:`）：作者只写描述，编号由渲染器按页内顺序给。
@@ -1187,6 +1189,28 @@ class Renderer:
         return f'（来源：{row["url"]}，许可：{row["license"]}）'
 
 
+def quiz_has_math(quiz):
+    """题库里有没有 `$…$` 公式——有就得让页面注入离线 KaTeX。
+
+    题目正文（题面/选项/答案/判分要点/解析）由 `quiz.js` 在浏览器里排版，渲染产物里只有
+    `data-quiz` 属性，静态看是看不出公式的；而「注不注入 KaTeX」必须在渲染时就定下来，
+    所以这里扫一遍字符串字段。判据与 `math_close()` 同源，够用即可——多注入一份没害处，
+    少注入就是公式排不出来。
+    """
+    for problems in (quiz or {}).values():
+        if not isinstance(problems, list):
+            continue
+        for item in problems:
+            if not isinstance(item, dict):
+                continue
+            for value in item.values():
+                values = value if isinstance(value, list) else [value]
+                for text in values:
+                    if isinstance(text, str) and MATH_PAIR_RE.search(text):
+                        return True
+    return False
+
+
 def load_quiz(path, problems, referenced=None):
     """题库：`{"锚点文本": [题, …]}`；结构不对就报错（渲染器不猜）。
 
@@ -1411,6 +1435,8 @@ def main(argv):
 
     renderer = Renderer(md_path, problems, lessons_dir, quiz,
                         os.path.basename(quiz_path), pool)
+    if quiz_has_math(quiz):
+        renderer.has_math = True      # 公式只在题库里出现时，壳里也得注入 KaTeX
     body_html = renderer.render(blocks)
     title = front.get('title', '')
     goal_line = front_lines.get('goal', 1)
