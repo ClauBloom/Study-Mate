@@ -97,6 +97,8 @@ StudyMate 是 DSH（DeepSeek Harness）的 **「学习模式」预设 + 一套 S
 
 **课程总览与大纲路线图**：总览页列全部科目与当前节点，点进去是那门课的知识点路线图，按依赖分层排开、按状态着色，点节点原地展开课件子卡片。
 
+<img src="docs/images/preview-index.png" width="640" alt="真实课件页：正文 + 配图（题注含来源与许可）+ 代码块 + 侧栏目录">
+
 **课件是学习的主载体**：经典教材的讲解风格，丰富的配图，定制化的题目与项目目标。
 
 <img src="docs/images/preview-lesson.png" width="640" alt="真实课件页：正文 + 配图（题注含来源与许可）+ 代码块 + 侧栏目录">
