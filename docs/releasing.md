@@ -32,10 +32,12 @@ GitHub 发布 job 引用 `npm` environment，不要求设置审批人。仓库�
 
 ## 失败后重试
 
-在原来的 Actions run 点击 **Re-run failed jobs**，保留原版本增量。版本 tag 内保存源 commit 和发布信息：如果版本 commit/tag 已经推送，流程会继续这个版本；如果 npm 已经发布相同 tarball，则跳过发布并补齐 Release。若同一 npm 版本内容不同、tag 来源不同、registry 状态不明，流程会失败并保留现场，不覆盖已有内容。
+重跑旧任务仍使用当时的 commit，不会包含后来推送的修复。如果检查失败后已修复代码，且本次版本 tag 尚未创建，请在 **Actions → Release → Run workflow** 从最新 `main` 新建一次发布。
+
+如果只是网络等临时故障，代码没有变化，或本次版本 commit/tag 已经推送，在原任务点击 **Re-run failed jobs**。版本 tag 保存了源 commit 和发布信息，流程会继续这个版本；如果 npm 已经发布相同 tarball，则跳过发布并补齐 Release。若同一 npm 版本内容不同、tag 来源不同、registry 状态不明，流程会失败并保留现场，不覆盖已有内容。
 
 如果 npm 的 `latest` 已经是更高版本，旧任务不会补发较低版本并把 `latest` 降回去。
 
-不要为尚未完成的版本新开一次发布。特别是 tag 已创建而 npm 尚未发布时，应重跑原任务。已成功发布且没有新 commit 时，不会空增一个版本。发布流程使用全仓库固定 concurrency group，同一时间只运行一轮发布；GitHub 对等待队列的行为见 [concurrency 文档](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)。
+本次版本 tag 已创建但发布尚未完成时，应重跑原任务，不要新开一次发布。已成功发布且没有新 commit 时，不会空增一个版本。发布流程使用全仓库固定 concurrency group，同一时间只运行一轮发布；GitHub 对等待队列的行为见 [concurrency 文档](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)。
 
 本地可运行 `node --test scripts/release/release.test.mjs` 检查版本计算、历史 tag、更新记录、PR 去重和重试保护。这些测试只在临时目录建立 Git 仓库，不会发布。CI 使用的 action 版本依据官方 [checkout](https://github.com/actions/checkout)、[setup-node](https://github.com/actions/setup-node) 和 [setup-python](https://github.com/actions/setup-python) 文档。
