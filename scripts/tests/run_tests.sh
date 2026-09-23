@@ -31,6 +31,7 @@ step '图片库索引（校验器，6 例）'            python3 scripts/tests/t
 step '位次重排与 empty_reason（脚本，22 例）'  python3 scripts/tests/test_lesson_scripts.py
 step '课件渲染（渲染器，26 例）'           python3 scripts/tests/test_render_lesson.py
 step '提示词规则清单（417 条）'            python3 scripts/tests/test_skill_rules.py
+step '附件 Markdown 渲染（29 项）'         python3 scripts/tests/test_attachment_render.py
 
 if command -v node >/dev/null 2>&1; then
   step 'quiz.js 渲染（33 项）'             node scripts/tests/quiz_dom_test.js
