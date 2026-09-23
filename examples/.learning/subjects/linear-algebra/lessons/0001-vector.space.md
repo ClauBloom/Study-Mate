@@ -85,10 +85,10 @@ caption: 张成：不共线的两支向量铺满平面（左），共线的两�
 成分）。于是两组写法说的是同一件事：
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + 2y &= 4 \\
 2x + y &= 5
-\end{aligned}
+\end{aligned}\right.
 \qquad\Longleftrightarrow\qquad
 x \begin{bmatrix} 1 \\ 2 \end{bmatrix} + y \begin{bmatrix} 2 \\ 1 \end{bmatrix}
 = \begin{bmatrix} 4 \\ 5 \end{bmatrix}
@@ -230,11 +230,11 @@ for x in ([1, 1], [2, 0], [3, -1]):
 不看消元，先按列读下面的三元方程组：
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + y + z &= 4 \\
 2x + 2y + 2z &= 8 \\
 x - y &= 0
-\end{aligned}
+\end{aligned}\right.
 $$
 
 1. 写出它的三列与右端项；

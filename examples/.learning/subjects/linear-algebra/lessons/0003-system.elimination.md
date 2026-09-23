@@ -8,11 +8,11 @@ goal: 能手写消元把线性方程组解出来，并判断解的存在性与�
 上一课练习里那个方程组是
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + y + z &= 4 \\
 2x + 2y + 2z &= 8 \\
 x - y &= 0
-\end{aligned}
+\end{aligned}\right.
 $$
 
 假设抄写时把右端项的 $4$ 抄成了 $3$，然后老老实实消元：第一列消掉、第二列消掉、第三列消掉，算到
@@ -52,11 +52,11 @@ $$
 换一个能算出结果的方程组。三种原料各取几份，要同时满足三项指标：
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + y + z &= 6 \\
 2x + y + 3z &= 13 \\
 x + 3y + z &= 10
-\end{aligned}
+\end{aligned}\right.
 $$
 
 第一步，用第一行把第一列下方消成零，右端项同步做同样的运算：
@@ -145,11 +145,11 @@ caption: 二元方程组的三种解：交于一点（唯一解）、平行（�
 回到开头那个抄错数的方程组的「原版」：把右端项写回 $4$，也就是
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + y + z &= 4 \\
 2x + 2y + 2z &= 8 \\
 x - y &= 0
-\end{aligned}
+\end{aligned}\right.
 $$
 
 消元之后是
@@ -222,19 +222,19 @@ FAILED (errors=21)
 下面两个方程组都**不要**解出具体数值，只判断解的存在性与个数，并说出依据：
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + 2y &= 1 \\
 2x + 4y &= 2
-\end{aligned}
+\end{aligned}\right.
 $$
 
 再看第二个，它与第一个只差右端项的一个数：
 
 $$
-\begin{aligned}
+\left\{\begin{aligned}
 x + 2y &= 1 \\
 2x + 4y &= 3
-\end{aligned}
+\end{aligned}\right.
 $$
 
 两个方程组的系数矩阵完全一样，区别只在右端项。把它们各自抄成增广矩阵，消掉第一列，看第二行变成
