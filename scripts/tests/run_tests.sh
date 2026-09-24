@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # StudyMate 回归测试：纯 Python / Node，不需要浏览器（默认）。
-#   bash scripts/tests/run_tests.sh              # 14 套快测
-#   bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 3 套（共 17 套）
+#   bash scripts/tests/run_tests.sh              # 15 套快测
+#   bash scripts/tests/run_tests.sh --browser    # 再加需要 google-chrome 的 3 套（共 18 套）
 set -u
 cd "$(dirname "$0")/../.." || exit 1
 
@@ -28,6 +28,7 @@ step '题目里的代码围栏（检查，12 例）'     python3 scripts/tests/t
 step '课件配图（检查，5 例）'              python3 scripts/tests/test_lesson_figure.py
 step '本地引用可达（检查，16 例）'         python3 scripts/tests/test_lesson_links.py
 step '模板与规格一致（8 项）'              python3 scripts/tests/test_templates.py
+step 'Python 语法体检（34 个 .py）'       python3 -B scripts/tests/test_python_syntax.py
 step '命名与上下节课指针（检查，9 例）'    python3 scripts/tests/test_naming_nav.py
 step '图片库索引（校验器，6 例）'            python3 scripts/tests/test_pool.py
 step '位次重排与 empty_reason（脚本，22 例）'  python3 scripts/tests/test_lesson_scripts.py
