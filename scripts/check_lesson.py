@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件质量检查：只阻断工程/结构缺项；内容风格类问题只提示，不影响放行。
+r"""课件质量检查：只阻断工程/结构缺项；内容风格类问题只提示，不影响放行。
 
 用法：
   python3 scripts/check_lesson.py <课件路径> [<课件路径> ...] [--subject <科目目录>] [--node <节点id>]
@@ -966,7 +966,7 @@ def check_math_style(text):
         if '\\left\\{' in text[max(0, match.start() - 12):match.start()]:
             continue
         notes.append('这段 aligned 有两行以上等式、却没有大括号——方程组要写成 '
-                     '`$$\left\{\begin{aligned} … \end{aligned}\right.$$`'
+                     r'`$$\left\{\begin{aligned} … \end{aligned}\right.$$`'
                      '（KaTeX 不会自己加，见 docs/课件内容格式.md 第 3 节）')
     return notes
 

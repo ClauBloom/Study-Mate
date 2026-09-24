@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""本地引用可达：检查项 10 的判定（页面里的 href/src 必须落到真实文件）。
+r"""本地引用可达：检查项 10 的判定（页面里的 href/src 必须落到真实文件）。
 
 为什么单独有这道：`gen_home.py` 的断链自检只管它自己写出的主页（根主页 + 科目主页），
 课件页不在它的范围内。检查项 2/3 只核对「引用写没写齐」，不管目标在不在；检查项 9 只管
@@ -165,7 +165,9 @@ def main():
                         {'本节校验': [{'q': '题干', 'opts': ['A', 'B'], 'ans': 0, 'why': '解释'}]})
     fixtures.run_render(subject6, 'overview-map')
     code_ok, out_ok = fixtures.run_gate(fixtures.lesson_html(subject6, 1, 'overview-map'), subject6, 'overview-map')
-    ok6 = code_ok == 0 and '大括号' not in out_ok
+    # 只看 WARN/FAIL 行：解释器警告之类会把源码那行回显出来（那行本来就含「大括号」三个字）
+    warning_lines = [l for l in out_ok.splitlines() if l.startswith(('WARN', 'FAIL'))]
+    ok6 = code_ok == 0 and not any('大括号' in l for l in warning_lines)
     failures += not ok6
     fixtures.check('方程组带了大括号（不再提示）', ok6, out_ok)
 
