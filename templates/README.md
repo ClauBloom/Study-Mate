@@ -51,4 +51,4 @@ python3 scripts/preview_templates.py --open   # 生成并直接打开
   学生常被总控用 `xdg-open` 直接打开课件，所以**主题开关必须长在课件自己身上**——它由渲染器按模板
   产出，要改就改模板或渲染器，别去手改 `<序号>-<节点id>.html`。
 - `MEMORY.md` / `subject.yaml` / `MISSION.md` / `RESOURCES.md` / `GLOSSARY.md`：科目与记忆模板（Task 3 的非前端部分，由对应会话产出）
-- `assets/`：前端资源（Sayo UI、共享主题层与主题逻辑、课件层组件）——**摆放位置与各页面引用路径见 `assets/README.md`**
+- `assets/`：前端资源（Sayo UI、共享主题层与主题逻辑、课件层组件、公式排版用的 KaTeX）——**摆放位置与各页面引用路径见 `assets/README.md`**

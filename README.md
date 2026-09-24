@@ -108,6 +108,8 @@ StudyMate 是 DSH（DeepSeek Harness）的 **「学习模式」预设 + 一套 S
 
 <img src="docs/images/preview-lesson.png" width="640" alt="课件示例">
 
+想翻一遍真实产出：仓库里的 [`examples/`](examples/) 是一份完整示例工作区（**线性代数** + **计算机网络**），页面已经渲染入库——clone 下来用浏览器打开 `examples/index.html`，就能一路点到科目主页与课件。
+
 
 ## 用法示例
 
@@ -128,8 +130,8 @@ StudyMate 是 DSH（DeepSeek Harness）的 **「学习模式」预设 + 一套 S
 python3 scripts/gen_home.py                    # 生成根主页 + 全部科目主页（默认读配置里的 workspace）
 python3 scripts/preview_templates.py --open    # 用假数据渲染主页模板到 .preview/，只看样式与交互
 python3 scripts/render_lesson.py <subject_path> <节点id>   # 内容文件 + 题库 → 课件 HTML（--check 只校验不写盘）
-python3 scripts/check_curriculum.py examples/.learning/subjects/typescript-web-api/curriculum.yaml
-python3 scripts/check_lesson.py workspace/.learning/subjects/cpp-competitive-programming/lessons/0001-hello.first.html --subject workspace/.learning/subjects/cpp-competitive-programming --node hello.first
+python3 scripts/check_curriculum.py examples/.learning/subjects/computer-networks/curriculum.yaml
+python3 scripts/check_lesson.py examples/.learning/subjects/linear-algebra/lessons/0001-vector.space.html --subject examples/.learning/subjects/linear-algebra --node vector.space
 python3 scripts/check_pool.py <你的科目目录>    # 图片池：索引 pool.md 与 assets/img/pool/ 对不对得上
 python3 scripts/check_skill.py .dsh/skills/*    # 技能 frontmatter（改过技能就跑一次）
 bash scripts/tests/run_tests.sh                # 回归测试：检查/题目属性/命名指针/提示词规则/DOM（改引擎就跑一次）
@@ -137,7 +139,7 @@ bash scripts/tests/run_tests.sh                # 回归测试：检查/题目属
 # 换成你自己的科目：--subject 给科目目录，--node 给该课件对应的节点 id；大纲校验可一次传多个 curriculum.yaml
 ```
 
-`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、题目结构与属性写法、题目位置标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示；其中「题目位置标记残留」只可能来自手写时代的老课件——渲染产物里不会有标记。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤500 KB——还没建过图片池的科目没有 `assets/img/pool.md`，它会报一行「索引不存在」并退出 1，那是图片库还没建，不是命令坏了。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
+`check_lesson.py` 只阻断工程与结构缺项（文件名与编号、课件归属、共享层引用、**本地引用可达**、题目结构与属性写法、题目位置标记残留、主题开关；`kind` 为 `实操/实验` 时还要求 lab 与产物齐全），内容风格类问题只提示；其中「题目位置标记残留」只可能来自手写时代的老课件——渲染产物里不会有标记。`check_pool.py` 校验图片池：索引表头七列、文件名合规、来源 URL 与许可非空、单张 ≤500 KB——还没建过图片池的科目没有 `assets/img/pool.md`，它会报一行「索引不存在」并退出 1，那是图片库还没建，不是命令坏了。退出码：`check_lesson.py` / `check_curriculum.py` / `check_pool.py` 有阻断项即 1，`gen_home.py` 占位符缺失或产物断链即 1。
 
 `scripts/tests/run_tests.sh` 不需要浏览器（`--browser` 才加真实 Chrome 的高亮那套）；测试自己造临时科目，不碰 `workspace/`。改了检查、`templates/assets/` 或 `.dsh/skills/` 之后跑一次，见 `scripts/tests/README.md`。
 
@@ -165,7 +167,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 ├── schemas/                   # 5 份数据结构：大纲 / 进度 / 评估 / 会话摘要 / 科目
 ├── templates/                 # 页面骨架（主页、科目页、课件壳）与前端资源 assets/
 ├── scripts/                   # 主页生成 + 课件渲染器 + 四道校验检查（用法见上）+ tests/ 回归测试
-├── examples/                  # 示例学习工作区：两门示例科目，可拿来跑生成器看效果
+├── examples/                  # 示例学习工作区：线性代数 + 计算机网络，页面已生成，clone 即可点开
 ├── docs/                      # 使用说明、课件内容格式、设计方案、工程约束、文件归属、docs/images/ 截图
 └── workspace/                 # 你的学习数据（默认位置，可配置；也被 .gitignore 忽略）
 ```
@@ -194,7 +196,7 @@ StudyMate/                     ← 本仓库：系统源码（引擎），学习
 
 - **项目交流群**(QQ)：161914370
 - **变更日志**：[CHANGELOG.md](CHANGELOG.md)
-- **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、检查与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位置的语法）· [设计方案](docs/设计方案.md)（产品视角）· [工程约束](docs/工程约束.md)（目录约定、占位符契约、技术选型）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
+- **文档**：[使用说明](docs/使用说明.md)（日常怎么用、课型与题型、检查与档案规则）· [课件内容格式](docs/课件内容格式.md)（内容文件与题目位置的语法）· [文件归属](docs/文件归属.md)（代称 ↔ 路径 ↔ 维护者）· [设计方案](docs/设计方案.md)（产品视角）· [工程约束](docs/工程约束.md)（目录约定、占位符契约、脚本一览、技术选型）· [模板说明](templates/README.md) · [前端资源契约](templates/assets/README.md)
 
 ### 提改动前先跑这几条
 

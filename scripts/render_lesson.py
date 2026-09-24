@@ -51,10 +51,23 @@ USAGE = '用法：python3 scripts/render_lesson.py <科目目录> <节点id> [--
 # 模板占位符：名字 → 应出现次数（TITLE 在 <title> 与 <h1>；SUBJECT 在 <title> 与顶栏）
 TEMPLATE_PLACEHOLDERS = {
     'TITLE': 2, 'SUBJECT': 2, 'NUMBER': 1, 'EYEBROW': 1, 'GOAL': 1, 'BODY': 1, 'NAV': 1, 'FOOTER': 1,
+    'MATH': 1,
 }
 PLACEHOLDER = '<!-- @LEARN:{} -->'
 
+# 数学式：行内 `$…$`、块级 `$$…$$`（整段就是它）。作者写 TeX，渲染器只包成占位元素，
+# 排版在浏览器里由离线 KaTeX（共享层 templates/assets/katex/ + lesson-math.js）完成。
+# **有数学式的页面才注入这三个引用**：老课件与非数学课因此零改动、零 diff。
+MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
+BLOCK_MATH_RE = re.compile(r'^\$\$(.+)\$\$$', re.S)
+# 题库里的行内公式（够用的近似：两个 $ 之间首尾非空白、不跨行）
+MATH_PAIR_RE = re.compile(r'\$[^\s$][^$\n]*[^\s$]\$|\$[^\s$]\$')
+
 # 块级词汇：`:::` 指令名（其余一律报错）
+# 图注编号（`::: figure` / `::: svg` 的 `caption:`）：作者只写描述，编号由渲染器按页内顺序给。
+# 旧课件里手写的「图 N ·」会被剥掉重编——所以重渲染是幂等的，老写法不改也不会重号。
+CAPTION_NUMBER_RE = re.compile(r'^图\s*\d+\s*·\s*')
+
 DIRECTIVES = ('practice', 'quiz', 'figure', 'svg', 'tip', 'warn', 'note', 'resources', 'related')
 CONTAINER_DIRECTIVES = ('practice', 'tip', 'warn', 'note')          # 块里还能写普通块
 CARD_CLASS = {'tip': 'lesson-tip', 'warn': 'lesson-warn', 'note': 'lesson-note'}
@@ -351,6 +364,22 @@ def code_span_end(text, start):
     """
     close = text.find('`', start + 1)
     return close if close > start + 1 else None
+
+
+def math_close(text, index):
+    """`text[index]` 是 `$` 时返回配对收尾 `$` 的下标；不成立返回 None。
+
+    判据（避开散文里的美元号）：开 `$` 后面紧跟非空白、收 `$` 前面也是非空白、中间非空且不跨行。
+    与 `code_span_end` 一样，这是行内公式的**唯一判定**：`inline()` 与「没有收尾」的报错共用它。
+    """
+    if index + 1 >= len(text) or text[index + 1].isspace():
+        return None
+    close = text.find('$', index + 1)
+    if close <= index + 1 or text[close - 1].isspace() or text[close - 1] == '\\':
+        return None
+    if '\n' in text[index + 1:close]:
+        return None
+    return close
 
 
 def tag_shape_at(text, index):
@@ -812,6 +841,23 @@ class Renderer:
         self.quiz = quiz
         self.quiz_name = quiz_name
         self.pool = pool
+        self.figure_no = 0            # 页内图注编号（`::: figure` 与 `::: svg` 共用一条序列）
+        self.has_math = False         # 这一页有没有数学式（决定壳里注不注入 KaTeX）
+
+    # ── 图注编号 ──────────────────────────────────────────────────
+
+    def numbered_caption(self, caption):
+        """给图注编号：剥掉作者可能手写的旧号，按**页内出现顺序**重编。
+
+        编号是可推导的信息（这一页第几张图），手写必然漂移——同页重号、跨课口径不一都发生过。
+        只给**有说明文字**的图编号：没 caption 的图没有可见标签，不该占号（否则学生会看到跳号）。
+        返回空串＝这张图不编号。
+        """
+        text = CAPTION_NUMBER_RE.sub('', caption.strip()).strip()
+        if not text:
+            return ''
+        self.figure_no += 1
+        return f'图 {self.figure_no} · {text}'
 
     # ── 行内 ──────────────────────────────────────────────────────
 
@@ -888,6 +934,38 @@ class Renderer:
                     out.append(f'<{tag}>' + self.inline(inner, line, False) + f'</{tag}>')
                     index = close + 1
                     continue
+            elif char == '\\' and index + 1 < length and text[index + 1] == '$':
+                out.append('$')                          # `\$`：正文里的字面美元号
+                index += 2
+                continue
+            elif char == '$' and text.startswith('$$', index):
+                close = text.find('$$', index + 2)      # 段落中间的 `$$…$$`：包成块级占位（span 合法）
+                if close > index + 2:
+                    tex = text[index + 2:close]
+                    self.has_math = True
+                    out.append('<span class="math-block">' + gen_home.esc(tex) + '</span>')
+                    index = close + 2
+                    continue
+                self.problems.add(self.path, line,
+                                  '块级公式 `$$…$$` 没有收尾——补上收尾的 `$$`')
+                out.append('$$')
+                index += 2
+                continue
+            elif char == '$':
+                close = math_close(text, index)
+                if close is not None:
+                    tex = text[index + 1:close]
+                    self.has_math = True
+                    out.append('<span class="math-inline">' + gen_home.esc(tex) + '</span>')
+                    index = close + 1
+                    continue
+                if not text[index + 1:index + 2].isspace() and text[index + 1:index + 2]:
+                    self.problems.add(self.path, line,
+                                      '行内公式 `$…$` 没有收尾——补上收尾的 `$`；'
+                                      '正文里真要写美元号就写成 `\\$`')
+                out.append('$')
+                index += 1
+                continue
             elif char == '[':
                 link = LINK_RE.match(text, index)
                 if link:
@@ -932,6 +1010,11 @@ class Renderer:
         if kind in ('h2', 'h3'):
             return f'{indent}<{kind}>{self.inline(block["text"], block["line"])}</{kind}>'
         if kind == 'p':
+            math = BLOCK_MATH_RE.match(block['text'].strip())
+            if math:
+                self.has_math = True
+                return (f'{indent}<div class="math-block">'
+                        f'{gen_home.esc(math.group(1).strip())}</div>')
             return f'{indent}<p>{self.inline(block["text"], block["line"])}</p>'
         if kind == 'code':
             attr = f' data-lang="{gen_home.esc(block["lang"], attr=True)}"' if block['lang'] else ''
@@ -1050,7 +1133,7 @@ class Renderer:
         # alt: 是属性值（纯文本，不解析行内标记），但和 caption: 一样**不许真标签**：文档把
         # alt: 列进了「会报错的位置」，代码就得真查（`<b>`/`<script>` 曾经静默进属性出厂）。
         self.check_inline_html(alt, block.get('alt_line', line), '::: figure 的 alt:')
-        caption = block['caption']
+        caption = self.numbered_caption(block['caption'])
         if '来源：' not in caption:                    # 作者自己写了来源就不重复补
             caption += self.pool_source(src)
         lines = [f'{indent}<figure class="lesson-figure">',
@@ -1070,9 +1153,10 @@ class Renderer:
             attr = f' role="img" aria-label="{gen_home.esc(block["alt"], attr=True)}"'
         lines = [f'{indent}<figure class="lesson-figure lesson-figure--inline"{attr}>',
                  block['raw']]
-        if block['caption']:
+        caption = self.numbered_caption(block['caption'])
+        if caption:
             lines.append(f'{indent}  <figcaption>'
-                         f'{self.inline(block["caption"], block.get("caption_line", block["line"]))}'
+                         f'{self.inline(caption, block.get("caption_line", block["line"]))}'
                          f'</figcaption>')
         lines.append(f'{indent}</figure>')
         return '\n'.join(lines)
@@ -1103,6 +1187,28 @@ class Renderer:
         if not row:
             return ''
         return f'（来源：{row["url"]}，许可：{row["license"]}）'
+
+
+def quiz_has_math(quiz):
+    """题库里有没有 `$…$` 公式——有就得让页面注入离线 KaTeX。
+
+    题目正文（题面/选项/答案/判分要点/解析）由 `quiz.js` 在浏览器里排版，渲染产物里只有
+    `data-quiz` 属性，静态看是看不出公式的；而「注不注入 KaTeX」必须在渲染时就定下来，
+    所以这里扫一遍字符串字段。判据与 `math_close()` 同源，够用即可——多注入一份没害处，
+    少注入就是公式排不出来。
+    """
+    for problems in (quiz or {}).values():
+        if not isinstance(problems, list):
+            continue
+        for item in problems:
+            if not isinstance(item, dict):
+                continue
+            for value in item.values():
+                values = value if isinstance(value, list) else [value]
+                for text in values:
+                    if isinstance(text, str) and MATH_PAIR_RE.search(text):
+                        return True
+    return False
 
 
 def load_quiz(path, problems, referenced=None):
@@ -1222,12 +1328,26 @@ def render_nav(outline, index):
     return '\n'.join(lines)
 
 
+def math_refs_html(enabled):
+    """有数学式的页面才注入 KaTeX 三个引用；没有就返回空串（模板那一行整行消失）。"""
+    if not enabled:
+        return ''
+    base = '../../../assets/'
+    lines = []
+    for ref in MATH_REFS:
+        if ref.endswith('.css'):
+            lines.append(f'<link rel="stylesheet" href="{base}{ref}">')
+        else:
+            lines.append(f'<script src="{base}{ref}" defer></script>')
+    return '\n'.join(lines)
+
+
 def fill_template(template, path, fields, problems):
     """用 gen_home 的 replace_block/replace_field 口径套模板（缺占位符即报错）。"""
     html = template
     html = gen_home.replace_field(html, PLACEHOLDER.format('TITLE'), fields['title'], path)
     html = gen_home.replace_field(html, PLACEHOLDER.format('SUBJECT'), fields['subject'], path)
-    for name in ('NUMBER', 'EYEBROW', 'GOAL', 'BODY', 'NAV', 'FOOTER'):
+    for name in ('NUMBER', 'EYEBROW', 'GOAL', 'BODY', 'NAV', 'FOOTER', 'MATH'):
         html = gen_home.replace_block(html, PLACEHOLDER.format(name), fields[name.lower()], path)
     for name in TEMPLATE_PLACEHOLDERS:
         leftover = PLACEHOLDER.format(name)
@@ -1315,6 +1435,8 @@ def main(argv):
 
     renderer = Renderer(md_path, problems, lessons_dir, quiz,
                         os.path.basename(quiz_path), pool)
+    if quiz_has_math(quiz):
+        renderer.has_math = True      # 公式只在题库里出现时，壳里也得注入 KaTeX
     body_html = renderer.render(blocks)
     title = front.get('title', '')
     goal_line = front_lines.get('goal', 1)
@@ -1329,6 +1451,7 @@ def main(argv):
         'body': body_html,
         'nav': render_nav(outline, index),
         'footer': f'StudyMate · {index:04d} {gen_home.esc(title)} · 本地学习工作区',
+        'math': math_refs_html(renderer.has_math),
     }
     page = fill_template(template, TEMPLATE, fields, problems)
 

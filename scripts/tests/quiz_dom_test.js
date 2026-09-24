@@ -46,10 +46,10 @@ function makeBlock(items) {
   return b;
 }
 
-function run(blocks) {
+function run(blocks, windowExtras = {}) {
   const sandbox = {
     console,
-    window: {},
+    window: { ...windowExtras },
     document: {
       readyState: 'complete',
       addEventListener() {},
@@ -223,6 +223,46 @@ check('不完整或冲突题目统一显示兜底',
   findAll(invalid, 'feedback').filter(e => e.textContent.includes('数据不完整')).length === invalidItems.length);
 check('坏选择题不提供无效选项且不计入总分',
   findAll(invalid, 'quiz__opts').length === 1 && findAll(invalid, 'quiz__score').length === 0);
+
+// ── 场景九：题面里的公式（`$…$` → .math-inline，排版交给 LessonMath）─────
+// 题目正文是**运行时**才插进 DOM 的（lesson-math.js 早就跑完了），所以 quiz.js 必须自己
+// 把 `$…$` 切成占位元素、再请 LessonMath 排一次；KaTeX 不在时占位元素里留着的 TeX 原文可读。
+let typesetCalls = 0;
+const b9 = makeBlock([
+  { q: '矩阵 $\\begin{bmatrix} 2 & 1 \\\\ 1 & 3 \\end{bmatrix}$ 的行列式是多少？',
+    opts: ['$1$', '$6$'], ans: 1, why: '用 $ad - bc$ 算。' },
+  { q: '转义与不成对：\\$5 与 $x 都该是普通文本',
+    answer: 'A', criteria: 'C' },
+  { q: '代码里的美元号不当公式：\n\n```bash\necho $HOME\n```',
+    answer: 'B', criteria: 'D' },
+]);
+run([b9], { LessonMath: { render() { typesetCalls += 1; } } });
+
+const mathSpans = findAll(b9, 'math-inline');
+check('题面里的 $…$ 变成 .math-inline', mathSpans.some(s => s.textContent.includes('begin{bmatrix}')),
+  mathSpans.map(s => s.textContent).join(' | '));
+check('选项里的 $…$ 也变成 .math-inline',
+  findAll(b9, 'quiz__opts')[0].children.every(btn => findAll(btn, 'math-inline').length === 1));
+const opts9 = findAll(b9, 'quiz__opts')[0];
+opts9.children[1].click();
+check('点选后解析里的 $…$ 也变成 .math-inline',
+  findAll(b9, 'feedback')[0].children.concat(...findAll(b9, 'feedback')[0].children.map(c => c.children || []))
+    .some(c => (c.className || '') === 'math-inline' && c.textContent === 'ad - bc') ||
+  findAll(findAll(b9, 'feedback')[0], 'math-inline').some(s => s.textContent === 'ad - bc'));
+check('转义 \\$ 与不成对的 $ 都按普通文本（不产生占位元素）',
+  findAll(b9, 'quiz__q')[1].textContent.includes('$5 与 $x 都该是普通文本') &&
+  findAll(findAll(b9, 'quiz__q')[1], 'math-inline').length === 0);
+check('围栏代码块里的 $ 不当公式（代码块是独立节点）',
+  findAll(b9, 'quiz__code').some(pre => pre.textContent.includes('echo $HOME')) &&
+  findAll(findAll(b9, 'quiz__q')[2], 'math-inline').length === 0);
+check('建块后请求过一次排版（LessonMath.render）', typesetCalls > 0, `调用 ${typesetCalls} 次`);
+
+// LessonMath 不在（KaTeX 未加载）时不抛错，占位元素里留着 TeX 原文
+let noMathApiError = '';
+const b10 = makeBlock([{ q: '公式 $x^2$ 一段', answer: 'a', criteria: 'c' }]);
+try { run([b10], {}); } catch (e) { noMathApiError = e.message; }
+check('没有 LessonMath 时不抛错，公式原文仍可读',
+  !noMathApiError && findAll(b10, 'math-inline').some(s => s.textContent === 'x^2'), noMathApiError);
 
 console.log(failures === 0 ? '\n全部通过' : `\n${failures} 项失败`);
 process.exit(failures === 0 ? 0 : 1);

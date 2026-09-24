@@ -813,6 +813,175 @@ caption: 图 1 · 收拢过程
 
 
 # ══════════════════════════════════════════════════════════════════
+# ⑬′ 图注编号：渲染器按页内顺序给号（figure 与 svg 共用一条序列，手写旧号被剥掉重编）
+# ══════════════════════════════════════════════════════════════════
+
+@case('图注编号：页内顺序、figure 与 svg 共用序列、旧号被剥掉重编、没 caption 不占号')
+def _(a):
+    subject = new_subject()
+    write_pool(subject)
+    svg = ('<svg viewBox="0 0 40 20" role="img" aria-hidden="true">'
+           '<path d="M2 10h36" stroke="currentColor"/></svg>')
+    fixtures.write_content(subject, 1, 'overview-map', body=f'''## 画三张
+
+::: svg
+alt: 第一张示意图
+caption: 收拢过程
+
+{svg}
+:::
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 没有说明的图
+:::
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 作者写了旧号
+caption: 图 7 · 内存里挨着放
+:::
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.has(text,
+          '<figcaption>图 1 · 收拢过程</figcaption>',
+          '<figcaption>图 2 · 内存里挨着放（来源：'
+          'https://en.cppreference.com/w/cpp/language/array，许可：CC BY-SA 4.0）</figcaption>',
+          label='编号按页内顺序给（svg 先出场就是图 1），手写的「图 7 ·」被剥掉重编成图 2')
+    a.hasnt(text, '图 7', label='旧号不留在产物里')
+    a.ok('没写 caption 的图不编号、也不占号（只有来源那一行，且不出现图 3）',
+         '<figcaption>（来源：' in text and '图 3' not in text)
+
+    # 幂等：同一份内容再渲染一次，产物逐字相同（旧号已经不存在，重编结果不变）
+    code2, out2, text2, path2 = render(subject, 1, 'overview-map')
+    a.equal('重渲染幂等（产物不变）', text2, text)
+
+    # 只有空白的 caption：不生成 figcaption，也不占号
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map',
+                           body=f'## 画一张\n\n::: svg\ncaption:   \n{svg}\n:::\n')
+    code3, out3, text3, path3 = render(subject2, 1, 'overview-map')
+    a.equal('空白 caption 放行', code3, 0)
+    a.hasnt(text3, '<figcaption>', label='空白 caption 不生成图注')
+
+    # 两张都没写 caption：都不编号，后面那张写了号才从图 1 起（号跟着可见标签走）
+    subject3 = new_subject()
+    write_pool(subject3)
+    fixtures.write_content(subject3, 1, 'overview-map', body=f'''## 画两张
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 第一张没说明
+:::
+
+::: figure ../assets/img/pool/{POOL_IMAGE}
+alt: 第二张有说明
+caption: 只有这张有号
+:::
+''')
+    code4, out4, text4, path4 = render(subject3, 1, 'overview-map')
+    a.equal('两张图放行', code4, 0)
+    a.has(text4, '<figcaption>图 1 · 只有这张有号（来源：',
+          label='编号只数有说明的图：第二张才是图 1')
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⑬″ 数学式：$…$ 行内 / $$…$$ 块级（离线 KaTeX，按需注入）
+# ══════════════════════════════════════════════════════════════════
+
+@case('数学式：行内与块级、代码里不解析、\\$ 转义、没收尾报错、没公式不注入 KaTeX')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map', body=r'''## 公式
+
+行内 $Ax = b$ 与 $\lambda_1 v_1$，不等式两个都要转义：$x < y$。
+
+$$
+\begin{bmatrix} 2 & 1 \\ 1 & 3 \end{bmatrix}
+$$
+
+段落中间的块级也认：价格 $$p = 3q$$ 一段。
+
+代码里不动：`$HOME` 与
+
+```bash
+echo $HOME
+```
+
+正文里的美元号写 \$5。
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.has(text,
+          '<span class="math-inline">Ax = b</span>',
+          '<span class="math-inline">\\lambda_1 v_1</span>',
+          '<span class="math-inline">x &lt; y</span>',
+          '<div class="math-block">\\begin{bmatrix} 2 &amp; 1 \\\\ 1 &amp; 3 \\end{bmatrix}</div>',
+          '<span class="math-block">p = 3q</span>',
+          label='行内/块级公式包成占位元素，TeX 里的 &<> 转义')
+    a.has(text, '<code>$HOME</code>', '<pre data-lang="bash"><code>echo $HOME</code></pre>',
+          label='代码 span 与代码围栏里的美元号不受影响')
+    a.has(text, '正文里的美元号写 $5。', label='`\\$` 转义成字面美元号')
+    a.has(text,
+          '<link rel="stylesheet" href="../../../assets/katex/katex.min.css">',
+          '<script src="../../../assets/katex/katex.min.js" defer></script>',
+          '<script src="../../../assets/lesson-math.js" defer></script>',
+          label='有公式的页面注入离线 KaTeX 三件')
+
+    # 没有公式的页面：不注入引用，也不留占位符残留（老课件与非数学课零 diff）
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map', body='## 试\n\n这一页只有文字。\n')
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.equal('无公式页渲染退出码 0', code2, 0)
+    a.hasnt(text2, 'katex', '@LEARN:MATH', label='无公式页不注入 KaTeX、不留占位符')
+
+    # 行内公式没收尾：公式写错时页面只显示 TeX 原文（看不出错），所以按确定性错误拦下
+    subject3 = new_subject()
+    md3 = fixtures.write_content(subject3, 1, 'overview-map',
+                                 body='## 试\n\n行内公式 $Ax = b 忘了收尾。\n')
+    code3, out3, text3, path3 = render(subject3, 1, 'overview-map')
+    a.ok('行内公式没收尾非零退出', code3 != 0, f'exit={code3}')
+    a.has(out3, f'{md3}:{line_of(md3, "行内公式 $Ax = b 忘了收尾。")}', label='报错指到那一行')
+    a.has(out3, '\\$', label='报错给出 `\\$` 的出路')
+    a.ok('报错时不写盘', not os.path.exists(path3))
+
+    # 块级公式没收尾：同样报错（别让它把后面整段吞成公式）
+    subject4 = new_subject()
+    md4 = fixtures.write_content(subject4, 1, 'overview-map',
+                                 body='## 试\n\n$$\n\\begin{bmatrix} 1 & 2 \\end{bmatrix}\n')
+    code4, out4, text4, path4 = render(subject4, 1, 'overview-map')
+    a.ok('块级公式没收尾非零退出', code4 != 0, f'exit={code4}')
+    a.has(out4, '块级公式 `$$…$$` 没有收尾', label='块级报错说清缺什么')
+
+
+@case('题库里只有公式：正文没有 $…$，也要给页面注入 KaTeX（quiz.js 在浏览器里排版）')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map',
+                           body='## 试\n\n这一页正文一个公式都没有。\n\n::: quiz 理解 锚点：本节校验\n:::\n')
+    fixtures.write_quiz(subject, 1, 'overview-map', {
+        '本节校验': [{'q': '矩阵 $\\begin{bmatrix} 2 & 1 \\\\ 1 & 3 \\end{bmatrix}$ 的行列式？',
+                      'opts': ['$1$', '$6$'], 'ans': 1, 'why': '用 $ad - bc$ 算。'}],
+    })
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('渲染退出码 0', code, 0)
+    a.has(text,
+          '<link rel="stylesheet" href="../../../assets/katex/katex.min.css">',
+          '<script src="../../../assets/katex/katex.min.js" defer></script>',
+          '<script src="../../../assets/lesson-math.js" defer></script>',
+          label='公式只在题库里 → 壳里照样注入 KaTeX')
+    a.hasnt(text, '<span class="math-inline">', label='正文里确实没有静态公式占位')
+
+    # 反过来：题库与正文都没有公式时，一个引用都不该有
+    subject2 = new_subject()
+    fixtures.write_content(subject2, 1, 'overview-map',
+                           body='## 试\n\n没有公式。\n\n::: quiz 理解 锚点：本节校验\n:::\n')
+    fixtures.write_quiz(subject2, 1, 'overview-map',
+                        {'本节校验': [{'q': '题干', 'opts': ['A', 'B'], 'ans': 0, 'why': '解释'}]})
+    code2, out2, text2, path2 = render(subject2, 1, 'overview-map')
+    a.equal('无公式页渲染退出码 0', code2, 0)
+    a.hasnt(text2, 'katex', label='题面也没有公式时不注入')
+
+
+# ══════════════════════════════════════════════════════════════════
 # ⑭ 端到端：渲染产物过检查（check_lesson.py）
 # ══════════════════════════════════════════════════════════════════
 
