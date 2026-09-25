@@ -17,8 +17,9 @@ npm test
 | `npm test` | 全部默认功能回归，与 CI 一致 |
 | `npm run test:installer` | npm 安装入口、预设与 Bundle |
 | `npm run test:openai` | OpenAI 插件 ZIP、完整性、独立运行与导出保护 |
+| `npm run test:antigravity` | Antigravity 插件 ZIP、原生 agents、导出保护与重复构建 |
 | `npm run test:release` | 版本、changelog、重试和发布保护 |
-| `npm run test:static` | Python 语法、提示词与模板文案契约、OpenAI skill 转换与 UI 元数据 |
+| `npm run test:static` | Python 语法、提示词与模板文案契约、OpenAI 与 Antigravity skill 转换及 UI 元数据 |
 | `npm run test:browser` | 三套真实 Chrome 渲染测试，需要 `google-chrome` |
 | `npm run test:dsh` | 真实 DSH 启动与 Web 预设，需要指定 DSH 包目录 |
 | `npm run test:dsh-cli` | 真实 DSH CLI 安装、更新、卸载，还需要 `pnpm` |
@@ -39,6 +40,7 @@ bash scripts/tests/run_tests.sh --browser  # 默认功能回归 + 浏览器测�
 | --- | --- |
 | `test_installer.mjs`、`test_bundle.mjs` | npm 安装、更新与安装模式切换，Bundle 激活和清理，临时工作区数据保留 |
 | `test_openai_plugin.mjs` | ZIP 解压后不依赖源码或 DSH 即可初始化工作区、恢复交互和渲染课件；构建可重复，失败时保留已有产物 |
+| `test_antigravity_plugin.mjs` | Antigravity 插件包含 5 个原生子代理与 12 个技能、无 0 字节文件、占用的输出目录不被清空、构建可重复 |
 | `test_dsh_presets.py` | 预设写入、profile 适配、迁移和重复安装 |
 | `test_workspace_config.py`、`test_interaction_state.py` | 工作区来源优先级、旧配置兼容、交互状态与恢复 |
 | `test_quiz_attr.py`、`test_quiz_code.py` | 题库属性转义、JSON 与代码围栏处理 |
