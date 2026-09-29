@@ -30,11 +30,14 @@
 文件名，不改文件内容；文件内容与题库的对账是渲染器与检查的活。
 """
 import os
-import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import curriculum   # noqa: E402  课程大纲的唯一口径（位次/邻居/层级）
+import lessonfile   # noqa: E402  课件文件名的唯一口径
 
 try:
     import yaml
@@ -46,11 +49,6 @@ RENDER = ROOT / 'scripts' / 'render_lesson.py'
 RENDER_REL = 'scripts/render_lesson.py'
 USAGE = '用法：python3 scripts/renumber_lessons.py <科目目录> [--dry-run] [--render]'
 
-# 三件套的后缀：长的在前——`.quiz.json` 是双扩展名，节点 id 自己也可以带点（`cpp.array`）
-EXTS = ('.quiz.json', '.md', '.html')
-EXT_ORDER = {'md': 0, 'quiz.json': 1, 'html': 2}
-NAME_RE = re.compile(r'^(?P<num>\d+)-(?P<rest>.+)$')
-NUM_WIDTH = 4
 LESSONS = 'lessons'
 
 
@@ -101,72 +99,15 @@ def parse_args(argv):
 def load_order(subject_path, problems):
     """`curriculum.yaml` 的 `nodes:` 顺序 → {节点 id: 1 起位次}；读不了回 None。
 
-    位次的口径与 render_lesson.py 的 Outline 一致：**第一个节点是 0001**，与 prerequisites、
-    edges 都无关——它们是依赖图，不改课件位次。
+    位次口径与渲染、校验、主页生成同一处（`curriculum` 模块）：**第一个节点是 0001**，
+    与 prerequisites、edges 都无关——它们是依赖图，不改课件位次。
     """
-    path = os.path.join(subject_path, 'curriculum.yaml')
-    if yaml is None:                                  # pragma: no cover - 环境缺 pyyaml
-        problems.add(path, 1, '读不了 curriculum.yaml：需要 pyyaml（python3 -m pip install pyyaml）')
+    cur, load_problems = curriculum.load(subject_path)
+    if load_problems:
+        for problem in load_problems:               # 一次把问题报全
+            problems.add(problem.path, problem.line, problem.message)
         return None
-    if not os.path.isfile(path):
-        problems.add(path, 1, f'找不到大纲文件（科目目录 {subject_path} 里应有 curriculum.yaml）')
-        return None
-    try:
-        text = Path(path).read_text(encoding='utf-8')
-    except (OSError, UnicodeDecodeError) as exc:
-        problems.add(path, 1, f'大纲文件读不出来（要 UTF-8）：{exc}')
-        return None
-    try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        mark = getattr(exc, 'problem_mark', None)
-        problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
-        return None
-    nodes = data.get('nodes') if isinstance(data, dict) else None
-    if nodes is not None and not isinstance(nodes, list):
-        problems.add(path, 1, '大纲的 nodes: 必须是列表')
-        return None
-    order, duplicated = {}, []
-    for node in nodes or []:
-        if not (isinstance(node, dict) and node.get('id')):
-            continue
-        node_id = str(node['id'])
-        if node_id in order:
-            duplicated.append(node_id)
-            continue
-        order[node_id] = len(order) + 1
-    if not order:
-        problems.add(path, 1, '大纲里没有 nodes:（课件序号与位次都按它算）')
-        return None
-    for node_id in duplicated:
-        order.pop(node_id, None)
-        problems.add(path, 1, f'节点 id「{node_id}」在 nodes: 里出现两次——'
-                              '位次算不出来，先跑 scripts/check_curriculum.py 把大纲修好')
-    return order
-
-
-def split_name(name):
-    """`0008-cpp.array.quiz.json` → ('0008', 'cpp.array', 'quiz.json')；认不出回 None。"""
-    for ext in EXTS:
-        if name.endswith(ext) and len(name) > len(ext):
-            head = name[: -len(ext)]
-            break
-    else:
-        return None
-    match = NAME_RE.match(head)
-    if match is None:
-        return None
-    return match.group('num'), match.group('rest'), ext[1:]
-
-
-def unknown_reason(name):
-    """认不出的命名给一句原因（它只是没被本脚本接管，不是错误）。"""
-    head = re.match(r'^(\d+)-', name)
-    if head is None:
-        return '没有「4 位序号-」前缀'
-    if len(head.group(1)) != NUM_WIDTH:
-        return f'序号 {head.group(1)} 不是 {NUM_WIDTH} 位补零'
-    return '认不出的命名（后缀要正好是 md / quiz.json / html）'
+    return {node['id']: node['index'] for node in cur.nodes}
 
 
 def scan(lessons_dir, order):
@@ -185,13 +126,13 @@ def scan(lessons_dir, order):
             continue
         if not os.path.isfile(path):                  # 断链的符号链接之类：既不认、也不动
             continue
-        parsed = split_name(name)
+        parsed = lessonfile.split_name(name)
         if parsed is None:
-            untouched.append((name, unknown_reason(name)))
+            untouched.append((name, lessonfile.unknown_reason(name)))
             continue
         num, node, ext = parsed
-        if len(num) != NUM_WIDTH:
-            untouched.append((name, f'序号 {num} 不是 {NUM_WIDTH} 位补零'))
+        if len(num) != lessonfile.NUM_WIDTH:
+            untouched.append((name, f'序号 {num} 不是 {lessonfile.NUM_WIDTH} 位补零'))
             continue
         if node not in order:
             untouched.append((name, f'节点 id「{node}」不在 curriculum.yaml 的 nodes: 里'))
@@ -200,12 +141,12 @@ def scan(lessons_dir, order):
 
     renames, duplicates = [], []
     for (node, ext), items in sorted(found.items(),
-                                     key=lambda item: (order[item[0][0]], EXT_ORDER[item[0][1]])):
+                                     key=lambda item: (order[item[0][0]], lessonfile.EXT_ORDER[item[0][1]])):
         if len(items) > 1:
             duplicates.append((node, ext, [name for name, _ in items]))
             continue
         name, num = items[0]
-        want = f'{order[node]:0{NUM_WIDTH}d}'
+        want = f'{order[node]:0{lessonfile.NUM_WIDTH}d}'
         if num == want:
             continue                                  # 序号已经对：跳过
         renames.append({'node': node, 'ext': ext, 'old': name, 'new': f'{want}-{node}.{ext}'})
@@ -340,7 +281,7 @@ def main(argv):
         for name, reason in untouched:
             emit(f'  {name} —— {reason}')
         note(f'{len(untouched)} 个文件没被接管（见上面的「未处理」清单）——它们的命名不在'
-             f'「{NUM_WIDTH} 位序号-<节点id>.<md|quiz.json|html>」里，脚本一个字都没动它们')
+             f'「{lessonfile.NUM_WIDTH} 位序号-<节点id>.<md|quiz.json|html>」里，脚本一个字都没动它们')
 
     emit(f'改了 {len(changed)} 个节点的 {len(renames)} 个文件 / 渲染 {rendered} 个页面')
 

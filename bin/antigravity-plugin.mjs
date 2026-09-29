@@ -89,10 +89,12 @@ export function buildAntigravityPlugin({ output = path.resolve('dist/antigravity
     fs.mkdirSync(path.join(plugin, 'agents'), { recursive: true });
     for (const role of AGENT_ROLES) {
       const skillPath = path.join(source, '.dsh', 'skills', role, 'SKILL.md');
-      if (fs.existsSync(skillPath)) {
-        const agentContent = adaptAntigravityAgent(fs.readFileSync(skillPath, 'utf8'), role);
-        fs.writeFileSync(path.join(plugin, 'agents', `${role}.md`), agentContent);
+      if (!fs.existsSync(skillPath)) {
+        // 静默跳过会建出「没有这个 agent」的插件，而总控照样会按 AGENT_ROLES 派工。
+        throw new Error(`Antigravity 插件缺少角色规格：${skillPath}`);
       }
+      const agentContent = adaptAntigravityAgent(fs.readFileSync(skillPath, 'utf8'), role);
+      fs.writeFileSync(path.join(plugin, 'agents', `${role}.md`), agentContent);
     }
 
     // 3. Copy and adapt skills/

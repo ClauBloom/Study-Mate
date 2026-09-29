@@ -44,31 +44,24 @@ except ImportError:                                   # pragma: no cover - 环�
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, 'templates', 'lesson.html')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import gen_home                                        # noqa: E402  占位符替换口径与它一致
+import pagetpl                                         # noqa: E402  占位符替换口径（与主页生成器同一份）
+import curriculum                                      # noqa: E402  课程大纲的唯一口径
+import lessonfile                                      # noqa: E402  文件名与引用清单的唯一口径
+import lessonfmt                                       # noqa: E402  围栏判定与语言标签的唯一口径
 
 USAGE = '用法：python3 scripts/render_lesson.py <科目目录> <节点id> [--check]'
 
-# 代码围栏的语言标签：COLORED_LANGS 是前端配色表 templates/assets/learn-theme.js 的键（会着色），
-# PLAIN_LANGS 是"接受但明确不上色"（标签照原样进页面，前端查不到键自然不上色）。作者面是开放的：
-# 这里收下 docs/ 与老工作区里常见的标签（`yaml`、`sql`、`powershell`、`java` 这类本来就不上色的也
-# 一并接受，免得升级后原本能渲染的课件直接失败），真手误（`pyton`）仍然硬失败。
-# 两张表由 scripts/tests/test_templates.py 钉住相等——COLORED_LANGS 必须与 `var LANGS` 的键逐个相等：
-# `python` 曾经只在渲染器这边畅通无阻，前端没有这个键，于是 Python 课件的代码块一直不上色，而且没有
-# 任何报错。
-COLORED_LANGS = ('cpp', 'sh', 'bash', 'shell', 'term', 'html', 'js', 'javascript', 'ts', 'typescript', 'json', 'python', 'py')
-PLAIN_LANGS = ('text', 'plain', 'markdown', 'md', 'http', 'yaml', 'yml', 'toml', 'sql', 'ini', 'diff', 'mermaid', 'powershell', 'java')
+# 围栏判定与语言标签的唯一口径在 lessonfmt.py（前端配色表由 test_templates.py 钉住）
 
 # 模板占位符：名字 → 应出现次数（TITLE 在 <title> 与 <h1>；SUBJECT 在 <title> 与顶栏）
 TEMPLATE_PLACEHOLDERS = {
     'TITLE': 2, 'SUBJECT': 2, 'NUMBER': 1, 'EYEBROW': 1, 'GOAL': 1, 'BODY': 1, 'NAV': 1, 'FOOTER': 1,
     'MATH': 1,
 }
-PLACEHOLDER = '<!-- @LEARN:{} -->'
 
 # 数学式：行内 `$…$`、块级 `$$…$$`（整段就是它）。作者写 TeX，渲染器只包成占位元素，
 # 排版在浏览器里由离线 KaTeX（共享层 templates/assets/katex/ + lesson-math.js）完成。
 # **有数学式的页面才注入这三个引用**：老课件与非数学课因此零改动、零 diff。
-MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 BLOCK_MATH_RE = re.compile(r'^\$\$(.+)\$\$$', re.S)
 # 题库里的行内公式（够用的近似：两个 $ 之间首尾非空白、不跨行）
 MATH_PAIR_RE = re.compile(r'\$[^\s$][^$\n]*[^\s$]\$|\$[^\s$]\$')
@@ -98,7 +91,6 @@ HTML_TAG_RE = re.compile(r'^</?([a-zA-Z][a-zA-Z0-9]*)\b')
 TAG_SHAPE_RE = re.compile(r'</?([a-zA-Z][a-zA-Z0-9]*)(?:\s[^<>]*)?/?>')
 ASCII_WORD_RE = re.compile(r'[0-9A-Za-z]')
 SEPARATOR_CELL_RE = re.compile(r'^:?-{3,}:?$')
-SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 TITLE_SOFT_LIMIT = 16                                  # 节点标题建议 ≤16 字（超了只提示）
 HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.S)      # 模板注释（定位 DOCTYPE 时要先遮掉）
 HTML_COMMENT_OPEN = '<!--'                             # 内容文件里的注释（手写时代的标记写法）
@@ -196,68 +188,14 @@ def line_of(text, needle):
 # 大纲：curriculum.yaml 的 nodes（序号 / 标题 / 前后邻居）
 # ══════════════════════════════════════════════════════════════════
 
-class Outline:
-    """`nodes:` 的顺序就是课件编号与上/下节课指针的唯一来源（与 check_lesson.py 同口径）。"""
-
-    def __init__(self, path, nodes):
-        self.path = path
-        self.ids = [node['id'] for node in nodes]
-        self.titles = {node['id']: node['title'] for node in nodes}
-
-    def index_of(self, node_id):
-        """节点在 `nodes:` 里的位次（1 起）；不在大纲里返回 None。"""
-        try:
-            return self.ids.index(node_id) + 1
-        except ValueError:
-            return None
-
-    def title_of(self, node_id):
-        return self.titles.get(node_id) or node_id
-
-    def neighbors(self, index):
-        """(上一个节点 id, 下一个节点 id)——到头的那个是 None；index 从 1 起。"""
-        prev_id = self.ids[index - 2] if index >= 2 else None
-        next_id = self.ids[index] if index < len(self.ids) else None
-        return prev_id, next_id
-
-
 def load_outline(subject_dir, problems):
-    path = os.path.join(subject_dir, 'curriculum.yaml')
-    if yaml is None:                                   # pragma: no cover - 环境缺 pyyaml
-        problems.add(path, 1, '读不了 curriculum.yaml：需要 pyyaml（python3 -m pip install pyyaml）')
+    """大纲：位次、标题、前后邻居的唯一口径在 `curriculum` 模块（与校验器、主页同一处）。"""
+    cur, load_problems = curriculum.load(subject_dir)
+    if load_problems:
+        for problem in load_problems:
+            problems.add(problem.path, problem.line, problem.message)
         return None
-    if not os.path.isfile(path):
-        problems.add(path, 1, '找不到大纲文件（科目目录里应有 curriculum.yaml）')
-        return None
-    raw = read_text(path, problems, '大纲文件')
-    if raw is None:
-        return None
-    try:
-        data = yaml.safe_load(raw)
-    except yaml.YAMLError as exc:
-        mark = getattr(exc, 'problem_mark', None)
-        problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
-        return None
-    nodes = data.get('nodes') if isinstance(data, dict) else None
-    if not isinstance(nodes, list):
-        problems.add(path, 1, '大纲的 nodes 必须是节点数组')
-        return None
-    rows = []
-    seen = set()
-    for position, node in enumerate(nodes, 1):
-        node_id = node.get('id') if isinstance(node, dict) else None
-        if not isinstance(node_id, str) or not re.fullmatch(r'[a-z0-9]+([.-][a-z0-9]+)*', node_id):
-            problems.add(path, 1, f'nodes 第 {position} 项缺少合法的节点 id（小写字母数字，以点或短横线分段）')
-            return None
-        if node_id in seen:
-            problems.add(path, 1, f'大纲里有重复 id: {node_id}（课件编号无法唯一确定）')
-            return None
-        seen.add(node_id)
-        rows.append({'id': node_id, 'title': str(node.get('title') or node_id)})
-    if not rows:
-        problems.add(path, 1, '大纲里没有 nodes:（课件编号与上下节课指针都按它算）')
-        return None
-    return Outline(path, rows)
+    return cur
 
 
 def load_subject_name(subject_dir):
@@ -360,7 +298,8 @@ def mask_comments(text):
 
 def is_block_start(stripped):
     """这一行会不会开启一个新的块（段落遇到它就结束）。"""
-    return bool(stripped.startswith(('#', '```', ':::', '|', '>', '* ', '+ ', '---'))
+    return bool(stripped.startswith(('#', ':::', '|', '>', '* ', '+ ', '---'))
+                or lessonfmt.is_fence_line(stripped)
                 or UL_RE.match(stripped) or ORDERED_RE.match(stripped)
                 or is_html_block(stripped) or stripped.startswith('<!--'))
 
@@ -471,7 +410,7 @@ def parse_blocks(path, lines, start, end, problems):
             index += 1
             continue
 
-        if stripped.startswith('```'):
+        if lessonfmt.is_fence_line(stripped):
             block, index = parse_fence(path, lines, index, end, problems)
             if block:
                 blocks.append(block)
@@ -530,15 +469,15 @@ def parse_blocks(path, lines, start, end, problems):
 
 def parse_fence(path, lines, index, end, problems):
     """``` 围栏 → 代码块（块内原文逐字保留）。"""
-    language = lines[index].strip()[3:].strip()
-    if language and language not in COLORED_LANGS + PLAIN_LANGS:
+    language = lessonfmt.marker(lines[index]) or ''
+    if not lessonfmt.is_known_lang(language):
         problems.add(path, index + 1,
                      f'不认识的语言标签 `{language}`——会着色的写 '
-                     f'{" / ".join(COLORED_LANGS)}；不上色写 text'
-                     f'（{" / ".join(PLAIN_LANGS[1:])} 也认），'
+                     f'{" / ".join(lessonfmt.COLORED_LANGS)}；不上色写 text'
+                     f'（{" / ".join(lessonfmt.PLAIN_LANGS[1:])} 也认），'
                      '或者干脆不写语言标签（前端按内容猜）')
     body, cursor = [], index + 1
-    while cursor < end and not lines[cursor].strip().startswith('```'):
+    while cursor < end and not lessonfmt.is_fence_line(lines[cursor]):
         body.append(lines[cursor])
         cursor += 1
     if cursor >= end:
@@ -638,7 +577,7 @@ def parse_directive(path, lines, index, end, problems):
     in_fence = False                                    # 围栏里的 ::: 是代码文本，不是指令边界
     while cursor < end:
         text = lines[cursor].strip()
-        if text.startswith('```'):
+        if lessonfmt.is_fence_line(text):
             in_fence = not in_fence
             cursor += 1
             continue
@@ -686,7 +625,7 @@ def reject_stray_empty_reason(path, name, lines, start, end, problems):
     in_fence = False
     for offset in range(start, end):
         text = lines[offset].strip()
-        if text.startswith('```'):
+        if lessonfmt.is_fence_line(text):
             in_fence = not in_fence
             continue
         if in_fence:
@@ -959,7 +898,7 @@ class Renderer:
                 if close > index + 2:
                     tex = text[index + 2:close]
                     self.has_math = True
-                    out.append('<span class="math-block">' + gen_home.esc(tex) + '</span>')
+                    out.append('<span class="math-block">' + pagetpl.esc(tex) + '</span>')
                     index = close + 2
                     continue
                 self.problems.add(self.path, line,
@@ -972,7 +911,7 @@ class Renderer:
                 if close is not None:
                     tex = text[index + 1:close]
                     self.has_math = True
-                    out.append('<span class="math-inline">' + gen_home.esc(tex) + '</span>')
+                    out.append('<span class="math-inline">' + pagetpl.esc(tex) + '</span>')
                     index = close + 1
                     continue
                 if not text[index + 1:index + 2].isspace() and text[index + 1:index + 2]:
@@ -985,11 +924,11 @@ class Renderer:
             elif char == '[':
                 link = LINK_RE.match(text, index)
                 if link:
-                    href = gen_home.esc(link.group(2), attr=True)
+                    href = pagetpl.esc(link.group(2), attr=True)
                     out.append(f'<a href="{href}">{self.inline(link.group(1), line, False)}</a>')
                     index = link.end()
                     continue
-            out.append(gen_home.esc(char))
+            out.append(pagetpl.esc(char))
             index += 1
         return ''.join(out)
 
@@ -1011,7 +950,7 @@ class Renderer:
                     out.append(f'<{tag}>' + self.code_span(inner) + f'</{tag}>')
                     index = close + 1
                     continue
-            out.append(gen_home.esc(char))
+            out.append(pagetpl.esc(char))
             index += 1
         return ''.join(out)
 
@@ -1030,11 +969,11 @@ class Renderer:
             if math:
                 self.has_math = True
                 return (f'{indent}<div class="math-block">'
-                        f'{gen_home.esc(math.group(1).strip())}</div>')
+                        f'{pagetpl.esc(math.group(1).strip())}</div>')
             return f'{indent}<p>{self.inline(block["text"], block["line"])}</p>'
         if kind == 'code':
-            attr = f' data-lang="{gen_home.esc(block["lang"], attr=True)}"' if block['lang'] else ''
-            return f'{indent}<pre{attr}><code>{gen_home.esc(block["text"])}</code></pre>'
+            attr = f' data-lang="{pagetpl.esc(block["lang"], attr=True)}"' if block['lang'] else ''
+            return f'{indent}<pre{attr}><code>{pagetpl.esc(block["text"])}</code></pre>'
         if kind in ('ul', 'ol'):
             return self.render_list(block, indent)
         if kind == 'table':
@@ -1136,7 +1075,7 @@ class Renderer:
     def render_figure(self, block, indent):
         src, line = block['src'], block['line']
         local_path = unquote(src.split('#', 1)[0].split('?', 1)[0])
-        if SCHEME_RE.match(src) or os.path.isabs(local_path):
+        if lessonfile.SCHEME_RE.match(src) or os.path.isabs(local_path):
             self.problems.add(self.path, line, f'::: figure 只接受本地相对路径（现在是 {src}）——'
                                                '图从科目图片库 assets/img/pool/ 挑')
         else:
@@ -1153,8 +1092,8 @@ class Renderer:
         if '来源：' not in caption:                    # 作者自己写了来源就不重复补
             caption += self.pool_source(src)
         lines = [f'{indent}<figure class="lesson-figure">',
-                 f'{indent}  <img src="{gen_home.esc(src, attr=True)}" '
-                 f'alt="{gen_home.esc(alt, attr=True)}">']
+                 f'{indent}  <img src="{pagetpl.esc(src, attr=True)}" '
+                 f'alt="{pagetpl.esc(alt, attr=True)}">']
         if caption:
             lines.append(f'{indent}  <figcaption>'
                          f'{self.inline(caption, block.get("caption_line", line))}</figcaption>')
@@ -1166,7 +1105,7 @@ class Renderer:
         if block['alt']:
             self.check_inline_html(block['alt'], block.get('alt_line', block['line']),
                                    '::: svg 的 alt:')
-            attr = f' role="img" aria-label="{gen_home.esc(block["alt"], attr=True)}"'
+            attr = f' role="img" aria-label="{pagetpl.esc(block["alt"], attr=True)}"'
         lines = [f'{indent}<figure class="lesson-figure lesson-figure--inline"{attr}>',
                  block['raw']]
         caption = self.numbered_caption(block['caption'])
@@ -1181,7 +1120,7 @@ class Renderer:
         line = block['line']
         if block['name'] == 'related':
             lines = [f'{indent}<div class="lesson-related">']
-            lines += [f'{indent}  <a href="{gen_home.esc(item["href"], attr=True)}">'
+            lines += [f'{indent}  <a href="{pagetpl.esc(item["href"], attr=True)}">'
                       f'{self.inline(item["title"], item["line"])}</a>' for item in block['items']]
             lines.append(f'{indent}</div>')
             return '\n'.join(lines)
@@ -1189,7 +1128,7 @@ class Renderer:
         for item in block['items']:
             meta = (f'<span class="lesson-resources__meta">{self.inline(item["meta"], item["line"])}'
                     '</span>') if item['meta'] else ''
-            head = (f'<a href="{gen_home.esc(item["href"], attr=True)}">'
+            head = (f'<a href="{pagetpl.esc(item["href"], attr=True)}">'
                     f'{self.inline(item["title"], item["line"])}</a>') if item['href'] else \
                 self.inline(item['title'], item['line'])
             lines.append(f'{indent}  <li>{head}{meta}</li>')
@@ -1314,7 +1253,7 @@ def load_template(path, problems):
     base_line = raw[:start].count('\n')                # 切片前的行数：报错行号要映射回原文件
     raw = raw[start:]
     for name, count in TEMPLATE_PLACEHOLDERS.items():
-        placeholder = PLACEHOLDER.format(name)
+        placeholder = pagetpl.PLACEHOLDER.format(name)
         found = raw.count(placeholder)
         if found != count:
             problems.add(path, base_line + line_of(raw, placeholder),
@@ -1335,9 +1274,9 @@ def render_nav(outline, index):
         number = outline.index_of(neighbor)
         label = '上节课' if direction == 'prev' else '下节课'
         lines += [f'    <a class="lesson-nav__link lesson-nav__link--{direction}"'
-                  f' href="{number:04d}-{neighbor}.html">',
+                  f' href="{lessonfile.lesson_name(number, neighbor, "html")}">',
                   f'      <span class="lesson-nav__dir">{label}</span>',
-                  f'      <span class="lesson-nav__title">{gen_home.esc(outline.title_of(neighbor))}'
+                  f'      <span class="lesson-nav__title">{pagetpl.esc(outline.title_of(neighbor))}'
                   '</span>',
                   '    </a>']
     lines.append('  </nav>')
@@ -1348,9 +1287,9 @@ def math_refs_html(enabled):
     """有数学式的页面才注入 KaTeX 三个引用；没有就返回空串（模板那一行整行消失）。"""
     if not enabled:
         return ''
-    base = '../../../assets/'
+    base = lessonfile.asset_prefix('lesson')
     lines = []
-    for ref in MATH_REFS:
+    for ref in lessonfile.MATH_REFS:
         if ref.endswith('.css'):
             lines.append(f'<link rel="stylesheet" href="{base}{ref}">')
         else:
@@ -1359,14 +1298,14 @@ def math_refs_html(enabled):
 
 
 def fill_template(template, path, fields, problems):
-    """用 gen_home 的 replace_block/replace_field 口径套模板（缺占位符即报错）。"""
+    """用 pagetpl 的 replace_block/replace_field 口径套模板（缺占位符即报错）。"""
     html = template
-    html = gen_home.replace_field(html, PLACEHOLDER.format('TITLE'), fields['title'], path)
-    html = gen_home.replace_field(html, PLACEHOLDER.format('SUBJECT'), fields['subject'], path)
+    html = pagetpl.replace_field(html, pagetpl.PLACEHOLDER.format('TITLE'), fields['title'], path)
+    html = pagetpl.replace_field(html, pagetpl.PLACEHOLDER.format('SUBJECT'), fields['subject'], path)
     for name in ('NUMBER', 'EYEBROW', 'GOAL', 'BODY', 'NAV', 'FOOTER', 'MATH'):
-        html = gen_home.replace_block(html, PLACEHOLDER.format(name), fields[name.lower()], path)
+        html = pagetpl.replace_block(html, pagetpl.PLACEHOLDER.format(name), fields[name.lower()], path)
     for name in TEMPLATE_PLACEHOLDERS:
-        leftover = PLACEHOLDER.format(name)
+        leftover = pagetpl.PLACEHOLDER.format(name)
         if leftover in html:
             problems.add(path, line_of(html, leftover), f'模板里的 {leftover} 没有被替换')
     return html
@@ -1415,9 +1354,9 @@ def main(argv):
         return 1
 
     lessons_dir = os.path.join(subject_dir, 'lessons')
-    md_path = os.path.join(lessons_dir, f'{index:04d}-{node_id}.md')
-    quiz_path = os.path.join(lessons_dir, f'{index:04d}-{node_id}.quiz.json')
-    out_path = os.path.join(lessons_dir, f'{index:04d}-{node_id}.html')
+    md_path = os.path.join(lessons_dir, lessonfile.lesson_name(index, node_id, 'md'))
+    quiz_path = os.path.join(lessons_dir, lessonfile.lesson_name(index, node_id, 'quiz.json'))
+    out_path = os.path.join(lessons_dir, lessonfile.lesson_name(index, node_id, 'html'))
     if not os.path.isfile(md_path):
         problems.add(md_path, 1, '找不到内容文件（讲解角色先产出这一课的 .md，再渲染）')
         problems.report()
@@ -1459,14 +1398,14 @@ def main(argv):
     # front matter 的值也是散文：goal 走 inline()（自带检查），title 是纯文本，单独查一遍
     renderer.check_inline_html(title, front_lines.get('title', 1), 'front matter 的 title')
     fields = {
-        'title': gen_home.esc(title),
-        'subject': gen_home.esc(load_subject_name(subject_dir)),
+        'title': pagetpl.esc(title),
+        'subject': pagetpl.esc(load_subject_name(subject_dir)),
         'number': f'{index:04d}',
-        'eyebrow': f'{index:04d} · {gen_home.esc(title)}',
+        'eyebrow': f'{index:04d} · {pagetpl.esc(title)}',
         'goal': renderer.inline(front.get('goal', ''), goal_line),
         'body': body_html,
         'nav': render_nav(outline, index),
-        'footer': f'StudyMate · {index:04d} {gen_home.esc(title)} · 本地学习工作区',
+        'footer': f'StudyMate · {index:04d} {pagetpl.esc(title)} · 本地学习工作区',
         'math': math_refs_html(renderer.has_math),
     }
     page = fill_template(template, TEMPLATE, fields, problems)

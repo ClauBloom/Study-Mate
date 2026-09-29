@@ -19,6 +19,7 @@ https://github.com/Miaotofu01/Study-Mate/releases/latest/download/studymate-open
 用法：studymate [install] [--workspace <目录>] [--profile <名称>] [--mode standalone|native]
       studymate build-plugin [--output <目录>]（开发者构建）
       studymate build-antigravity [--output <目录>] [--install]（Antigravity 插件构建）
+      studymate build-examples [工作区]（重建 examples/ 的示例页面，默认 examples）
       studymate --help | --version
 
 将学习模式和引擎安装到 DSH_HOME（默认 ~/.dsh）。
@@ -329,6 +330,15 @@ export function main(args = process.argv.slice(2)) {
       }
       const result = buildOpenAiPlugin({ output: args[2], python: findPython() });
       console.log(`StudyMate ${result.version} OpenAI 插件已构建。\n插件目录：${result.plugin}\n插件 ZIP：${result.archive}\n安装方法见插件目录中的 README.md。`);
+    }
+    else if (args[0] === 'build-examples') {
+      if (args.length > 2) throw new Error('用法：studymate build-examples [工作区]');
+      const python = findPython();
+      const result = spawnSync(python.command, [...python.prefix, '-X', 'utf8',
+        path.join(source, 'scripts', 'build_examples.py'), ...args.slice(1)],
+        { stdio: 'inherit', windowsHide: true });
+      if (result.error) throw result.error;
+      if (result.status !== 0) throw new Error(`examples 重建失败（退出码 ${result.status}）`);
     }
     else if (args[0] === 'build-antigravity') {
       let output;

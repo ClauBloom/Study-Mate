@@ -37,6 +37,13 @@ import urllib.parse
 
 import yaml
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import curriculum     # noqa: E402  课程大纲的唯一口径（位次/课型/层级）
+import lessonfile     # noqa: E402  文件名与引用清单的唯一口径
+import lessonfmt      # noqa: E402  围栏判定的唯一口径（与渲染器同一份）
+import statuses       # noqa: E402  状态与课型词表的唯一口径（从 schemas/ 读）
+from pagetpl import esc, replace_block, replace_field   # noqa: E402  占位符替换与转义的唯一口径
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES = os.path.join(ROOT, 'templates')
 
@@ -52,34 +59,8 @@ PLACEHOLDER_TITLE = '<!-- @LEARN:TITLE -->'
 PLACEHOLDER_STATUS = '<!-- @LEARN:STATUS -->'
 PLACEHOLDER_MISSION = '<!-- @LEARN:MISSION -->'
 
-# ══════════════════════════════════════════════════════════════════
-# 口径（全部来自模板里占位符上方的注释；要调整只改这里）
-# ══════════════════════════════════════════════════════════════════
+# 状态与课型词表的唯一口径在 statuses.py（从 schemas/ 读）——这里不留副本。
 
-# 科目状态（subject.yaml）→ (徽标 class 后缀, 色点后缀)；徽标文本写 status 原值
-SUBJECT_STATUS_TAG = {
-    '进行中': ('active', 'blue'),
-    '暂停': ('paused', 'yellow'),
-    '已完成': ('done', 'green'),
-}
-# 根主页卡片顺序：正在学的排前面（同状态按科目名）
-SUBJECT_STATUS_ORDER = {'进行中': 0, '暂停': 1, '已完成': 2}
-
-# 大纲节点状态（与 schemas/curriculum.schema.json 的 enum 同序；顺序即掌握程度）→ 节点卡 class 后缀
-NODE_STATUSES = ('未开始', '学习中', '初步理解', '能独立应用', '需要复习', '已通过项目验证')
-NODE_STATUS_CLASS = {
-    '未开始': 'todo',
-    '学习中': 'learning',
-    '初步理解': 'learning',
-    '能独立应用': 'done',
-    '需要复习': 'review',
-    '已通过项目验证': 'verified',
-}
-# “完成” = 状态达“能独立应用”及以上（按上面的枚举顺序取后半段）
-DONE_STATUSES = frozenset(NODE_STATUSES[NODE_STATUSES.index('能独立应用'):])
-# 当前节点 = 状态为“学习中”的节点；没有就写“还没开始”
-CURRENT_STATUS = '学习中'
-NOT_STARTED_TEXT = '还没开始'
 
 # 卡片字段的**软上限**：超了不阻断生成，只在 stderr 提醒（卡片上标题一行省略号、目标两行截断，
 # 太长就只剩省略号——大纲是地图，不是教案）。判定规则写在 templates/subject-index.html 的渲染规范里。
@@ -238,12 +219,10 @@ WHY_RE = re.compile(r'^##\s*Why\s*$', re.M | re.I)
 ANY_HEADING_RE = re.compile(r'^#{1,6}\s', re.M)
 SENTENCE_RE = re.compile(r'^(.+?[。！？!?])')
 DATE_RE = re.compile(r'(\d{4}-\d{2}-\d{2})')
-LESSON_FILE_RE = re.compile(r'^(\d{4})-.*\.html$')
 RECORD_FILE_RE = re.compile(r'^(\d{4})-')
 SESSION_FILE_RE = re.compile(r'^(\d{4}-\d{2}-\d{2})')
 # 链接自检跳过的值：外部链接（任何 scheme:，如 http:/mailto:/ftp:/file:/blob:，
 # 以及协议相对地址 //）、页内锚点（#…）、空值
-SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 
 
 _WARNED = set()
@@ -259,11 +238,6 @@ def warn(message, key=None):
             return
         _WARNED.add(key)
     print(f'警告: {message}', file=sys.stderr)
-
-
-def esc(value, attr=False):
-    """HTML 转义：文本节点转义 &<>，属性值再多转义引号。"""
-    return html.escape(str(value), quote=attr)
 
 
 def read_text_once(path):
@@ -392,43 +366,15 @@ def learn_workspace():
 
 
 def ensure_shared_assets(ws):
-    """把共享层拷进 <WS>/.learning/assets/（幂等覆盖）：sayo/ 与 katex/ 两个整目录，
-    加 learn-theme.css/js、learn-mascot.png、lesson-math.js（公式排版，按需被页面引用）。
+    '''把共享层拷进 <WS>/.learning/assets/（幂等覆盖）。
 
-    缺共享层页面会退化成无样式裸 HTML，所以这一步是硬要求；已存在则覆盖同名文件。
-    科目自己的 assets/{style.css,quiz.js} 由建科目流程负责，这里不碰（T13-R3）。
-    """
-    src = os.path.join(TEMPLATES, 'assets')
-    dst = os.path.join(ws, '.learning', 'assets')
-    os.makedirs(dst, exist_ok=True)
-    for name in ('sayo', 'katex'):
-        directory = os.path.join(src, name)
-        if not os.path.isdir(directory):
-            raise SystemExit(f'缺少共享资源目录 {directory}，请检查模板目录是否完整')
-        shutil.copytree(directory, os.path.join(dst, name), dirs_exist_ok=True)
-    for name in ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js'):
-        path = os.path.join(src, name)
-        if not os.path.isfile(path):
-            raise SystemExit(f'缺少共享资源 {path}，请检查模板目录是否完整')
-        shutil.copy2(path, os.path.join(dst, name))
-
-
-# ══════════════════════════════════════════════════════════════════
-# 占位符替换（区块级整行替换 / 字段级全替换；缺失即报错退出）
-# ══════════════════════════════════════════════════════════════════
-
-def replace_block(template_html, placeholder, html_block, template_name):
-    """区块占位符整行替换；缺失则报错（防止模板被改坏后静默残缺）。"""
-    if placeholder not in template_html:
-        raise SystemExit(f'{template_name} 缺少占位符 {placeholder}，请检查模板与 Global Constraints 约定')
-    return template_html.replace(placeholder, html_block, 1)
-
-
-def replace_field(template_html, placeholder, value, template_name):
-    """字段占位符全替换（可能多处出现，如 TITLE 在 <title> 和 <h1>）；缺失同样报错。"""
-    if placeholder not in template_html:
-        raise SystemExit(f'{template_name} 缺少占位符 {placeholder}，请检查模板与 Global Constraints 约定')
-    return template_html.replace(placeholder, value)
+    清单（sayo/、katex/ 与四个平铺文件）只有一份，在 lessonfile 里——「新增共享文件要
+    同时改三处」那条约束到此为止。缺共享层页面会退化成无样式裸 HTML，所以缺什么就直接
+    报错退出。
+    '''
+    problems = lessonfile.install_shared(ws)
+    if problems:
+        raise SystemExit(problems[0])
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -457,35 +403,40 @@ def progress_map(prog):
     return out
 
 
+def curriculum_outline(cur, slug=None):
+    """读成 dict 的 `curriculum.yaml` → `Curriculum|None`；问题按「种类 + 细节」去重告警。
+
+    位次、课型、层级、坏节点判决的唯一口径在 `curriculum` 模块；这里只做
+    「坏文件不掀翻整次生成」那一层：能读多少算多少，逐条告警。
+    """
+    outline, problems = curriculum.from_data(cur)
+    for problem in problems:
+        prefix = f'{slug}: ' if slug else ''
+        warn(prefix + problem.message, key=('curriculum', slug, problem.code, problem.detail))
+    return outline
+
+
 def curriculum_nodes(cur, prog, slug=None):
     """大纲节点列表（顺序即展示顺序），状态/掌握度用 progress.yaml 覆盖。
 
     progress.yaml 里多出来的 id 不属于本大纲：告警后忽略（大纲是课程结构的真值来源）。
     没有大纲时返回 []（调用方据此渲染空路线图）。
     """
-    raw_nodes = (cur or {}).get('nodes')
-    if not isinstance(raw_nodes, list):
+    outline = curriculum_outline(cur, slug)
+    if outline is None:
         return []
     live = progress_map(prog)
     nodes = []
-    for raw in raw_nodes:
-        if not isinstance(raw, dict) or not raw.get('id'):
-            continue
-        node_id = str(raw['id'])
-        state = live.pop(node_id, {})
-        status = str(state.get('status') or raw.get('status') or '未开始')
-        if slug and status not in NODE_STATUS_CLASS:
-            warn(f'{slug}: 节点 {node_id} 的状态 {status!r} 不在 schema 枚举里'
+    for node in outline.nodes:
+        node = dict(node)
+        state = live.pop(node['id'], {})
+        status = str(state.get('status') or '' or '未开始')
+        if slug and status not in statuses.NODE_STATUS_CLASS:
+            warn(f'{slug}: 节点 {node["id"]} 的状态 {status!r} 不在 schema 枚举里'
                  f'（按“未开始”的样式渲染，状态文本仍写原值）', key=('node-status', slug, status))
-        nodes.append({
-            'id': node_id,
-            'title': str(raw.get('title') or node_id),
-            'kind': str(raw.get('kind') or ''),
-            'objective': str(raw.get('objective') or ''),
-            'prerequisites': [str(p) for p in (raw.get('prerequisites') or [])],
-            'status': status,
-            'mastery': clamp01(state['mastery'] if 'mastery' in state else raw.get('mastery', 0)),
-        })
+        node['status'] = status
+        node['mastery'] = clamp01(state['mastery'] if 'mastery' in state else 0)
+        nodes.append(node)
     if live and slug:
         warn(f'{slug}: progress.yaml 里有 curriculum.yaml 之外的节点，已忽略：{"、".join(sorted(live))}')
     if slug:
@@ -524,6 +475,7 @@ def subject_nodes(cur, prog, slug=None):
     """卡片统计用的节点视图：有课程大纲就用它；没有就退回 progress.yaml 自己的节点。"""
     if isinstance((cur or {}).get('nodes'), list):
         return curriculum_nodes(cur, prog, slug)
+    curriculum_outline(cur, slug)          # 大纲写坏了也要说一声，别静默当没有
     return progress_nodes(prog)
 
 
@@ -534,12 +486,12 @@ def node_stats(nodes):
     当前节点 = 状态为“学习中”的节点标题，没有就“还没开始”。没有节点时全部按零值。
     """
     if not nodes:
-        return 0, 0, 0.0, NOT_STARTED_TEXT
-    done = sum(1 for node in nodes if node['status'] in DONE_STATUSES)
+        return 0, 0, 0.0, statuses.NOT_STARTED_TEXT
+    done = sum(1 for node in nodes if node['status'] in statuses.DONE_STATUSES)
     mastery = sum(node['mastery'] for node in nodes) / len(nodes)
-    current = NOT_STARTED_TEXT
+    current = statuses.NOT_STARTED_TEXT
     for node in nodes:
-        if node['status'] == CURRENT_STATUS:
+        if node['status'] == statuses.CURRENT_STATUS:
             current = node['title']
             break
     return len(nodes), done, mastery, current
@@ -558,10 +510,10 @@ def subject_summary(slug, ws):
     cur = load_yaml_quiet(os.path.join(sdir, 'curriculum.yaml'), f'{slug}/curriculum.yaml')
     prog = load_yaml_quiet(os.path.join(sdir, 'progress.yaml'), f'{slug}/progress.yaml')
     status = str(subj.get('status') or '')
-    if status and status not in SUBJECT_STATUS_TAG:
+    if status and status not in statuses.SUBJECT_STATUS_TAG:
         warn(f'{slug}/subject.yaml 的状态 {status!r} 不在 schema 枚举里'
              f'（徽标不带颜色，状态文本仍写原值）', key=('subject-status', slug, status))
-    total, done, mastery, current = node_stats(subject_nodes(cur, prog))
+    total, done, mastery, current = node_stats(subject_nodes(cur, prog, slug))
     return {
         'slug': slug,
         'name': str(subj.get('name') or slug),
@@ -581,7 +533,7 @@ def subject_summary(slug, ws):
 
 def status_tag(status, classes):
     """科目状态徽标：文本写 subject.yaml 原值；未知状态只出中性徽标，不编造颜色。"""
-    tag = SUBJECT_STATUS_TAG.get(status)
+    tag = statuses.SUBJECT_STATUS_TAG.get(status)
     if not tag:
         return f'<span class="{esc(classes, attr=True)}">{esc(status or "未知状态")}</span>'
     kind, dot = tag
@@ -706,7 +658,7 @@ def lesson_files(slug, ws):
     rows = []
     for path in glob.glob(os.path.join(glob.escape(subject_dir(ws, slug)), 'lessons', '*.html')):
         name = os.path.basename(path)
-        match = LESSON_FILE_RE.match(name)
+        match = lessonfile.NUMBERED_NAME_RE.match(name)
         rows.append((match.group(1) if match else '', name, path))
     rows.sort(key=lambda row: (row[0] or 'zzzz', row[1]))
     return rows
@@ -732,7 +684,7 @@ def lesson_node_id(name, known_ids):
     而页头是写给学生看的可读文字（「0001 · 第一份能提交的代码」）。两个来源各推一次，
     对不上时谁也看不出来——归属只留这一个。
     """
-    match = LESSON_FILE_RE.match(name)
+    match = lessonfile.NUMBERED_NAME_RE.match(name)
     if not match:
         return None
     node_id = name[len(match.group(1)) + 1:-len('.html')]
@@ -746,7 +698,7 @@ def lessons_by_node(slug, ws, nodes):
     for number, name, path in lesson_files(slug, ws):
         node_id = lesson_node_id(name, known_ids)
         if node_id is None:
-            match = LESSON_FILE_RE.match(name)
+            match = lessonfile.NUMBERED_NAME_RE.match(name)
             got = name[len(match.group(1)) + 1:-len('.html')] if match else None
             reason = (f'文件名里的节点 id {got!r} 不在 curriculum.yaml 的 nodes: 里'
                       if got else '文件名不是 <序号>-<节点id>.html（4 位序号）')
@@ -754,35 +706,6 @@ def lessons_by_node(slug, ws, nodes):
             continue
         grouped.setdefault(node_id, []).append((number, name, lesson_title(path)))
     return grouped
-
-
-def node_levels(nodes):
-    """按 prerequisites 算最长路径层级（第 1 层 = 无前置）；未知前置忽略，成环也不死循环。"""
-    known = {node['id'] for node in nodes}
-    prereq = {node['id']: [p for p in node['prerequisites'] if p in known] for node in nodes}
-    depth, on_stack = {}, set()
-    for node in nodes:
-        if node['id'] in depth:
-            continue
-        stack = [(node['id'], False)]
-        while stack:
-            node_id, resolved = stack.pop()
-            if resolved:
-                on_stack.discard(node_id)
-                parents = [depth[p] for p in prereq[node_id] if p in depth]
-                depth[node_id] = 0 if not parents else 1 + max(parents)
-                continue
-            if node_id in depth or node_id in on_stack:
-                continue                  # 回边：跳过这条，别绕圈
-            on_stack.add(node_id)
-            stack.append((node_id, True))
-            for parent in prereq[node_id]:
-                if parent not in depth and parent not in on_stack:
-                    stack.append((parent, False))
-    levels = {}
-    for node in nodes:
-        levels.setdefault(depth.get(node['id'], 0), []).append(node)
-    return levels
 
 
 def prereq_chips(node, nodes):
@@ -796,11 +719,11 @@ def prereq_chips(node, nodes):
 def render_node_html(node, nodes, lessons):
     """一张节点卡：有课件 → details.learn-slot + summary.learn-node + 子卡片组；没有 → article。"""
     status = node['status']
-    kind = NODE_STATUS_CLASS.get(status, 'todo')
+    kind = statuses.NODE_STATUS_CLASS.get(status, statuses.FALLBACK_CLASS)
     pct = f'{round(node["mastery"] * 100)}%'
-    now = '<span class="learn-node__now">当前</span>' if status == CURRENT_STATUS else ''
+    now = '<span class="learn-node__now">当前</span>' if status == statuses.CURRENT_STATUS else ''
     badge = ('<span class="learn-node__kind">实验</span>'
-             if str(node.get('kind') or '').strip() == '实验' else '')
+             if str(node.get('kind') or '').strip() == statuses.KIND_LAB else '')
     # 卡片上标题一行省略号、目标两行截断；全文放进 title 属性，鼠标悬停能看全（截断只影响显示，信息不丢）
     title_attr = f' title="{esc(node["title"], attr=True)}"'
     objective = (f'<span class="learn-node__objective" title="{esc(node["objective"], attr=True)}">{esc(node["objective"])}</span>'
@@ -846,7 +769,10 @@ def render_roadmap_html(slug, cur, prog, ws):
     if not nodes:
         return ''
     lessons = lessons_by_node(slug, ws, nodes)
-    levels = node_levels(nodes)
+    outline = curriculum_outline(cur, slug)
+    by_id = {node['id']: node for node in nodes}
+    levels = {level: [by_id[node['id']] for node in group if node['id'] in by_id]
+              for level, group in (outline.levels() if outline else {}).items()}
     blocks = []
     for level in sorted(levels):
         cards = '\n'.join(render_node_html(node, nodes, lessons.get(node['id'], []))
@@ -901,7 +827,7 @@ def render_inline_markdown(text):
     def make_link(m):
         label, url = m.group(1), m.group(2)
         clean_url = esc(url.strip(), attr=True)
-        extra = ' target="_blank" rel="noopener"' if SCHEME_RE.match(url.strip()) else ''
+        extra = ' target="_blank" rel="noopener"' if lessonfile.SCHEME_RE.match(url.strip()) else ''
         return f'<a href="{clean_url}"{extra}>{label}</a>'
 
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', make_link, text)
@@ -938,12 +864,12 @@ def markdown_to_html(md_text):
         line = lines[i]
         stripped = line.strip()
 
-        if stripped.startswith('```'):
+        lang = lessonfmt.marker(stripped)
+        if lang is not None:
             close_list()
-            lang = stripped[3:].strip()
             code_lines = []
             i += 1
-            while i < n and not lines[i].strip().startswith('```'):
+            while i < n and not lessonfmt.is_fence_line(lines[i]):
                 code_lines.append(lines[i])
                 i += 1
             i += 1
@@ -1055,7 +981,7 @@ def markdown_to_html(md_text):
         i += 1
         while i < n:
             next_s = lines[i].strip()
-            if not next_s or next_s.startswith('#') or next_s.startswith('>') or next_s.startswith('```') or re.match(r'^([-*+]|\d+\.)\s+', next_s) or next_s.startswith('|'):
+            if not next_s or next_s.startswith('#') or next_s.startswith('>') or lessonfmt.is_fence_line(next_s) or re.match(r'^([-*+]|\d+\.)\s+', next_s) or next_s.startswith('|'):
                 break
             para_lines.append(next_s)
             i += 1
@@ -1244,7 +1170,7 @@ def page_links(page_path):
         value = value.strip()
         if not value or value.startswith('#'):
             continue
-        if SCHEME_RE.match(value):
+        if lessonfile.SCHEME_RE.match(value):
             continue
         path = value.split('#', 1)[0].split('?', 1)[0]
         if path:
@@ -1282,6 +1208,17 @@ def find_broken_links(pages, ws):
 # 主流程
 # ══════════════════════════════════════════════════════════════════
 
+def warn_vocabulary():
+    """状态/课型词表读不出来或没配色时说一声——降级渲染，但不静默（见 statuses 模块）。"""
+    for line in statuses.problems():
+        warn(line, key=('statuses', line))
+    for status in statuses.missing_class():
+        warn(f'状态「{status}」在 schema 里，但没有配色（按「{statuses.FALLBACK_CLASS}」样式渲染）',
+             key=('status-missing-class', status))
+    for status in statuses.missing_subject_tag():
+        warn(f'科目状态「{status}」在 schema 里，但没有徽标配色', key=('subject-tag', status))
+
+
 def main(argv):
     if any(arg in ('-h', '--help') for arg in argv):
         print(__doc__)
@@ -1294,6 +1231,7 @@ def main(argv):
     if not os.path.isdir(ws):
         raise SystemExit(f'工作区不存在：{ws}（请先创建目录，或传入正确的工作区路径）')
 
+    warn_vocabulary()
     subjects_dir = os.path.join(ws, '.learning', 'subjects')
     os.makedirs(subjects_dir, exist_ok=True)
     ensure_shared_assets(ws)
@@ -1311,7 +1249,7 @@ def main(argv):
         except Exception as exc:                      # 单个科目出问题不中断整次生成
             failed += 1
             warn(f'{slug}: 读科目数据失败，根主页暂缺这张卡片：{exc}')
-    summaries.sort(key=lambda item: (SUBJECT_STATUS_ORDER.get(item['status'], 9), item['name']))
+    summaries.sort(key=lambda item: (statuses.SUBJECT_STATUS_ORDER.get(item['status'], 9), item['name']))
     render_home_index(summaries, ws)
 
     pages = 0

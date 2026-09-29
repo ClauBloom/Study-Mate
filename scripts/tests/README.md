@@ -19,12 +19,12 @@ npm test
 | `npm run test:openai` | OpenAI 插件 ZIP、完整性、独立运行与导出保护 |
 | `npm run test:antigravity` | Antigravity 插件 ZIP、原生 agents、导出保护与重复构建 |
 | `npm run test:release` | 版本、changelog、重试和发布保护 |
-| `npm run test:static` | Python 语法、提示词与模板文案契约、OpenAI 与 Antigravity skill 转换及 UI 元数据 |
+| `npm run test:static` | Python 语法、提示词与模板文案契约、OpenAI 与 Antigravity skill 转换及 UI 元数据（`npm test` 已含这一层，这里可单独跑） |
 | `npm run test:browser` | 三套真实 Chrome 渲染测试，需要 `google-chrome` |
 | `npm run test:dsh` | 真实 DSH 启动与 Web 预设，需要指定 DSH 包目录 |
 | `npm run test:dsh-cli` | 真实 DSH CLI 安装、更新、卸载，还需要 `pnpm` |
 
-语法、文案与真实宿主兼容检查保留为本地按需命令，不作为每次提交和发布的默认门禁。改动相应模块时可以单独运行。`scripts/release/checks.mjs` 显式列出默认功能套件，新增测试文件不会自动扩张 Actions 检查范围。
+Python 语法、提示词与模板契约、两个宿主的技能转换这一层（`--static`）**已并入 `npm test`**，CI 每次都会跑；保留为本地按需命令的只剩真实宿主（`test:dsh` / `test:dsh-cli`）与真实 Chrome（`test:browser`）——它们要外部环境，不适合当默认门禁。`scripts/release/checks.mjs` 显式列出各层套件——**显式的代价是新增套件会静默地永远不跑**，所以那里有一条覆盖断言：`scripts/tests/` 下的每个文件必须属于某个组（core / `--static` / `--browser`）、package.json 的按需入口（`test:dsh` 等），或在 `MANUAL_ONLY` 里明确登记为手动脚本。漏登记时跑门禁会直接报出文件名并以退出码 2 停下。
 
 旧入口继续可用：
 
@@ -46,6 +46,9 @@ bash scripts/tests/run_tests.sh --browser  # 默认功能回归 + 浏览器测�
 | `test_quiz_attr.py`、`test_quiz_code.py` | 题库属性转义、JSON 与代码围栏处理 |
 | `test_lesson_figure.py`、`test_lesson_links.py`、`test_naming_nav.py` | 图片和本地引用可达、课件命名与导航 |
 | `test_pool.py`、`test_lesson_scripts.py` | 图片库校验、课件重排、空题理由写入与失败保护 |
+| `test_curriculum.py`、`test_lessonfile.py` | 课程大纲模块（位次、课型、前后邻居、依赖层级、坏大纲的判决）与课件文件名／页面路径约定 |
+| `test_lessonfmt.py` | 内容文件语法（围栏判定、语言标签白名单、`:::` 不被误判成指令） |
+| `test_statuses.py` | 状态与课型词表：读自 schema、配色齐全、顺序即载荷（完成判据与主页排序）、缺 schema 时降级告警 |
 | `test_render_lesson.py`、`test_attachment_render.py` | 课件和附件渲染、题库锚点、转义、数学式、输出与检查器对接 |
 | `quiz_dom_test.js`、`toc_dom_test.js` | 题目判分、展开、代码和公式展示，侧栏目录与移动端行为 |
 | `scripts/release/release.test.mjs` | 版本计算、更新记录、历史 tag、PR 去重、制品校验与重试保护 |

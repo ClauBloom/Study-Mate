@@ -27,8 +27,8 @@
 ## 本地怎么验
 
 ```bash
-npm test              # 与 CI 同一条：安装器、插件打包、课件与工作区功能、DOM、发布逻辑
-npm run test:static   # 提示词规则、模板契约、Python 语法、插件技能转换
+npm test              # 与 CI 同一条：安装器、插件打包、课件与工作区功能、DOM、发布逻辑、静态契约
+npm run test:static   # 只跑静态那一层（提示词规则、模板契约、Python 语法、插件技能转换）
 npm run test:browser  # 三套真实 Chrome 渲染，需要 google-chrome
 npm run test:dsh      # 真实 DSH 启动，需要先指定 DSH 包目录
 ```
@@ -82,12 +82,11 @@ refactor(大纲)!: 删掉节点「过关标准」字段，判分锚下移到 obj
 `examples/` 是一份 clone 下来就能点开的完整示例工作区，页面全部由引擎生成。改过模板、渲染器、共享资源或科目数据之后，重跑一遍：
 
 ```bash
-# 根主页 + 两个科目主页
-python3 scripts/gen_home.py examples
-
-# 重渲染某一课：科目目录 + 节点 id
-python3 scripts/render_lesson.py examples/.learning/subjects/linear-algebra vector.space
+# 根主页 + 科目主页 + 每一课（有内容文件的那些），一条命令跑完
+python3 scripts/build_examples.py        # 或 npm run build:examples
 ```
+
+单看一课时也可以只跑它：`python3 scripts/render_lesson.py <科目目录> <节点 id>`。
 
 跑完看 `git status`，只该有你预期的改动。多出别的文件，就说明示例镜像和引擎当前输出已经不一致——这类静默漂移真发生过：`templates/` 加了 KaTeX 字体 LICENSE，示例镜像当时没跟上。
 
