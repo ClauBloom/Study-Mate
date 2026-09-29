@@ -36,7 +36,7 @@ argument-hint: "你想学什么？或继续上次的科目"
 4. **新科目** → 你亲自走"新科目盘问"（见下），盘完按这个顺序落地：
    1. 建科目文件夹（含 `assessments/`；`lab/` 不预建，见 `record-keeping`）
    2. 写「科目使命」（`## Why` 与 `## Success looks like` 来自盘问第一问；`## Constraints` 收前置基础、时间投入与偏好）与「科目档案」的 `goal`
-   3. 派 `resource-scout` 收集资料（值：`subject_path` + 盘问结果摘要）：它把清单草稿落到 `<subject_path>/.stage/resource-scout-<slug>/deliver/RESOURCES.md`——你 `cp` 到科目、扫一眼条数与来源域名。**建池与拟大纲并行**——「资源清单」落位后，同时派下面两个（别串着等）：
+   3. 派 `resource-scout` 收集资料（值：`subject_path` + 盘问结果摘要 +（可选）本地资料路径）：派发前主动问用户本地资料的路径（留空则全网检索；有则随派工传入）。它把清单草稿落到 `<subject_path>/.stage/resource-scout-<slug>/deliver/RESOURCES.md`——你 `cp` 到科目、扫一眼条数与来源域名。**建池与拟大纲并行**——「资源清单」落位后，同时派下面两个（别串着等）：
      ```
      派「资料收集」→ cp 落「资源清单」→ 写「术语表」（`## 待掌握` 装 5-15 个主题词）→ 同时派两个：
         ├─ 「采图」爬「图片库」

@@ -855,16 +855,28 @@ def render_roadmap_html(slug, cur, prog, ws):
     return '<div class="learn-roadmap">\n' + '\n'.join(blocks) + '\n</div>'
 
 
-def reference_items(sdir):
-    """参考文档：reference/*.html（标题取页面标题，退文件名；meta 写所在目录）。"""
+def reference_items(sdir, subject_name=None):
+    """参考文档：reference/*.html 与 reference/*.md（编译为 HTML，meta 写所在目录或相对文件）。"""
     items = []
-    for path in sorted(glob.glob(os.path.join(glob.escape(sdir), 'reference', '*.html'))):
+    subj_name = subject_name or os.path.basename(sdir)
+    ref_dir = os.path.join(sdir, 'reference')
+    if not os.path.isdir(ref_dir):
+        return items
+    for path in sorted(glob.glob(os.path.join(glob.escape(ref_dir), '*.html'))):
         name = os.path.basename(path)
         title = os.path.splitext(name)[0]
         match = TITLE_RE.search(strip_comments(read_text_quiet(path, '参考文档')))
         if match:
             title = html.unescape(strip_tags(match.group(1))) or title
         items.append((f'reference/{name}', title, 'reference/'))
+    for path in sorted(glob.glob(os.path.join(glob.escape(ref_dir), '*.md'))):
+        name = os.path.basename(path)
+        title = md_title(path, os.path.splitext(name)[0])
+        rel_md = f'reference/{name}'
+        html_name = os.path.splitext(name)[0] + '.html'
+        href = compile_attachment(sdir, rel_md, title, subj_name, '参考文档')
+        if not any(item[0] == f'reference/{html_name}' for item in items):
+            items.append((href, title, rel_md))
     return items
 
 
@@ -1161,7 +1173,7 @@ def render_attachments_html(slug, ws, subject_name=None):
         subj = load_yaml_quiet(os.path.join(sdir, 'subject.yaml'), f'{slug}/subject.yaml') or {}
         subject_name = str(subj.get('name') or slug)
     groups = (
-        ('参考文档', reference_items(sdir)),
+        ('参考文档', reference_items(sdir, subject_name)),
         ('术语与资源', resource_items(sdir, subject_name)),
         ('学习记录', learning_record_items(sdir, subject_name)),
         ('会话摘要', session_items(sdir, subject_name)),
