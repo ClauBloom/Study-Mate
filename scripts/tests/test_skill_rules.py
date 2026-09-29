@@ -376,10 +376,24 @@ RULES = {
  ('输入节标题统一', '## 输入（总控在 prompt 里给）'),
  ('只读权威教材与官方文档', '权威教材（公认教材、经典书、同行评审材料）与官方文档'),
  ('清单分两类：延伸阅读 + 易变内容的官方核对来源', '**易变内容的官方核对来源**：每条'),
- ('每条带 title/type/url（缺一项不算一条）', '每条资源都必须带 `title`/`type`/`url` 三项 + 一行用途，缺一项就不算一条'),
+ ('每条带 title/type 与第三项（缺一项不算一条）', '每条资源都必须带 `title`/`type` 与**第三项**'),
  ('收手三条之一：找不到的部分能列成 ## Gaps', '找不到的部分能列成 `## Gaps`'),
  ('不写大纲（大纲归 curriculum-designer）', '不写大纲——大纲是 `curriculum-designer` 的产出'),
  ('清单落 deliver/RESOURCES.md，正文只报摘要', '`deliver/RESOURCES.md`'),
+ ('本地教材转 md 进 reference/（学生可见）', '落到 `<subject_path>/reference/`'),
+ ('在线来源转 md 进 sources/（不挂科目主页）', '落到 `<subject_path>/sources/`'),
+ ('转换缺工具报总控，角色不建环境（round 1 起就在，留作守卫）', '**你不建也不改环境**'),
+ ('转换工具由总控准备（round 1 起就在，留作守卫）', '转换要用的工具由**总控**准备'),
+ ('直落科目的两个例外（其余交付仍走 .stage/）', '**两个例外**：转换后的本地教材直落 `reference/`'),
+ ('派完子 agent 不轮询、通知到了会唤醒', '**别轮询等它**（通知到了会把你唤醒）'),
+ ('在线来源：原址当链接、落盘文件当路径', '**原址当链接、落盘文件当路径**'),
+ ('sources/ 不挂科目主页', '**不挂科目主页**'),
+ ('第三项按来源类型写（本地教材没有 url）', '本地教材写 `reference/…` 指针（学生可点）'),
+ ('第三项对本地教材也放开：不必编 url', '本地教材同样没有 `url`，不必编一个'),
+ ('授权例外：规格写明只派一次转换活', '**只派一次转换活**'),
+ ('本地教材转完留 Local 指针 + 一行用途（PR #27 起就在，本轮补钉）', '`- [Local: 教材名](reference/<文件名>.md)`'),
+ ('检索与转换并行（派完自己先做检索，去重后只剩这一处）', '自己先做第 1 步的检索，两边并行'),
+ ('缺一项不算一条：第三项对三类来源各写什么', '网页来源是 `url`；本地教材是 `reference/…` 指针'),
 ],
 'image-scout': [
  ('输入节标题统一', '## 输入（总控在 prompt 里给）'),
@@ -414,7 +428,7 @@ RULES = {
  ('侧重默认跟着 kind 走（方向不是配额）', '**侧重不许与 `kind` 打架**'),
  ('深度对齐目标层级', '目标层级'),
  ('resources 易变要官方文档', '官方文档'),
- ('资源每条带 title/type/url', 'title`/`type`/`url`'),
+ ('资源每条带 title/type/url（本地教材没有 url）', '**本地教材没有 `url`，写 `reference/…` 指针即可**'),
  ('title ≤16 字', '≤16 字'),
  ('objective ≤34 字', '≤34 字'),
  ('按需写不为整齐填满', '逐个填满'),
@@ -594,6 +608,10 @@ contract('原新科目盘问保留七步及 frontier 空结束规则',
          and '6. **结束标准**：frontier 空' in interview)
 contract('总控保持指针接入，不复制七入口参考表',
          '| 应用开发与自动化 |' not in system and '| 数学探索与基础 |' not in system)
+resources_tpl = (Path(SK).resolve().parents[1] / 'templates' / 'RESOURCES.md').read_text(encoding='utf-8')
+contract('资源清单模板：在线来源给原址链接 + 已落盘路径（学生点不到 sources/ 正文）',
+         '- [Source: 标题](原址 url) · 已落盘 `sources/文件名.md`' in resources_tpl
+         and '不挂科目主页' in resources_tpl)
 
 # 只检查合成场景文件可用，不发送模型请求，也不把其 checks 当作已通过。
 cases = json.loads((Path(__file__).parent / 'fixtures' / 'learning_discovery_cases.json')

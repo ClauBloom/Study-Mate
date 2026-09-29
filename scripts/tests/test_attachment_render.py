@@ -172,12 +172,39 @@ def test_reference_markdown_attachment():
         check('编译出 reference/textbook_notes.html 文件', os.path.isfile(os.path.join(sdir, 'reference', 'textbook_notes.html')))
 
 
+def test_sources_markdown_not_on_home():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ws = os.path.join(tmpdir, 'workspace')
+        sdir = os.path.join(ws, '.learning', 'subjects', 'algorithms')
+        os.makedirs(os.path.join(sdir, 'reference'), exist_ok=True)
+        os.makedirs(os.path.join(sdir, 'sources'), exist_ok=True)
+
+        with open(os.path.join(sdir, 'subject.yaml'), 'w', encoding='utf-8') as f:
+            f.write('name: 算法\nstatus: 进行中\n')
+        # reference/ 非空，reference_items 才会真正跑起来（目录不存在时它会提前 return）
+        with open(os.path.join(sdir, 'reference', 'formula_sheet.md'), 'w', encoding='utf-8') as f:
+            f.write('# 常用公式速查\n\n- 二分查找 O(log n)')
+        with open(os.path.join(sdir, 'sources', 'notes.md'), 'w', encoding='utf-8') as f:
+            f.write('# 官方文档摘录\n\n- 复杂度对照表')
+
+        code = gen_home.main([ws])
+        check('含 sources/*.md 的科目全流程通过', code == 0)
+
+        with open(os.path.join(sdir, 'index.html'), encoding='utf-8') as f:
+            idx = f.read()
+        check('主页出现 reference/formula_sheet.html', 'href="reference/formula_sheet.html"' in idx)
+        check('主页不出现 sources/notes.md', 'sources/notes.md' not in idx)
+        check('主页不出现 sources/notes.html', 'sources/notes.html' not in idx)
+        check('不生成 sources/notes.html', not os.path.isfile(os.path.join(sdir, 'sources', 'notes.html')))
+
+
 def main():
     test_markdown_inline()
     test_markdown_blocks()
     test_attachment_compilation()
     test_full_gen_home_integration()
     test_reference_markdown_attachment()
+    test_sources_markdown_not_on_home()
     print('\n附件渲染与编译全部测试通过！')
 
 
