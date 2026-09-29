@@ -122,14 +122,33 @@ test('npm status distinguishes unpublished from registry failure and immutable c
   assert.throws(() => verifyPublishOrder('0.1.2', { version: '1.0.0-beta' }), /not a stable version/);
 });
 
+const tarballFiles = ['package.json', 'README.md', 'cordis.patch.yml', 'bin/dsh-plugin.mjs', 'bin/studymate.mjs', 'bin/skill-compat.mjs',
+  'bin/openai-plugin.mjs', 'bin/openai-skill-compat.mjs', 'bin/openai-interaction.mjs', 'bin/openai-skill-ui.mjs',
+  'openai/studymate/scripts/interaction_state.py', 'openai/studymate/skills/learning-system/references/codex-interaction.md',
+  'openai/studymate/.codex-plugin/plugin.json', 'openai/studymate/requirements.txt', 'docs/Codex与ChatGPT.md',
+  'preset/learning/agent.cordis.yml', 'scripts/install_preset.py', 'scripts/gen_home.py', '.dsh/skills/learning-system/SKILL.md',
+  'antigravity/studymate/plugin.json', 'antigravity/studymate/rules/AGENTS.md',
+  'schemas/subject.json', 'templates/home.html', 'docs/使用说明.md'];
+const tarballPack = () => ({ name, version: '0.1.2', files: tarballFiles.map(path => ({ path })) });
+
+// package.json 的 files 是「打包清单」，validatePack 的白名单是「发放清单」——两张表分开维护，
+// 于是真出过事：`antigravity/studymate/**` 进了 files，白名单没跟上，Release 在打包校验这步
+// 自己把自己拦下（2026-09-29 的 run #8，Antigravity 落地后每次发布都会中）。
+// 这条断言把两张表钉在一起：files 里每个模式都要能通过白名单。
+test('every package.json files pattern passes the tarball allowlist', () => {
+  const patterns = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).files;
+  assert.ok(patterns.length > 0);
+  const sample = pattern => {
+    if (pattern.endsWith('/**')) return `${pattern.slice(0, -3)}/probe/probe.md`;
+    if (pattern.includes('*')) return pattern.replace('*', 'probe');
+    return pattern;
+  };
+  const samples = patterns.map(pattern => ({ path: sample(pattern) }));
+  validatePack({ ...tarballPack(), files: [...tarballPack().files, ...samples] });
+});
+
 test('tarball inspection rejects personal workspace, credentials and incomplete payloads', () => {
-  const files = ['package.json', 'README.md', 'cordis.patch.yml', 'bin/dsh-plugin.mjs', 'bin/studymate.mjs', 'bin/skill-compat.mjs',
-    'bin/openai-plugin.mjs', 'bin/openai-skill-compat.mjs', 'bin/openai-interaction.mjs', 'bin/openai-skill-ui.mjs',
-    'openai/studymate/scripts/interaction_state.py', 'openai/studymate/skills/learning-system/references/codex-interaction.md',
-    'openai/studymate/.codex-plugin/plugin.json', 'openai/studymate/requirements.txt', 'docs/Codex与ChatGPT.md',
-    'preset/learning/agent.cordis.yml', 'scripts/install_preset.py', 'scripts/gen_home.py', '.dsh/skills/learning-system/SKILL.md',
-    'schemas/subject.json', 'templates/home.html', 'docs/使用说明.md'];
-  const pack = { name, version: '0.1.2', files: files.map(path => ({ path })) };
+  const pack = tarballPack();
   validatePack(pack);
   for (const path of ['workspace/我的科目/private.md', '.npmrc', 'templates/.env', 'scripts/release/release.mjs']) {
     assert.throws(() => validatePack({ ...pack, files: [...pack.files, { path }] }), /Unexpected or private/);
