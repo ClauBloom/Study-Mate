@@ -19,12 +19,12 @@ npm test
 | `npm run test:openai` | OpenAI 插件 ZIP、完整性、独立运行与导出保护 |
 | `npm run test:antigravity` | Antigravity 插件 ZIP、原生 agents、导出保护与重复构建 |
 | `npm run test:release` | 版本、changelog、重试和发布保护 |
-| `npm run test:static` | Python 语法、提示词与模板文案契约、OpenAI 与 Antigravity skill 转换及 UI 元数据 |
+| `npm run test:static` | Python 语法、提示词与模板文案契约、OpenAI 与 Antigravity skill 转换及 UI 元数据（`npm test` 已含这一层，这里可单独跑） |
 | `npm run test:browser` | 三套真实 Chrome 渲染测试，需要 `google-chrome` |
 | `npm run test:dsh` | 真实 DSH 启动与 Web 预设，需要指定 DSH 包目录 |
 | `npm run test:dsh-cli` | 真实 DSH CLI 安装、更新、卸载，还需要 `pnpm` |
 
-语法、文案与真实宿主兼容检查保留为本地按需命令，不作为每次提交和发布的默认门禁。改动相应模块时可以单独运行。`scripts/release/checks.mjs` 显式列出各层套件——**显式的代价是新增套件会静默地永远不跑**，所以那里有一条覆盖断言：`scripts/tests/` 下的每个文件必须属于某个组（core / `--static` / `--browser`）、package.json 的按需入口（`test:dsh` 等），或在 `MANUAL_ONLY` 里明确登记为手动脚本。漏登记时跑门禁会直接报出文件名并以退出码 2 停下。
+Python 语法、提示词与模板契约、两个宿主的技能转换这一层（`--static`）**已并入 `npm test`**，CI 每次都会跑；保留为本地按需命令的只剩真实宿主（`test:dsh` / `test:dsh-cli`）与真实 Chrome（`test:browser`）——它们要外部环境，不适合当默认门禁。`scripts/release/checks.mjs` 显式列出各层套件——**显式的代价是新增套件会静默地永远不跑**，所以那里有一条覆盖断言：`scripts/tests/` 下的每个文件必须属于某个组（core / `--static` / `--browser`）、package.json 的按需入口（`test:dsh` 等），或在 `MANUAL_ONLY` 里明确登记为手动脚本。漏登记时跑门禁会直接报出文件名并以退出码 2 停下。
 
 旧入口继续可用：
 

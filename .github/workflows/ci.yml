@@ -30,5 +30,5 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install PyYAML
-      - name: Installer, plugin, lesson and release regression tests
+      - name: Installer, plugin, lesson, release and static contract tests
         run: npm test

@@ -27,8 +27,8 @@
 ## 本地怎么验
 
 ```bash
-npm test              # 与 CI 同一条：安装器、插件打包、课件与工作区功能、DOM、发布逻辑
-npm run test:static   # 提示词规则、模板契约、Python 语法、插件技能转换
+npm test              # 与 CI 同一条：安装器、插件打包、课件与工作区功能、DOM、发布逻辑、静态契约
+npm run test:static   # 只跑静态那一层（提示词规则、模板契约、Python 语法、插件技能转换）
 npm run test:browser  # 三套真实 Chrome 渲染，需要 google-chrome
 npm run test:dsh      # 真实 DSH 启动，需要先指定 DSH 包目录
 ```

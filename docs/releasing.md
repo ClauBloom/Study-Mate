@@ -35,7 +35,7 @@ GitHub 发布 job 引用 `npm` environment，不要求设置审批人。仓库�
 
 发布前复用 **Checks**：在单个 Ubuntu runner 上使用 Node 24 / Python 3.13 运行 `npm test`，覆盖安装、OpenAI 插件打包、Python 功能测试、DOM 和发布逻辑。日常提交也使用这套检查，不再自动运行多系统、多版本或真实 DSH 的重复矩阵。当前包无 npm 依赖和 lockfile，因此不运行 `npm ci`。
 
-维护静态约束时可手动运行 `npm run test:static`；需要核对真实 DSH 兼容性时运行 `npm run test:dsh` 或 `npm run test:dsh-cli`。用法见 [测试说明](../scripts/tests/README.md)。
+静态约束那一层（提示词规则、模板契约、Python 语法、宿主技能转换）**已并入 `npm test`**，发布前的 Checks 自然会跑；只想单独核对时仍可直接运行 `npm run test:static`。需要核对真实 DSH 兼容性时运行 `npm run test:dsh` 或 `npm run test:dsh-cli`。用法见 [测试说明](../scripts/tests/README.md)。
 
 检查通过后，流程读取自上一版本 tag 以来的全部 commit，以及 GitHub 关联到这些 commit、已经合入 `main` 的 PR。提交标题和正文都会原样保留（提交写法见 [参与 StudyMate](../CONTRIBUTING.md)；发布流程只做归类，不校验格式）。现有 `CHANGELOG.md` 内容保留，新条目放在前面。兼容历史 `v0.1` tag；若仓库没有版本 tag，则首次记录完整提交历史。
 
