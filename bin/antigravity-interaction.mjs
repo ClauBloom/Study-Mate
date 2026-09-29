@@ -1,4 +1,31 @@
 // Antigravity-specific orchestration replaces DSH conversation boundaries at export.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** 从 schema 读一个字符串枚举，拼成 `a/b/c`；读不到就给一句指向 schema 的话。
+ *  词表只有 schema 一份（Python 侧读同一个文件，见 scripts/statuses.py），
+ *  宿主指南里这串取值因此不可能再漂成 4/6。 */
+function schemaEnum(schemaName, keys, fallback) {
+  try {
+    let node = JSON.parse(fs.readFileSync(path.join(ROOT, 'schemas', schemaName), 'utf8'));
+    for (const key of keys) node = node?.[key];
+    if (Array.isArray(node) && node.length && node.every(value => typeof value === 'string')) {
+      return node.join('/');
+    }
+  } catch {
+    // 引擎副本缺 schema 时降级：不再列取值，改为指向唯一口径。
+  }
+  return fallback;
+}
+
+const NODE_STATUS_LIST = schemaEnum('progress.schema.json',
+  ['properties', 'nodes', 'additionalProperties', 'properties', 'status', 'enum'], '取值以 schemas/progress.schema.json 为准');
+const KIND_LIST = schemaEnum('curriculum.schema.json',
+  ['properties', 'nodes', 'items', 'properties', 'kind', 'enum'], '取值以 schemas/curriculum.schema.json 为准');
+
 // Teaching content, evidence rules and file ownership still come from DSH skills.
 
 export const AGY_HOST_GUIDE = `## Antigravity 宿主约定（导出时生成）
@@ -60,7 +87,7 @@ export const AGY_RECORD_CONTINUITY = `## Antigravity 学习档案与状态连续
 
 1. **共享记忆（\`MEMORY.md\`）**：维护学生跨科目的能力水平、已被证明有效的讲解偏好、常犯思维卡点。稳定的领域基础在此更新，下一门课自动继承，无需重复自我介绍。
 2. **科目使命（\`MISSION.md\`）**：记录当前科目的终极现实目标、目标层级、约束条件（\`## Constraints\`）与主线项目方案。
-3. **大纲与进度（\`curriculum.yaml\` / \`progress.yaml\`）**：大纲记录拓扑依赖 DAG 与节点类型（概念/实操/实验）；进度表记录各节点的掌握度（0-1）、学习状态（未开始/学习中/能独立应用/需要复习）与最近评估时间。
+3. **大纲与进度（\`curriculum.yaml\` / \`progress.yaml\`）**：大纲记录拓扑依赖 DAG 与节点类型（${KIND_LIST}）；进度表记录各节点的掌握度（0-1）、学习状态（${NODE_STATUS_LIST}）与最近评估时间。
 4. **评估记录与会话摘要（\`assessments/\` / \`sessions/\`）**：阶段评估时出题评估角色将真实运行证据与作答原文写入评估记录；每次会话暂停或结束时写会话摘要。
 5. **恢复会话时**：先读 \`.learning/MEMORY.md\`、当前科目的 \`progress.yaml\` 与最近一次的会话摘要，核对盘上真实产物后直接从断点继续，不重新询问整套开场。
 `;

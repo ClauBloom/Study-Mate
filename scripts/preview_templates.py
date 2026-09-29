@@ -29,6 +29,8 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, 'scripts'))
+import statuses   # noqa: E402  状态词表的唯一口径（预览与真实生成器同一份）
 OUT = os.path.join(ROOT, '.preview')
 
 # ══════════════════════════════════════════════════════════════════
@@ -63,11 +65,6 @@ NODES = [
      ['auth.session', 'auth.token', 'testing.api', 'db.migrations'], '未开始', 0.0),
 ]
 
-STATUS_CLASS = {
-    '未开始': 'todo', '学习中': 'learning', '初步理解': 'learning',
-    '能独立应用': 'done', '需要复习': 'review', '已通过项目验证': 'verified',
-}
-STATUS_TAG = {'进行中': ('active', 'blue'), '暂停': ('paused', 'yellow'), '已完成': ('done', 'green')}
 
 MISSION = '独立完成一个可部署的全栈 Web API——从 HTTP 基础一路做到认证、测试与部署。'
 PROJECT = '''<div class="learn-project__card">
@@ -154,7 +151,7 @@ CARD = '''<article class="syo-card learn-subject-card" data-status="{status}" da
 def render_cards():
     cards = []
     for s in SUBJECTS:
-        kind, dot = STATUS_TAG[s['status']]
+        kind, dot = statuses.SUBJECT_STATUS_TAG[s['status']]
         progress = s['done'] / s['total']
         cards.append(CARD.format(
             status=s['status'], kind=kind, dot=dot, progress=progress,
@@ -190,7 +187,7 @@ def _levels():
 
 def _node_card(nid):
     _, title, obj, prereq, status, mastery = next(n for n in NODES if n[0] == nid)
-    cls = STATUS_CLASS[status]
+    cls = statuses.NODE_STATUS_CLASS[status]
     pct = int(mastery * 100)
     now = '<span class="learn-node__now">当前</span>' if status == '学习中' else ''
     titles = {n[0]: n[1] for n in NODES}
@@ -270,7 +267,7 @@ def render_attachments():
 
 
 def render_subject(template, slug='typescript-web-api', empty=False):
-    kind, dot = STATUS_TAG['进行中']
+    kind, dot = statuses.SUBJECT_STATUS_TAG['进行中']
     status = ('<span class="syo-tag learn-status learn-status--%s">进行中'
               '<span class="syo-tag-dot syo-tag-dot--%s"></span></span>' % (kind, dot))
     html = template
