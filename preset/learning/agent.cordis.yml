@@ -190,16 +190,18 @@
         toolName: subagent
         modelSelectionSettings: true
         backgroundMode: continuable
-        # 角色只在全新上下文里跑，而且角色不得再往下派：默认 3 层，这里压到 1
-        # （总控 depth 0 → 角色 depth 1；角色再派会在启动时被拒，返回出错的工具结果）。
-        maxDepth: 1
+        # 角色可以派一层子 agent（总控 depth 0 → 角色 depth 1 → 它派的子 agent depth 2）。
+        # **必须显式写**：省略会落回宿主 subagent 设置的默认值 1（DSH README：maxDepth
+        # defaults to 1，depth 1 permits direct children only），那等于角色派不动。
+        # 角色不乱派靠身份：全新上下文 + 派工时明说读它自己的规格；fork 已关（见下）。
+        maxDepth: 2
 
     # 学习模式**关掉 fork**：fork 播的是"总控已完成的回合"，角色会读到总控建科目、
     # 写元数据、装环境那一段，于是接着当总控——自己去写 RESOURCES.md／curriculum.yaml、
     # 建 venv、再派一遍角色。实测一次新科目：2 个角色的活变成 4 个 agent 干，两份大纲
     # 互相覆盖，科目里落了大纲的错版本，同一个 .venv 上三个并发安装。
-    # 角色派发一律用上面的 `subagent`（全新上下文）；要用 fork 就先补上并验证
-    # "角色只干活、不调度"的硬约束，再从这一行去掉 disabled。
+    # 角色派发一律用上面的 `subagent`（全新上下文）；要用 fork，先补上并验证
+    # "角色不会沿用它继承来的总控身份"的硬约束，再去掉这一行的 disabled。
     - id: tool-subagent-fork
       name: '@deepseek-ai/dsh-tool-subagent'
       disabled: true

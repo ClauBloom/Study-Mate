@@ -12,14 +12,15 @@ import {
 import { getOpenAiSkillDescription } from './openai-skill-ui.mjs';
 
 // Antigravity 的 agent frontmatter 里写错工具名会让子代理卡住（官方子代理文档的已知问题），
-// 所以这里只放官方文档点名的工具；`write_to_file`、`search_web`、`read_url_content` 尚未在
-// 文档里逐个核对过，改动宿主版本或新增工具时按宿主实际工具名复核这一张表。
+// 所以这里只放官方文档点名的工具；`invoke_subagent` 是官方子代理文档点名的派工工具（嵌套上限 10 层），
+// `write_to_file`、`search_web`、`read_url_content` 尚未在文档里逐个核对过，
+// 改动宿主版本或新增工具时按宿主实际工具名复核这一张表。
 export const AGENT_TOOLS = {
-  'resource-scout': ['view_file', 'write_to_file', 'search_web', 'read_url_content'],
-  'image-scout': ['view_file', 'write_to_file', 'search_web', 'read_url_content', 'run_command'],
-  'curriculum-designer': ['view_file', 'write_to_file', 'run_command'],
-  'learning-coach': ['view_file', 'write_to_file', 'run_command'],
-  'practice-evaluator': ['view_file', 'write_to_file', 'run_command'],
+  'resource-scout': ['view_file', 'write_to_file', 'search_web', 'read_url_content', 'invoke_subagent'],
+  'image-scout': ['view_file', 'write_to_file', 'search_web', 'read_url_content', 'run_command', 'invoke_subagent'],
+  'curriculum-designer': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent'],
+  'learning-coach': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent'],
+  'practice-evaluator': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent'],
 };
 
 export const AGENT_ROLES = [
