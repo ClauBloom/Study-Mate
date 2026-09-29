@@ -48,6 +48,14 @@ import gen_home                                        # noqa: E402  占位符�
 
 USAGE = '用法：python3 scripts/render_lesson.py <科目目录> <节点id> [--check]'
 
+# 代码围栏的语言标签：COLORED_LANGS 是前端配色表 templates/assets/learn-theme.js 的键（会着色），
+# PLAIN_LANGS 是"明确不上色"（标签照原样进页面，前端查不到键自然不上色）——这一组是真实内容里
+# 已经在用的标签（`text`、计网课里的 `http` 报文），不是留白。
+# 两张表由 scripts/tests/test_templates.py 钉住相等——`python` 曾经只在渲染器这边畅通无阻，
+# 前端没有这个键，于是 Python 课件的代码块一直不上色，而且没有任何报错。
+COLORED_LANGS = ('cpp', 'sh', 'bash', 'term', 'html', 'js', 'json', 'python', 'py')
+PLAIN_LANGS = ('text', 'plain', 'markdown', 'md', 'http')
+
 # 模板占位符：名字 → 应出现次数（TITLE 在 <title> 与 <h1>；SUBJECT 在 <title> 与顶栏）
 TEMPLATE_PLACEHOLDERS = {
     'TITLE': 2, 'SUBJECT': 2, 'NUMBER': 1, 'EYEBROW': 1, 'GOAL': 1, 'BODY': 1, 'NAV': 1, 'FOOTER': 1,
@@ -521,6 +529,11 @@ def parse_blocks(path, lines, start, end, problems):
 def parse_fence(path, lines, index, end, problems):
     """``` 围栏 → 代码块（块内原文逐字保留）。"""
     language = lines[index].strip()[3:].strip()
+    if language and language not in COLORED_LANGS + PLAIN_LANGS:
+        problems.add(path, index + 1,
+                     f'不认识的语言标签 `{language}`——会着色的写 '
+                     f'{" / ".join(COLORED_LANGS)}，不上色的写 text；'
+                     '标签原样落到 data-lang，前端没有对应配色器就不上色')
     body, cursor = [], index + 1
     while cursor < end and not lines[cursor].strip().startswith('```'):
         body.append(lines[cursor])
