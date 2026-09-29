@@ -36,6 +36,7 @@
   "scripts": {
     "build:plugin": "node bin/studymate.mjs build-plugin",
     "build:antigravity": "node bin/studymate.mjs build-antigravity",
+    "build:examples": "node bin/studymate.mjs build-examples",
     "test": "npm run test:installer && npm run test:openai && npm run test:antigravity && node scripts/release/checks.mjs",
     "test:openai": "node --test scripts/tests/test_openai_plugin.mjs",
     "test:antigravity": "node --test scripts/tests/test_antigravity_plugin.mjs",

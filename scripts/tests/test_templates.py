@@ -105,14 +105,49 @@ def main():
           f'前端={sorted(keys)} 渲染器={sorted(colored)}')
     check('python 两边都有', 'python' in keys and 'python' in colored)
 
-    # ── 四、共享层副本：examples 是产物，副本过期页面就静默不亮（本次事故的活样本）──────
-    # 只比 ensure_shared_assets() 点名的四个平铺文件：examples 的 katex/ 下有一个早于本次
-    # 改动就未跟踪的 fonts/LICENSE，做整树比对在干净检出里不稳定（那条另记）。
-    for name in ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js'):
-        same = ((REPO / 'templates' / 'assets' / name).read_bytes()
-                == (REPO / 'examples' / '.learning' / 'assets' / name).read_bytes())
-        check(f'examples 共享层副本与模板逐字节一致（{name}）', same,
-              f'跑 python3 scripts/gen_home.py examples 重新生成（副本过期会让页面静默不上色）')
+    # ── 四、共享层与课件层副本：examples 是产物，副本过期页面就静默不亮（本次事故的活样本）──
+    # 清单只有一份（scripts/lessonfile.py）：共享层整份 + 每个科目的课件层三件，逐字节比对。
+    # examples 的 katex/fonts/LICENSE 一度未跟踪，正是它让整树比对一直做不了。
+    sys.path.insert(0, str(REPO / 'scripts'))
+    import lessonfile
+
+    mismatch = []
+    for name in lessonfile.SHARED_FILES:
+        source = REPO / 'templates' / 'assets' / name
+        copy = REPO / 'examples' / '.learning' / 'assets' / name
+        if not copy.is_file() or source.read_bytes() != copy.read_bytes():
+            mismatch.append(name)
+    for name in lessonfile.SHARED_DIRS:
+        root = REPO / 'templates' / 'assets' / name
+        for path in sorted(root.rglob('*')):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root)
+            copy = REPO / 'examples' / '.learning' / 'assets' / name / relative
+            if not copy.is_file() or path.read_bytes() != copy.read_bytes():
+                mismatch.append(f'{name}/{relative}')
+    check('examples 共享层与 templates/assets 逐字节一致（整份清单）', not mismatch,
+          f'{len(mismatch)} 个文件不一致或缺失：{mismatch[:3]}'
+          '（跑 python3 scripts/build_examples.py 重新生成）')
+
+    subject_mismatch = []
+    for subject_dir in sorted((REPO / 'examples' / '.learning' / 'subjects').iterdir()):
+        if not subject_dir.is_dir():
+            continue
+        for name in lessonfile.SUBJECT_FILES:
+            source = REPO / 'templates' / 'assets' / name
+            copy = subject_dir / 'assets' / name
+            if not copy.is_file() or source.read_bytes() != copy.read_bytes():
+                subject_mismatch.append(f'{subject_dir.name}/{name}')
+    check('examples 各科目的课件层组件与模板逐字节一致', not subject_mismatch,
+          f'{subject_mismatch}（跑 python3 scripts/build_examples.py 重新生成）')
+
+    listed = (set(lessonfile.SHARED_DIRS) | set(lessonfile.SHARED_FILES)
+              | set(lessonfile.SUBJECT_FILES) | {lessonfile.ASSET_DOC})
+    present = {entry.name for entry in (REPO / 'templates' / 'assets').iterdir()}
+    check('templates/assets 顶层每一项都登记在清单里（新文件不登记就没人拷也没人守）',
+          present == listed,
+          f'清单外 {sorted(present - listed)} / 清单里却没有 {sorted(listed - present)}')
 
     print(f'\n{total - failures}/{total} 通过')
     return 1 if failures else 0

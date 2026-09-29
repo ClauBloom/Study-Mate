@@ -41,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import curriculum     # noqa: E402  课程大纲的唯一口径（位次/课型/层级）
 import lessonfile     # noqa: E402  文件名与引用清单的唯一口径
 import statuses       # noqa: E402  状态与课型词表的唯一口径（从 schemas/ 读）
+from pagetpl import esc, replace_block, replace_field   # noqa: E402  占位符替换与转义的唯一口径
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES = os.path.join(ROOT, 'templates')
@@ -238,11 +239,6 @@ def warn(message, key=None):
     print(f'警告: {message}', file=sys.stderr)
 
 
-def esc(value, attr=False):
-    """HTML 转义：文本节点转义 &<>，属性值再多转义引号。"""
-    return html.escape(str(value), quote=attr)
-
-
 def read_text_once(path):
     """严格 UTF-8 读（仓库自有的模板走这条）；内容文件的异常由 read_text_quiet() 降级。"""
     with open(path, encoding='utf-8') as f:
@@ -369,43 +365,15 @@ def learn_workspace():
 
 
 def ensure_shared_assets(ws):
-    """把共享层拷进 <WS>/.learning/assets/（幂等覆盖）：sayo/ 与 katex/ 两个整目录，
-    加 learn-theme.css/js、learn-mascot.png、lesson-math.js（公式排版，按需被页面引用）。
+    '''把共享层拷进 <WS>/.learning/assets/（幂等覆盖）。
 
-    缺共享层页面会退化成无样式裸 HTML，所以这一步是硬要求；已存在则覆盖同名文件。
-    科目自己的 assets/{style.css,quiz.js} 由建科目流程负责，这里不碰（T13-R3）。
-    """
-    src = os.path.join(TEMPLATES, 'assets')
-    dst = os.path.join(ws, '.learning', 'assets')
-    os.makedirs(dst, exist_ok=True)
-    for name in ('sayo', 'katex'):
-        directory = os.path.join(src, name)
-        if not os.path.isdir(directory):
-            raise SystemExit(f'缺少共享资源目录 {directory}，请检查模板目录是否完整')
-        shutil.copytree(directory, os.path.join(dst, name), dirs_exist_ok=True)
-    for name in ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js'):
-        path = os.path.join(src, name)
-        if not os.path.isfile(path):
-            raise SystemExit(f'缺少共享资源 {path}，请检查模板目录是否完整')
-        shutil.copy2(path, os.path.join(dst, name))
-
-
-# ══════════════════════════════════════════════════════════════════
-# 占位符替换（区块级整行替换 / 字段级全替换；缺失即报错退出）
-# ══════════════════════════════════════════════════════════════════
-
-def replace_block(template_html, placeholder, html_block, template_name):
-    """区块占位符整行替换；缺失则报错（防止模板被改坏后静默残缺）。"""
-    if placeholder not in template_html:
-        raise SystemExit(f'{template_name} 缺少占位符 {placeholder}，请检查模板与 Global Constraints 约定')
-    return template_html.replace(placeholder, html_block, 1)
-
-
-def replace_field(template_html, placeholder, value, template_name):
-    """字段占位符全替换（可能多处出现，如 TITLE 在 <title> 和 <h1>）；缺失同样报错。"""
-    if placeholder not in template_html:
-        raise SystemExit(f'{template_name} 缺少占位符 {placeholder}，请检查模板与 Global Constraints 约定')
-    return template_html.replace(placeholder, value)
+    清单（sayo/、katex/ 与四个平铺文件）只有一份，在 lessonfile 里——「新增共享文件要
+    同时改三处」那条约束到此为止。缺共享层页面会退化成无样式裸 HTML，所以缺什么就直接
+    报错退出。
+    '''
+    problems = lessonfile.install_shared(ws)
+    if problems:
+        raise SystemExit(problems[0])
 
 
 # ══════════════════════════════════════════════════════════════════

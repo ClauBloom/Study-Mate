@@ -22,7 +22,11 @@
     lessonfile.split_name('0008-cpp.array.quiz.json') # ('0008', 'cpp.array', 'quiz.json')
     lessonfile.asset_prefix('lesson')                 # '../../../assets/'
 """
+import os
 import re
+import shutil
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 NUM_WIDTH = 4
 # 三件套的后缀：长的在前——`.quiz.json` 是双扩展名，节点 id 自己也可以带点（`cpp.array`）
@@ -47,6 +51,52 @@ SUBJECT_REFS = ('../assets/style.css', '../assets/quiz.js')
 # 数学式：只有含公式的课件页才注入这三个引用（离线 KaTeX）
 MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 # 链接是不是外链（任何 `scheme:` 或协议相对 `//`）：渲染器、校验器、主页生成器同一份
+SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
+
+# ══════════════════════════════════════════════════════════════════
+# 共享层与课件层组件的清单（**全仓库唯一一份**）
+# 源在 templates/assets/；共享层全工作区一份，课件层每个科目一份
+# ══════════════════════════════════════════════════════════════════
+TEMPLATE_ASSETS = os.path.join(ROOT, 'templates', 'assets')
+# 全工作区共享一份：两个整目录 + 四个平铺文件
+SHARED_DIRS = ('sayo', 'katex')
+SHARED_FILES = ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js')
+# 课件层：每个科目一份的三个组件
+SUBJECT_FILES = ('style.css', 'quiz.js', 'lesson-toc.js')
+# templates/assets/ 顶层除清单之外只允许有说明文件
+ASSET_DOC = 'README.md'
+
+
+def _copy_listed(names, source_dir, target_dir, problems, what):
+    for name in names:
+        source = os.path.join(source_dir, name)
+        target = os.path.join(target_dir, name)
+        if os.path.isdir(source):
+            shutil.copytree(source, target, dirs_exist_ok=True)
+        elif os.path.isfile(source):
+            os.makedirs(target_dir, exist_ok=True)
+            shutil.copy2(source, target)
+        else:
+            problems.append(f'缺少{what} {source}，请检查模板目录是否完整')
+
+
+def install_shared(ws, problems=None):
+    '''把共享层拷进 `<ws>/.learning/assets/`（幂等覆盖）→ 问题清单（空 = 全拷好）。
+
+    缺共享层页面会退化成无样式裸 HTML，所以调用方拿到问题就该停下。
+    '''
+    problems = [] if problems is None else problems
+    target = os.path.join(str(ws), '.learning', 'assets')
+    _copy_listed(SHARED_DIRS + SHARED_FILES, TEMPLATE_ASSETS, target, problems, '共享资源')
+    return problems
+
+
+def install_subject(subject_dir, problems=None):
+    '''把课件层组件拷进 `<subject_dir>/assets/`（幂等覆盖）→ 问题清单。'''
+    problems = [] if problems is None else problems
+    _copy_listed(SUBJECT_FILES, TEMPLATE_ASSETS, os.path.join(str(subject_dir), 'assets'),
+                 problems, '课件层资源')
+    return problems
 SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 
 

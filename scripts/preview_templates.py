@@ -31,6 +31,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'scripts'))
 import statuses   # noqa: E402  状态词表的唯一口径（预览与真实生成器同一份）
+import lessonfile  # noqa: E402  共享层/课件层清单与课件文件名的唯一口径
 OUT = os.path.join(ROOT, '.preview')
 
 # ══════════════════════════════════════════════════════════════════
@@ -375,19 +376,10 @@ def main():
     os.makedirs(os.path.join(subject, 'lessons'))
     os.makedirs(os.path.join(subject, 'assets'))
 
-    # 模拟 install/生成流程：共享层放 .learning/assets/（一份）。
-    # 清单必须与 templates/assets/README.md 一致——新增共享文件时两处都要加
-    src_assets = os.path.join(ROOT, 'templates', 'assets')
-    shared_files = ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js')
-    shared_dirs = ('sayo', 'katex')
-    for name in shared_files:
-        shutil.copy(os.path.join(src_assets, name), assets)
-    for name in shared_dirs:
-        shutil.copytree(os.path.join(src_assets, name), os.path.join(assets, name))
-
-    # 模拟 Task 8 建科目：课件层组件拷进科目 assets/（每科目一份）
-    for name in ('style.css', 'quiz.js', 'lesson-toc.js'):
-        shutil.copy(os.path.join(src_assets, name), os.path.join(subject, 'assets', name))
+    # 模拟 install/生成流程：共享层与课件层都照 lessonfile 的清单拷（与真实生成器同一份，
+    # 「新增共享文件要同时改几处」那类漂移到此为止）。
+    if lessonfile.install_shared(OUT) or lessonfile.install_subject(subject):
+        raise SystemExit('预览用的模板资源不齐，先修 templates/assets/')
 
     home = open(os.path.join(ROOT, 'templates', 'home-index.html'), encoding='utf-8').read()
     subj = open(os.path.join(ROOT, 'templates', 'subject-index.html'), encoding='utf-8').read()

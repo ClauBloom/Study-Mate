@@ -5,6 +5,11 @@
 
 ## 目录职责
 
+> **哪些文件属于共享层／课件层，清单只有一份**：`scripts/lessonfile.py` 的
+> `SHARED_DIRS` / `SHARED_FILES` / `SUBJECT_FILES`（生成器与预览都照它拷）。
+> 下面这张表解释每个文件是什么；**新增文件要登记进那份清单**，否则它既不会被拷进工作区，
+> 也不会被 `test_templates.py` 的逐字节比对看住。
+
 | 路径 | 是什么 | 谁维护 |
 |------|--------|--------|
 | `sayo/` | **Sayo UI**（自研零依赖 CSS 框架 + 交互引擎），MIT。含 `sayo.css`、`sayo.js`、`icons/`、`LICENSE` | 从 sayo-ui 项目整体拷贝，**不要手改** |

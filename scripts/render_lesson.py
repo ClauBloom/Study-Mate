@@ -44,7 +44,7 @@ except ImportError:                                   # pragma: no cover - 环�
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, 'templates', 'lesson.html')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import gen_home                                        # noqa: E402  占位符替换口径与它一致
+import pagetpl                                         # noqa: E402  占位符替换口径（与主页生成器同一份）
 import curriculum                                      # noqa: E402  课程大纲的唯一口径
 import lessonfile                                      # noqa: E402  文件名与引用清单的唯一口径
 
@@ -65,7 +65,6 @@ TEMPLATE_PLACEHOLDERS = {
     'TITLE': 2, 'SUBJECT': 2, 'NUMBER': 1, 'EYEBROW': 1, 'GOAL': 1, 'BODY': 1, 'NAV': 1, 'FOOTER': 1,
     'MATH': 1,
 }
-PLACEHOLDER = '<!-- @LEARN:{} -->'
 
 # 数学式：行内 `$…$`、块级 `$$…$$`（整段就是它）。作者写 TeX，渲染器只包成占位元素，
 # 排版在浏览器里由离线 KaTeX（共享层 templates/assets/katex/ + lesson-math.js）完成。
@@ -905,7 +904,7 @@ class Renderer:
                 if close > index + 2:
                     tex = text[index + 2:close]
                     self.has_math = True
-                    out.append('<span class="math-block">' + gen_home.esc(tex) + '</span>')
+                    out.append('<span class="math-block">' + pagetpl.esc(tex) + '</span>')
                     index = close + 2
                     continue
                 self.problems.add(self.path, line,
@@ -918,7 +917,7 @@ class Renderer:
                 if close is not None:
                     tex = text[index + 1:close]
                     self.has_math = True
-                    out.append('<span class="math-inline">' + gen_home.esc(tex) + '</span>')
+                    out.append('<span class="math-inline">' + pagetpl.esc(tex) + '</span>')
                     index = close + 1
                     continue
                 if not text[index + 1:index + 2].isspace() and text[index + 1:index + 2]:
@@ -931,11 +930,11 @@ class Renderer:
             elif char == '[':
                 link = LINK_RE.match(text, index)
                 if link:
-                    href = gen_home.esc(link.group(2), attr=True)
+                    href = pagetpl.esc(link.group(2), attr=True)
                     out.append(f'<a href="{href}">{self.inline(link.group(1), line, False)}</a>')
                     index = link.end()
                     continue
-            out.append(gen_home.esc(char))
+            out.append(pagetpl.esc(char))
             index += 1
         return ''.join(out)
 
@@ -957,7 +956,7 @@ class Renderer:
                     out.append(f'<{tag}>' + self.code_span(inner) + f'</{tag}>')
                     index = close + 1
                     continue
-            out.append(gen_home.esc(char))
+            out.append(pagetpl.esc(char))
             index += 1
         return ''.join(out)
 
@@ -976,11 +975,11 @@ class Renderer:
             if math:
                 self.has_math = True
                 return (f'{indent}<div class="math-block">'
-                        f'{gen_home.esc(math.group(1).strip())}</div>')
+                        f'{pagetpl.esc(math.group(1).strip())}</div>')
             return f'{indent}<p>{self.inline(block["text"], block["line"])}</p>'
         if kind == 'code':
-            attr = f' data-lang="{gen_home.esc(block["lang"], attr=True)}"' if block['lang'] else ''
-            return f'{indent}<pre{attr}><code>{gen_home.esc(block["text"])}</code></pre>'
+            attr = f' data-lang="{pagetpl.esc(block["lang"], attr=True)}"' if block['lang'] else ''
+            return f'{indent}<pre{attr}><code>{pagetpl.esc(block["text"])}</code></pre>'
         if kind in ('ul', 'ol'):
             return self.render_list(block, indent)
         if kind == 'table':
@@ -1099,8 +1098,8 @@ class Renderer:
         if '来源：' not in caption:                    # 作者自己写了来源就不重复补
             caption += self.pool_source(src)
         lines = [f'{indent}<figure class="lesson-figure">',
-                 f'{indent}  <img src="{gen_home.esc(src, attr=True)}" '
-                 f'alt="{gen_home.esc(alt, attr=True)}">']
+                 f'{indent}  <img src="{pagetpl.esc(src, attr=True)}" '
+                 f'alt="{pagetpl.esc(alt, attr=True)}">']
         if caption:
             lines.append(f'{indent}  <figcaption>'
                          f'{self.inline(caption, block.get("caption_line", line))}</figcaption>')
@@ -1112,7 +1111,7 @@ class Renderer:
         if block['alt']:
             self.check_inline_html(block['alt'], block.get('alt_line', block['line']),
                                    '::: svg 的 alt:')
-            attr = f' role="img" aria-label="{gen_home.esc(block["alt"], attr=True)}"'
+            attr = f' role="img" aria-label="{pagetpl.esc(block["alt"], attr=True)}"'
         lines = [f'{indent}<figure class="lesson-figure lesson-figure--inline"{attr}>',
                  block['raw']]
         caption = self.numbered_caption(block['caption'])
@@ -1127,7 +1126,7 @@ class Renderer:
         line = block['line']
         if block['name'] == 'related':
             lines = [f'{indent}<div class="lesson-related">']
-            lines += [f'{indent}  <a href="{gen_home.esc(item["href"], attr=True)}">'
+            lines += [f'{indent}  <a href="{pagetpl.esc(item["href"], attr=True)}">'
                       f'{self.inline(item["title"], item["line"])}</a>' for item in block['items']]
             lines.append(f'{indent}</div>')
             return '\n'.join(lines)
@@ -1135,7 +1134,7 @@ class Renderer:
         for item in block['items']:
             meta = (f'<span class="lesson-resources__meta">{self.inline(item["meta"], item["line"])}'
                     '</span>') if item['meta'] else ''
-            head = (f'<a href="{gen_home.esc(item["href"], attr=True)}">'
+            head = (f'<a href="{pagetpl.esc(item["href"], attr=True)}">'
                     f'{self.inline(item["title"], item["line"])}</a>') if item['href'] else \
                 self.inline(item['title'], item['line'])
             lines.append(f'{indent}  <li>{head}{meta}</li>')
@@ -1260,7 +1259,7 @@ def load_template(path, problems):
     base_line = raw[:start].count('\n')                # 切片前的行数：报错行号要映射回原文件
     raw = raw[start:]
     for name, count in TEMPLATE_PLACEHOLDERS.items():
-        placeholder = PLACEHOLDER.format(name)
+        placeholder = pagetpl.PLACEHOLDER.format(name)
         found = raw.count(placeholder)
         if found != count:
             problems.add(path, base_line + line_of(raw, placeholder),
@@ -1283,7 +1282,7 @@ def render_nav(outline, index):
         lines += [f'    <a class="lesson-nav__link lesson-nav__link--{direction}"'
                   f' href="{lessonfile.lesson_name(number, neighbor, "html")}">',
                   f'      <span class="lesson-nav__dir">{label}</span>',
-                  f'      <span class="lesson-nav__title">{gen_home.esc(outline.title_of(neighbor))}'
+                  f'      <span class="lesson-nav__title">{pagetpl.esc(outline.title_of(neighbor))}'
                   '</span>',
                   '    </a>']
     lines.append('  </nav>')
@@ -1305,14 +1304,14 @@ def math_refs_html(enabled):
 
 
 def fill_template(template, path, fields, problems):
-    """用 gen_home 的 replace_block/replace_field 口径套模板（缺占位符即报错）。"""
+    """用 pagetpl 的 replace_block/replace_field 口径套模板（缺占位符即报错）。"""
     html = template
-    html = gen_home.replace_field(html, PLACEHOLDER.format('TITLE'), fields['title'], path)
-    html = gen_home.replace_field(html, PLACEHOLDER.format('SUBJECT'), fields['subject'], path)
+    html = pagetpl.replace_field(html, pagetpl.PLACEHOLDER.format('TITLE'), fields['title'], path)
+    html = pagetpl.replace_field(html, pagetpl.PLACEHOLDER.format('SUBJECT'), fields['subject'], path)
     for name in ('NUMBER', 'EYEBROW', 'GOAL', 'BODY', 'NAV', 'FOOTER', 'MATH'):
-        html = gen_home.replace_block(html, PLACEHOLDER.format(name), fields[name.lower()], path)
+        html = pagetpl.replace_block(html, pagetpl.PLACEHOLDER.format(name), fields[name.lower()], path)
     for name in TEMPLATE_PLACEHOLDERS:
-        leftover = PLACEHOLDER.format(name)
+        leftover = pagetpl.PLACEHOLDER.format(name)
         if leftover in html:
             problems.add(path, line_of(html, leftover), f'模板里的 {leftover} 没有被替换')
     return html
@@ -1405,14 +1404,14 @@ def main(argv):
     # front matter 的值也是散文：goal 走 inline()（自带检查），title 是纯文本，单独查一遍
     renderer.check_inline_html(title, front_lines.get('title', 1), 'front matter 的 title')
     fields = {
-        'title': gen_home.esc(title),
-        'subject': gen_home.esc(load_subject_name(subject_dir)),
+        'title': pagetpl.esc(title),
+        'subject': pagetpl.esc(load_subject_name(subject_dir)),
         'number': f'{index:04d}',
-        'eyebrow': f'{index:04d} · {gen_home.esc(title)}',
+        'eyebrow': f'{index:04d} · {pagetpl.esc(title)}',
         'goal': renderer.inline(front.get('goal', ''), goal_line),
         'body': body_html,
         'nav': render_nav(outline, index),
-        'footer': f'StudyMate · {index:04d} {gen_home.esc(title)} · 本地学习工作区',
+        'footer': f'StudyMate · {index:04d} {pagetpl.esc(title)} · 本地学习工作区',
         'math': math_refs_html(renderer.has_math),
     }
     page = fill_template(template, TEMPLATE, fields, problems)
