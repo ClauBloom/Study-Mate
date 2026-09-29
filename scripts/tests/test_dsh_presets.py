@@ -165,6 +165,17 @@ class PresetTests(unittest.TestCase):
         self.assertFalse(result['patchChanged'])
         self.assertFalse(self.patch.exists())
 
+    def test_learning_preset_lets_roles_delegate_one_level(self):
+        """角色派工靠显式层数：省略会落回宿主默认 1（只够总控→角色），角色就派不动。
+        同时 fork 必须保持关闭——角色身份不能靠继承总控的历史。"""
+        self.invoke('0.1.7-alpha.1')
+        data = yaml.load((self.preset / 'agent.cordis.yml').read_text(encoding='utf-8'),
+                         Loader=CordisLoader)
+        by_id = {row.get('id'): row for row in rows(data) if isinstance(row, dict)}
+        self.assertEqual(by_id['tool-subagent']['config'].get('maxDepth'), 2,
+                         'tool-subagent 必须显式写 maxDepth（省略=1，角色派不动）')
+        self.assertIs(by_id['tool-subagent-fork'].get('disabled'), True, 'fork 必须保持关闭')
+
     def test_bundle_reads_definition_without_dsh_or_profile_writes(self):
         result = self.invoke(version=None, extra=['--bundle'],
                              env={'PATH': str(self.home / 'no-programs')})
