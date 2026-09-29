@@ -147,13 +147,40 @@ def test_full_gen_home_integration():
         check('主页 meta 保持 RESOURCES.md', '<span class="learn-attachment__meta">RESOURCES.md</span>' in idx)
 
 
+def test_reference_markdown_attachment():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ws = os.path.join(tmpdir, 'workspace')
+        sdir = os.path.join(ws, '.learning', 'subjects', 'calculus')
+        os.makedirs(os.path.join(sdir, 'reference'), exist_ok=True)
+
+        with open(os.path.join(sdir, 'subject.yaml'), 'w', encoding='utf-8') as f:
+            f.write('name: 微积分\nstatus: 进行中\n')
+        with open(os.path.join(sdir, 'reference', 'formula_sheet.md'), 'w', encoding='utf-8') as f:
+            f.write('# 常用微积分公式速查\n\n- (sin x)\' = cos x')
+        with open(os.path.join(sdir, 'reference', 'textbook_notes.md'), 'w', encoding='utf-8') as f:
+            f.write('# 同济高数精要\n\n**极限与连续**：ε-δ 语言。')
+
+        code = gen_home.main([ws])
+        check('包含 reference/*.md 的科目全流程通过', code == 0)
+
+        with open(os.path.join(sdir, 'index.html'), encoding='utf-8') as f:
+            idx = f.read()
+
+        check('参考文档包含 formula_sheet.html', 'href="reference/formula_sheet.html"' in idx)
+        check('参考文档包含 textbook_notes.html', 'href="reference/textbook_notes.html"' in idx)
+        check('编译出 reference/formula_sheet.html 文件', os.path.isfile(os.path.join(sdir, 'reference', 'formula_sheet.html')))
+        check('编译出 reference/textbook_notes.html 文件', os.path.isfile(os.path.join(sdir, 'reference', 'textbook_notes.html')))
+
+
 def main():
     test_markdown_inline()
     test_markdown_blocks()
     test_attachment_compilation()
     test_full_gen_home_integration()
+    test_reference_markdown_attachment()
     print('\n附件渲染与编译全部测试通过！')
 
 
 if __name__ == '__main__':
     main()
+
