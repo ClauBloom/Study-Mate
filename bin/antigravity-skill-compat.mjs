@@ -31,6 +31,65 @@ export const AGENT_ROLES = [
   'practice-evaluator',
 ];
 
+// 「角色 × 工具 → 一句用途」：列哪些工具由 AGENT_TOOLS 决定，这里只写用途。
+// 两边集合必须逐个相等——缺一条用途、或多写一条，模块加载就报错（见下方 assertToolNotes）。
+const ROLE_TOOL_NOTES = {
+  'resource-scout': [
+    { tools: ['view_file'], note: '读取已有的 `subject_path`、`RESOURCES.md` 模板与术语表。' },
+    { tools: ['search_web'], note: '检索权威教科书、高校公开课大纲（MIT OCW / Stanford / CMU / 清华）、官方文档（Python / C++ / PyTorch / Linux 等）。' },
+    { tools: ['read_url_content'], note: '抓取官方文档与标准页面，提取目录与关键技术版本说明。' },
+    { tools: ['write_to_file'], note: '将产出的清单写入暂存目录 `<subject_path>/.stage/resource-scout-<slug>/deliver/RESOURCES.md`。' },
+    { tools: ['invoke_subagent'], note: '派一次性子 agent 把本地教材／讲义转成 markdown（规格第 0 步写明的例外，只派这一次转换活；派完别轮询，自己先并行做检索）。' },
+  ],
+  'image-scout': [
+    { tools: ['view_file'], note: '读取科目资源清单 `RESOURCES.md`、术语表 `GLOSSARY.md` 与已有索引。' },
+    { tools: ['search_web', 'read_url_content'], note: '在允许的官方站点内下钻查找图解（限制 2 跳之内）。' },
+    { tools: ['run_command'], note: '使用标准 Python 脚本或 curl/wget 安全下载图片，校验图片头与尺寸。' },
+    { tools: ['write_to_file'], note: '写入图片库索引 `<subject_path>/.stage/image-scout-<slug>/deliver/assets/img/pool.md`。' },
+    { tools: ['invoke_subagent'], note: '角色默认不派子 agent；规格写明要派的才派，一次派完、不占自己的上下文。' },
+  ],
+  'curriculum-designer': [
+    { tools: ['view_file'], note: '读取资源清单 `RESOURCES.md`、输入背景、科目使命 `MISSION.md` 与 schema 规范。' },
+    { tools: ['write_to_file'], note: '编写课程大纲暂存文件 `<subject_path>/.stage/curriculum-designer-<slug>/deliver/curriculum.yaml`。' },
+    { tools: ['run_command'], note: '执行大纲拓扑校验器 `python3 -B \'<root>/scripts/check_curriculum.py\'`。' },
+    { tools: ['invoke_subagent'], note: '规格写明本角色不派子 agent——要别的角色（补收集、出题、采图）写进报告由总控派。' },
+  ],
+  'learning-coach': [
+    { tools: ['view_file'], note: '读取课程大纲 `curriculum.yaml`、前置节点摘要、术语表 `GLOSSARY.md`、图片库索引 `pool.md` 与模版。' },
+    { tools: ['write_to_file'], note: '编写课件 Markdown 内容文件 `<subject_path>/.stage/learning-coach-<node_id>/deliver/lessons/<NNNN>-<node_id>.md`。' },
+    { tools: ['run_command'], note: '执行课件静态预检 `python3 -B \'<root>/scripts/render_lesson.py\' \'<subject_path>\' \'<node_id>\' --check`。' },
+    { tools: ['invoke_subagent'], note: '角色默认不派子 agent；来源读不到写进报告由总控补收集，自己不派。' },
+    { tools: ['read_url_content'], note: '来源没在本地落盘时打开原址读原文（`reference/` 与 `sources/` 里已落盘的直接 view_file 读，不用联网）。' },
+  ],
+  'practice-evaluator': [
+    { tools: ['view_file'], note: '读取课程大纲 `curriculum.yaml`、课件内容 Markdown、`quiz.js` 规范与 `assessment.schema.json`。' },
+    { tools: ['write_to_file'], note: '编写练习题库 `<subject_path>/.stage/practice-evaluator-<node_id>/deliver/lessons/<NNNN>-<node_id>.quiz.json`、Lab 任务文件及评估记录。' },
+    { tools: ['run_command'], note: '在沙箱中执行单元测试断言、代码运行与验证脚本。' },
+    { tools: ['invoke_subagent'], note: '角色默认不派子 agent；规格写明要派的才派，一次派完、不占自己的上下文。' },
+  ],
+};
+
+function toolGuide(role) {
+  const lines = (ROLE_TOOL_NOTES[role] || []).map(({ tools, note }) =>
+    `- ${tools.map(tool => `\`${tool}\``).join(' & ')}: ${note}`);
+  return `## 工具使用指南\n${lines.join('\n')}`;
+}
+
+// 加载期就校验：工具表与用途说明的集合必须逐个相等，模板必须留着占位符。
+// 漏一条、多一条、或谁把占位符写丢了，import 这个模块的构建与测试会立刻红。
+function assertToolNotes() {
+  for (const role of AGENT_ROLES) {
+    const granted = [...(AGENT_TOOLS[role] || [])].sort();
+    const noted = (ROLE_TOOL_NOTES[role] || []).flatMap(entry => entry.tools).sort();
+    if (granted.join(',') !== noted.join(',')) {
+      throw new Error(`Antigravity 工具表与用途说明不一致（${role}）：表 [${granted}] vs 说明 [${noted}]`);
+    }
+    if (!ROLE_PROMPTS[role].includes('{{TOOL_GUIDE}}')) {
+      throw new Error(`Antigravity 角色提示里没有 {{TOOL_GUIDE}} 占位（${role}）`);
+    }
+  }
+}
+
 const AGENT_DISPLAY_NAMES = {
   'resource-scout': 'StudyMate · 资料收集角色',
   'image-scout': 'StudyMate · 采图角色',
@@ -39,24 +98,12 @@ const AGENT_DISPLAY_NAMES = {
   'practice-evaluator': 'StudyMate · 出题与评估角色',
 };
 
-const AGENT_DESCRIPTIONS = {
-  'resource-scout': 'StudyMate 资料收集角色：由学习总控派工，为指定科目收集权威教材与官方文档，交付资料清单和证据缺口；不直接接管用户对话。',
-  'image-scout': 'StudyMate 采图角色：由学习总控派工，从指定资料站点收集课件图片并记录来源、许可与图片索引；不直接接管用户对话。',
-  'curriculum-designer': 'StudyMate 课程设计角色：由学习总控派工，根据已确认的学习目标、基础和资料清单设计或调整课程大纲与实验节点；不直接接管用户对话。',
-  'learning-coach': 'StudyMate 讲解角色：由学习总控派工，为指定课程节点撰写讲解、配图与题目锚点；不出题、不写实验任务，不直接接管用户对话。',
-  'practice-evaluator': 'StudyMate 出题评估角色，题目的唯一 owner：由学习总控派工，按课程锚点设计题目和实验任务，依据学生真实作答与运行证据评估；不直接接管用户对话。',
-};
-
 const ROLE_PROMPTS = {
   'resource-scout': `## 角色定位与核心职责
 你是 StudyMate 的专业资料收集子代理（Resource Scout）。由学习总控（主教练）通过 \`invoke_subagent\` 派发。
 你的核心职责是为新开或调整科目收集权威教材、官方文档和高公信力行业标准，整理资源清单与依据缺口（Gaps）。你直接向父智能体汇报，没有面向用户的交互通道，不直接向用户提问。
 
-## 工具使用指南
-- \`view_file\`: 读取已有的 \`subject_path\`、\`RESOURCES.md\` 模板与术语表。
-- \`search_web\`: 检索权威教科书、高校公开课大纲（MIT OCW / Stanford / CMU / 清华）、官方文档（Python / C++ / PyTorch / Linux 等）。
-- \`read_url_content\`: 抓取官方文档与标准页面，提取目录与关键技术版本说明。
-- \`write_to_file\`: 将产出的清单写入暂存目录 \`<subject_path>/.stage/resource-scout-<slug>/deliver/RESOURCES.md\`。
+{{TOOL_GUIDE}}
 
 ## 资料收集准则与分级
 1. **信源分级**：
@@ -75,11 +122,7 @@ const ROLE_PROMPTS = {
 你是 StudyMate 的专业采图子代理（Image Scout）。由学习总控通过 \`invoke_subagent\` 派发。
 你的核心职责是严格沿着「资源清单」中的权威文档与公开站点，抓取课件所需的清晰位图（架构图、数据流图、内存布局图等），编排规范的图片库索引。你直接向父智能体汇报，不直接与用户交互。
 
-## 工具使用指南
-- \`view_file\`: 读取科目资源清单 \`RESOURCES.md\`、术语表 \`GLOSSARY.md\` 与已有索引。
-- \`search_web\` & \`read_url_content\`: 在允许的官方站点内下钻查找图解（限制 2 跳之内）。
-- \`run_command\`: 使用标准 Python 脚本或 curl/wget 安全下载图片，校验图片头与尺寸。
-- \`write_to_file\`: 写入图片库索引 \`<subject_path>/.stage/image-scout-<slug>/deliver/assets/img/pool.md\`。
+{{TOOL_GUIDE}}
 
 ## 采图与编排准则
 1. **站点与预算限制**：
@@ -101,10 +144,7 @@ const ROLE_PROMPTS = {
 你是 StudyMate 的专业课程架构子代理（Curriculum Designer）。由学习总控通过 \`invoke_subagent\` 派发。
 你的核心职责是根据学习目标、前置基础与资源清单，构建具备严谨依赖关系的有向无环图（DAG），制定标准课程大纲（\`curriculum.yaml\`）并插桩项目实验课节点。你直接向父智能体汇报，不直接与用户交互。
 
-## 工具使用指南
-- \`view_file\`: 读取资源清单 \`RESOURCES.md\`、输入背景、科目使命 \`MISSION.md\` 与 schema 规范。
-- \`write_to_file\`: 编写课程大纲暂存文件 \`<subject_path>/.stage/curriculum-designer-<slug>/deliver/curriculum.yaml\`。
-- \`run_command\`: 执行大纲拓扑校验器 \`python3 -B '<root>/scripts/check_curriculum.py'\`。
+{{TOOL_GUIDE}}
 
 ## 课程设计核心准则
 1. **认知切分与单元粒度**：
@@ -133,10 +173,7 @@ const ROLE_PROMPTS = {
 你是 StudyMate 的专业课件主讲子代理（Learning Coach）。由学习总控通过 \`invoke_subagent\` 派发。
 你的核心职责是将大纲节点撰写为教材级深度的 Markdown 课件内容文件（\`lessons/<NNNN>-<node_id>.md\`），留下精确的题目与练习锚点。你负责讲清知识、设计直观图解、留出题目位置，但不直接出题、不编写 Lab。你直接向父智能体汇报，不直接与用户交互。
 
-## 工具使用指南
-- \`view_file\`: 读取课程大纲 \`curriculum.yaml\`、前置节点摘要、术语表 \`GLOSSARY.md\`、图片库索引 \`pool.md\` 与模版。
-- \`write_to_file\`: 编写课件 Markdown 内容文件 \`<subject_path>/.stage/learning-coach-<node_id>/deliver/lessons/<NNNN>-<node_id>.md\`。
-- \`run_command\`: 执行课件静态预检 \`python3 -B '<root>/scripts/render_lesson.py' '<subject_path>' '<node_id>' --check\`。
+{{TOOL_GUIDE}}
 
 ## 课件编写核心准则
 1. **文笔与着眼点（\`lesson-design\`）**：
@@ -160,10 +197,7 @@ const ROLE_PROMPTS = {
 你是 StudyMate 的题目与实操评估子代理（Practice & Evaluation Specialist）。由学习总控通过 \`invoke_subagent\` 派发。
 你是全系统所有题目、Lab 任务、测试断言与评估记录的**唯一 Owner**。你负责根据课件锚点设计四层练习，为实操课与实验课构建整套 Lab 代码环境，并在阶段评估时根据可运行证据进行严谨批改。你直接向父智能体汇报，不直接与用户交互。
 
-## 工具使用指南
-- \`view_file\`: 读取课程大纲 \`curriculum.yaml\`、课件内容 Markdown、\`quiz.js\` 规范与 \`assessment.schema.json\`。
-- \`write_to_file\`: 编写练习题库 \`<subject_path>/.stage/practice-evaluator-<node_id>/deliver/lessons/<NNNN>-<node_id>.quiz.json\`、Lab 任务文件及评估记录。
-- \`run_command\`: 在沙箱中执行单元测试断言、代码运行与验证脚本。
+{{TOOL_GUIDE}}
 
 ## 出题与评估核心准则
 1. **四层练习架构（\`layered-practice\`）**：
@@ -374,6 +408,9 @@ function adaptAntigravityController(body) {
   return `${AGY_HOST_GUIDE}\n${result}`;
 }
 
+// 数据都定义好之后再校验（放在 ROLE_PROMPTS 之后，避免 TDZ）。
+assertToolNotes();
+
 export function adaptAntigravitySkill(content, name) {
   const { frontmatter, body } = splitFrontmatter(content);
 
@@ -426,8 +463,9 @@ export function adaptAntigravityAgent(skillContent, name) {
   const { body } = splitFrontmatter(skillContent);
   const tools = AGENT_TOOLS[name] || ['view_file', 'write_to_file', 'run_command'];
   const displayName = AGENT_DISPLAY_NAMES[name] || `StudyMate · ${name}`;
-  const description = AGENT_DESCRIPTIONS[name] || `StudyMate ${name} 角色`;
-  const rolePrompt = ROLE_PROMPTS[name] || '';
+  // 角色描述的唯一出处是技能元数据（openai-skill-ui 的 skills 表）——与技能描述同一份，别再抄一遍。
+  const description = getOpenAiSkillDescription(name, `StudyMate ${name} 角色`);
+  const rolePrompt = (ROLE_PROMPTS[name] || '').replace('{{TOOL_GUIDE}}', toolGuide(name));
 
   const yamlTools = tools.map(t => `  - ${t}`).join('\n');
   const frontmatter = [

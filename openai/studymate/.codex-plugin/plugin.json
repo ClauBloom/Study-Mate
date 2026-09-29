@@ -1,6 +1,5 @@
 {
   "name": "studymate",
-  "version": "0.1.5",
   "description": "StudyMate 学习搭档：制定学习路线、生成 HTML 课件与练习、记录学习进度。支持 Codex 和 ChatGPT Work。",
   "author": {
     "name": "Cattofu"

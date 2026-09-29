@@ -72,9 +72,24 @@ test('generated agents declare the host frontmatter and stay complete', () => {
     // 角色可派工是预设层的既定能力，工具表里少一项就等于把它悄悄关掉。
     assert.ok(AGENT_TOOLS[role].includes('invoke_subagent'), `${role}: 工具表丢了派工工具 invoke_subagent`);
     assert.ok(content.includes('<subject_path>/.stage/'), `${role}: staging path missing`);
+    // 正文那段「工具使用指南」必须与工具表逐个相等：表给权限、指南教怎么用。
+    // 这两份分开写过就会漂——learning-coach 的 read_url_content 漏了整整一轮才被发现。
+    const guide = content.split('## 工具使用指南')[1]?.split('\n## ')[0] || '';
+    const listed = [...guide.matchAll(/^- ((?:`[a-z_]+`(?: & )?)+):/gm)]
+      .flatMap(match => [...match[1].matchAll(/`([a-z_]+)`/g)].map(tool => tool[1]));
+    assert.deepEqual(listed.slice().sort(), AGENT_TOOLS[role].slice().sort(),
+      `${role}: 指南列的工具与工具表不一致（指南 [${listed}] vs 表 [${AGENT_TOOLS[role]}]）`);
   }
   assert.ok(agents.get('learning-coach').includes('read_url_content'),
     'learning-coach 必须能在 Antigravity 里读来源原文');
+});
+
+test('宿主约定点名的角色与 AGENT_ROLES 逐个一致', () => {
+  // 宿主约定里那张「TypeName 为 …」的名单是写给模型看的派工入口；它与生成清单必须同源。
+  const listed = [...AGY_HOST_GUIDE.matchAll(/TypeName 为([^）)]*)/g)]
+    .flatMap(match => [...match[1].matchAll(/`([a-z-]+)`/g)].map(tool => tool[1]));
+  assert.deepEqual(listed.slice().sort(), AGENT_ROLES.slice().sort(),
+    `宿主约定里的角色名单与 AGENT_ROLES 不一致：${listed}`);
 });
 
 test('adaptation fails loudly when a skill anchor drifts', () => {
