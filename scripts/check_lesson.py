@@ -97,6 +97,7 @@ from urllib.parse import unquote
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import curriculum    # noqa: E402  课程大纲的唯一口径（位次/课型/邻居）
 import lessonfile    # noqa: E402  文件名与引用清单的唯一口径
+import lessonfmt     # noqa: E402  围栏判定的唯一口径（与渲染器同一份）
 
 try:
     import yaml
@@ -125,8 +126,7 @@ MARKDOWN_RE = (
 # 检查项 9/10：引用是否外链——口径在 lessonfile.SCHEME_RE（渲染器与主页生成器同一份）
 
 # 检查项 4：题目结构里的 ``` 围栏（与 templates/assets/quiz.js 的渲染口径一致）
-# 围栏行 = 行首可有缩进 + 三个反引号 + 可选语言标签；行内的单个反引号不算。
-QUIZ_FENCE_RE = re.compile(r'^[ \t]*```[ \t]*[A-Za-z0-9+#.-]*[ \t]*$')
+# 围栏行判定（含「起止各占一整行」的简单形状）在 lessonfmt 里——与渲染器同一份。
 
 # 检查项 4：每题选项最长与最短的长度差**提示**阈值（R5）——超过只提示，不阻断
 MAX_OPT_LEN_GAP = 4
@@ -687,7 +687,7 @@ def check_quiz_fences(item, label):
         value = item.get(field)
         if not isinstance(value, str):
             continue
-        fences = sum(1 for line in value.split('\n') if QUIZ_FENCE_RE.match(line))
+        fences = sum(1 for line in value.split('\n') if lessonfmt.is_simple_fence_line(line))
         if fences % 2:
             problems.append(f'{label}的 `{field}` 里 ``` 围栏没闭合（起止各占一整行，'
                             f'中间才是代码）——不闭合的话后半段会被整段渲染成代码块')
@@ -708,7 +708,7 @@ def check_quiz_markdown(item, label):
             continue
         prose, inside = [], False
         for line in value.split('\n'):
-            if QUIZ_FENCE_RE.match(line):
+            if lessonfmt.is_simple_fence_line(line):
                 inside = not inside
                 continue
             if not inside:

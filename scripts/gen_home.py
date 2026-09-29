@@ -40,6 +40,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import curriculum     # noqa: E402  课程大纲的唯一口径（位次/课型/层级）
 import lessonfile     # noqa: E402  文件名与引用清单的唯一口径
+import lessonfmt      # noqa: E402  围栏判定的唯一口径（与渲染器同一份）
 import statuses       # noqa: E402  状态与课型词表的唯一口径（从 schemas/ 读）
 from pagetpl import esc, replace_block, replace_field   # noqa: E402  占位符替换与转义的唯一口径
 
@@ -863,12 +864,12 @@ def markdown_to_html(md_text):
         line = lines[i]
         stripped = line.strip()
 
-        if stripped.startswith('```'):
+        lang = lessonfmt.marker(stripped)
+        if lang is not None:
             close_list()
-            lang = stripped[3:].strip()
             code_lines = []
             i += 1
-            while i < n and not lines[i].strip().startswith('```'):
+            while i < n and not lessonfmt.is_fence_line(lines[i]):
                 code_lines.append(lines[i])
                 i += 1
             i += 1
@@ -980,7 +981,7 @@ def markdown_to_html(md_text):
         i += 1
         while i < n:
             next_s = lines[i].strip()
-            if not next_s or next_s.startswith('#') or next_s.startswith('>') or next_s.startswith('```') or re.match(r'^([-*+]|\d+\.)\s+', next_s) or next_s.startswith('|'):
+            if not next_s or next_s.startswith('#') or next_s.startswith('>') or lessonfmt.is_fence_line(next_s) or re.match(r'^([-*+]|\d+\.)\s+', next_s) or next_s.startswith('|'):
                 break
             para_lines.append(next_s)
             i += 1

@@ -86,12 +86,13 @@ def main():
           status in (schema['properties']['status'].get('enum') or []),
           f'不在 {schema["properties"]["status"].get("enum")} 里')
 
-    # ── 三、围栏语言：渲染器认可的着色标签必须与前端配色表一一对应 ──────────
+    # ── 三、围栏语言：语法模块认可的着色标签必须与前端配色表一一对应 ──────────
     # 真出过事——`python` 在渲染器里畅通无阻（原样写进 data-lang），而 learn-theme.js
     # 的 LANGS 没有这个键：Python 课件的 36 个代码块全部不上色，且没有任何报错。
-    source = read('scripts/render_lesson.py')
+    # 白名单现在住在 scripts/lessonfmt.py（围栏判定的唯一口径）。
+    source = read('scripts/lessonfmt.py')
     match = re.search(r'^COLORED_LANGS = \(([^)]*)\)', source, re.M)
-    check('渲染器仍有 COLORED_LANGS 白名单', match is not None)
+    check('语法模块仍有 COLORED_LANGS 白名单', match is not None)
     colored = re.findall(r"'([a-z][a-z0-9_]*)'", match.group(1)) if match else []
 
     js = read('templates/assets/learn-theme.js')
@@ -100,9 +101,9 @@ def main():
     check('前端仍有 var LANGS 定义', match_js is not None)
     keys = re.findall(r'^    ([a-z][a-z0-9_]*): function', match_js.group(1), re.M) if match_js else []
 
-    check('前端配色表与渲染器白名单逐个相等',
+    check('前端配色表与语法模块的白名单逐个相等',
           sorted(keys) == sorted(colored),
-          f'前端={sorted(keys)} 渲染器={sorted(colored)}')
+          f'前端={sorted(keys)} 语法模块={sorted(colored)}')
     check('python 两边都有', 'python' in keys and 'python' in colored)
 
     # ── 四、共享层与课件层副本：examples 是产物，副本过期页面就静默不亮（本次事故的活样本）──

@@ -37,12 +37,12 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import curriculum  # noqa: E402  课程大纲的唯一口径（位次/标题/类型/邻居）
+import lessonfmt    # noqa: E402  围栏判定的唯一口径（与渲染器同一份）
 
 USAGE = '用法：python3 scripts/apply_empty_reasons.py <科目目录> <节点id> <TSV 文件> [--dry-run]'
 
 LESSONS = 'lessons'
 NUM_WIDTH = 4
-FENCE = '```'
 EMPTY_REASON = 'empty_reason'
 FIELD_RE = re.compile(r'^([a-z_]+):\s*(.*)$')                        # 与 render_lesson.py 同口径
 DIRECTIVE_RE = re.compile(r'^:::\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*(.*)$')  # 与 render_lesson.py 同口径
@@ -113,7 +113,7 @@ def find_close(parts, start):
     for index in range(start + 1, len(parts)):
         content, _ = split_line(parts[index])
         stripped = content.strip()
-        if stripped.startswith(FENCE):
+        if lessonfmt.is_fence_line(stripped):
             in_fence = not in_fence
             continue
         if not in_fence and stripped == ':::':
@@ -132,7 +132,7 @@ def quiz_blocks(parts):
     for index, part in enumerate(parts):
         content, _ = split_line(part)
         stripped = content.strip()
-        if stripped.startswith(FENCE):
+        if lessonfmt.is_fence_line(stripped):
             in_fence = not in_fence
             continue
         if in_fence:

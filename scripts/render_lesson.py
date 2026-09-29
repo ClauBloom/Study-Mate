@@ -47,18 +47,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pagetpl                                         # noqa: E402  占位符替换口径（与主页生成器同一份）
 import curriculum                                      # noqa: E402  课程大纲的唯一口径
 import lessonfile                                      # noqa: E402  文件名与引用清单的唯一口径
+import lessonfmt                                       # noqa: E402  围栏判定与语言标签的唯一口径
 
 USAGE = '用法：python3 scripts/render_lesson.py <科目目录> <节点id> [--check]'
 
-# 代码围栏的语言标签：COLORED_LANGS 是前端配色表 templates/assets/learn-theme.js 的键（会着色），
-# PLAIN_LANGS 是"接受但明确不上色"（标签照原样进页面，前端查不到键自然不上色）。作者面是开放的：
-# 这里收下 docs/ 与老工作区里常见的标签（`yaml`、`sql`、`powershell`、`java` 这类本来就不上色的也
-# 一并接受，免得升级后原本能渲染的课件直接失败），真手误（`pyton`）仍然硬失败。
-# 两张表由 scripts/tests/test_templates.py 钉住相等——COLORED_LANGS 必须与 `var LANGS` 的键逐个相等：
-# `python` 曾经只在渲染器这边畅通无阻，前端没有这个键，于是 Python 课件的代码块一直不上色，而且没有
-# 任何报错。
-COLORED_LANGS = ('cpp', 'sh', 'bash', 'shell', 'term', 'html', 'js', 'javascript', 'ts', 'typescript', 'json', 'python', 'py')
-PLAIN_LANGS = ('text', 'plain', 'markdown', 'md', 'http', 'yaml', 'yml', 'toml', 'sql', 'ini', 'diff', 'mermaid', 'powershell', 'java')
+# 围栏判定与语言标签的唯一口径在 lessonfmt.py（前端配色表由 test_templates.py 钉住）
 
 # 模板占位符：名字 → 应出现次数（TITLE 在 <title> 与 <h1>；SUBJECT 在 <title> 与顶栏）
 TEMPLATE_PLACEHOLDERS = {
@@ -305,7 +298,8 @@ def mask_comments(text):
 
 def is_block_start(stripped):
     """这一行会不会开启一个新的块（段落遇到它就结束）。"""
-    return bool(stripped.startswith(('#', '```', ':::', '|', '>', '* ', '+ ', '---'))
+    return bool(stripped.startswith(('#', ':::', '|', '>', '* ', '+ ', '---'))
+                or lessonfmt.is_fence_line(stripped)
                 or UL_RE.match(stripped) or ORDERED_RE.match(stripped)
                 or is_html_block(stripped) or stripped.startswith('<!--'))
 
@@ -416,7 +410,7 @@ def parse_blocks(path, lines, start, end, problems):
             index += 1
             continue
 
-        if stripped.startswith('```'):
+        if lessonfmt.is_fence_line(stripped):
             block, index = parse_fence(path, lines, index, end, problems)
             if block:
                 blocks.append(block)
@@ -475,15 +469,15 @@ def parse_blocks(path, lines, start, end, problems):
 
 def parse_fence(path, lines, index, end, problems):
     """``` 围栏 → 代码块（块内原文逐字保留）。"""
-    language = lines[index].strip()[3:].strip()
-    if language and language not in COLORED_LANGS + PLAIN_LANGS:
+    language = lessonfmt.marker(lines[index]) or ''
+    if not lessonfmt.is_known_lang(language):
         problems.add(path, index + 1,
                      f'不认识的语言标签 `{language}`——会着色的写 '
-                     f'{" / ".join(COLORED_LANGS)}；不上色写 text'
-                     f'（{" / ".join(PLAIN_LANGS[1:])} 也认），'
+                     f'{" / ".join(lessonfmt.COLORED_LANGS)}；不上色写 text'
+                     f'（{" / ".join(lessonfmt.PLAIN_LANGS[1:])} 也认），'
                      '或者干脆不写语言标签（前端按内容猜）')
     body, cursor = [], index + 1
-    while cursor < end and not lines[cursor].strip().startswith('```'):
+    while cursor < end and not lessonfmt.is_fence_line(lines[cursor]):
         body.append(lines[cursor])
         cursor += 1
     if cursor >= end:
@@ -583,7 +577,7 @@ def parse_directive(path, lines, index, end, problems):
     in_fence = False                                    # 围栏里的 ::: 是代码文本，不是指令边界
     while cursor < end:
         text = lines[cursor].strip()
-        if text.startswith('```'):
+        if lessonfmt.is_fence_line(text):
             in_fence = not in_fence
             cursor += 1
             continue
@@ -631,7 +625,7 @@ def reject_stray_empty_reason(path, name, lines, start, end, problems):
     in_fence = False
     for offset in range(start, end):
         text = lines[offset].strip()
-        if text.startswith('```'):
+        if lessonfmt.is_fence_line(text):
             in_fence = not in_fence
             continue
         if in_fence:
