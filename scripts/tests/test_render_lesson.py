@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""课件渲染器 `scripts/render_lesson.py` 的回归测试，26 个场景。
+"""课件渲染器 `scripts/render_lesson.py` 的回归测试，30 个场景。
 
 渲染器是**唯一**的课件 HTML 产出者：讲解角色只写内容文件（`.md`），出题角色只写按锚点组织的
 题库（`.quiz.json`），HTML 由渲染器从 `templates/lesson.html` 的占位符壳 + `curriculum.yaml`
@@ -269,6 +269,61 @@ ls -la
     a.equal('缺语言的围栏也渲染成功', code2, 0)
     a.has(text2, '<pre><code>ls -la</code></pre>')
     a.hasnt(text2, 'data-lang=""', label='缺语言时不写空的 data-lang')
+
+
+@case('围栏语言：支持的标签原样落到 data-lang，不认识的带行号报错')
+def _(a):
+    subject = new_subject()
+    fixtures.write_content(subject, 1, 'overview-map', body='''## 标签
+
+```python
+import numpy as np
+```
+
+```py
+print(np.zeros(3))
+```
+
+```http
+GET /index.html HTTP/1.1
+Host: example.com
+```
+
+```text
+原样的一段
+```
+''')
+    code, out, text, path = render(subject, 1, 'overview-map')
+    a.equal('支持的标签渲染退出码 0', code, 0)
+    a.has(text,
+          '<pre data-lang="python"><code>import numpy as np</code></pre>',
+          '<pre data-lang="py"><code>print(np.zeros(3))</code></pre>',
+          '<pre data-lang="http"><code>GET /index.html HTTP/1.1',
+          '<pre data-lang="text"><code>原样的一段</code></pre>',
+          label='http 是 examples 计网课在用的标签，必须放行')
+
+    md2 = fixtures.write_content(subject, 1, 'overview-map', body='''## 手误
+
+```pyton
+import numpy as np
+```
+''')
+    # 上一轮渲染已经写下的产物：失败的那一轮不许动它（逐字比对，不是"还在不在"）
+    page = os.path.join(subject, 'lessons', '0001-overview-map.html')
+    a.ok('第一轮渲染留下了产物（否则下面的"不写盘"断言没有意义）', os.path.exists(page))
+    before = open(page, encoding='utf-8').read()
+    a.ok('产物非空', bool(before))
+    code2, out2, text2, path2 = render(subject, 1, 'overview-map')
+    a.equal('不认识的标签渲染失败', code2, 1)
+    a.has(out2, '不认识的语言标签 `pyton`', 'python',
+          label='报错点出错的标签，并列出支持的取值')
+    a.has(out2, f'{os.path.basename(md2)}:{line_of(md2, "```pyton")}',
+          label='报错指到写错标签的那一行（不是笼统的"某一处围栏"）')
+    a.has(out2, 'cpp', 'python', 'text',
+          label='支持的取值两类都列了（会着色的 cpp/python + 不上色的 text）')
+    a.equal('渲染失败不写盘（产物与上一轮逐字相同）',
+            open(page, encoding='utf-8').read() if os.path.exists(page) else '',
+            before)
 
 
 # ══════════════════════════════════════════════════════════════════

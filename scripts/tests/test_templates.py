@@ -12,6 +12,7 @@
 用法：python3 scripts/tests/test_templates.py
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -84,6 +85,34 @@ def main():
     check(f'templates/subject.yaml 的 status 取值合法（{status}）',
           status in (schema['properties']['status'].get('enum') or []),
           f'不在 {schema["properties"]["status"].get("enum")} 里')
+
+    # ── 三、围栏语言：渲染器认可的着色标签必须与前端配色表一一对应 ──────────
+    # 真出过事——`python` 在渲染器里畅通无阻（原样写进 data-lang），而 learn-theme.js
+    # 的 LANGS 没有这个键：Python 课件的 36 个代码块全部不上色，且没有任何报错。
+    source = read('scripts/render_lesson.py')
+    match = re.search(r'^COLORED_LANGS = \(([^)]*)\)', source, re.M)
+    check('渲染器仍有 COLORED_LANGS 白名单', match is not None)
+    colored = re.findall(r"'([a-z][a-z0-9_]*)'", match.group(1)) if match else []
+
+    js = read('templates/assets/learn-theme.js')
+    # 用带守卫的 search 取块：锚点漂成 `const LANGS = {` 时给出标签化的 FAIL，而不是 IndexError。
+    match_js = re.search(r'var LANGS = \{([\s\S]*?)\n  \};', js)
+    check('前端仍有 var LANGS 定义', match_js is not None)
+    keys = re.findall(r'^    ([a-z][a-z0-9_]*): function', match_js.group(1), re.M) if match_js else []
+
+    check('前端配色表与渲染器白名单逐个相等',
+          sorted(keys) == sorted(colored),
+          f'前端={sorted(keys)} 渲染器={sorted(colored)}')
+    check('python 两边都有', 'python' in keys and 'python' in colored)
+
+    # ── 四、共享层副本：examples 是产物，副本过期页面就静默不亮（本次事故的活样本）──────
+    # 只比 ensure_shared_assets() 点名的四个平铺文件：examples 的 katex/ 下有一个早于本次
+    # 改动就未跟踪的 fonts/LICENSE，做整树比对在干净检出里不稳定（那条另记）。
+    for name in ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js'):
+        same = ((REPO / 'templates' / 'assets' / name).read_bytes()
+                == (REPO / 'examples' / '.learning' / 'assets' / name).read_bytes())
+        check(f'examples 共享层副本与模板逐字节一致（{name}）', same,
+              f'跑 python3 scripts/gen_home.py examples 重新生成（副本过期会让页面静默不上色）')
 
     print(f'\n{total - failures}/{total} 通过')
     return 1 if failures else 0
