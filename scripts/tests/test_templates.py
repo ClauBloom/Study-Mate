@@ -92,16 +92,27 @@ def main():
     source = read('scripts/render_lesson.py')
     match = re.search(r'^COLORED_LANGS = \(([^)]*)\)', source, re.M)
     check('渲染器仍有 COLORED_LANGS 白名单', match is not None)
-    colored = re.findall(r"'([a-z]+)'", match.group(1)) if match else []
+    colored = re.findall(r"'([a-z][a-z0-9_]*)'", match.group(1)) if match else []
 
     js = read('templates/assets/learn-theme.js')
-    block = js.split('var LANGS = {', 1)[1].split('\n  };', 1)[0]
-    keys = re.findall(r'^    ([a-z]+): function', block, re.M)
+    # 用带守卫的 search 取块：锚点漂成 `const LANGS = {` 时给出标签化的 FAIL，而不是 IndexError。
+    match_js = re.search(r'var LANGS = \{([\s\S]*?)\n  \};', js)
+    check('前端仍有 var LANGS 定义', match_js is not None)
+    keys = re.findall(r'^    ([a-z][a-z0-9_]*): function', match_js.group(1), re.M) if match_js else []
 
     check('前端配色表与渲染器白名单逐个相等',
           sorted(keys) == sorted(colored),
           f'前端={sorted(keys)} 渲染器={sorted(colored)}')
     check('python 两边都有', 'python' in keys and 'python' in colored)
+
+    # ── 四、共享层副本：examples 是产物，副本过期页面就静默不亮（本次事故的活样本）──────
+    # 只比 ensure_shared_assets() 点名的四个平铺文件：examples 的 katex/ 下有一个早于本次
+    # 改动就未跟踪的 fonts/LICENSE，做整树比对在干净检出里不稳定（那条另记）。
+    for name in ('learn-theme.css', 'learn-theme.js', 'learn-mascot.png', 'lesson-math.js'):
+        same = ((REPO / 'templates' / 'assets' / name).read_bytes()
+                == (REPO / 'examples' / '.learning' / 'assets' / name).read_bytes())
+        check(f'examples 共享层副本与模板逐字节一致（{name}）', same,
+              f'跑 python3 scripts/gen_home.py examples 重新生成（副本过期会让页面静默不上色）')
 
     print(f'\n{total - failures}/{total} 通过')
     return 1 if failures else 0
