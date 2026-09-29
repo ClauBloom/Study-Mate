@@ -28,7 +28,8 @@
    约定：只用一个 data-theme 属性；**不要**用 Sayo 自带的 data-syo-theme，两套属性会打架。
 
    代码块高亮：课件里的 <pre><code> 和 .syo-editor 会自动上色，讲解角色写纯文本即可；
-   要指定语言就在容器上写 data-lang="cpp|sh|bash|term|html|js|json|python|py"（text = 不上色）。
+   要指定语言就在容器上写 data-lang="cpp|sh|bash|shell|term|html|js|javascript|ts|typescript|json|python|py"；
+   不上色写 text／plain／markdown／md／http／yaml／yml／toml／sql／ini／diff／mermaid／powershell／java。
    ═══════════════════════════════════════════════════════════════ */
 (function (global) {
   'use strict';
@@ -90,7 +91,8 @@
      颜色由 sayo.css（暗色）+ learn-theme.css（亮色）给，这里不碰颜色。
 
      作用对象：<pre><code>…</code></pre> 与 .syo-editor-code 里的 .line 行。
-     语言：容器上写 data-lang="cpp|sh|bash|term|html|js|json|python|py" 指定（text = 不上色），
+     语言：容器上写 data-lang="cpp|sh|bash|shell|term|html|js|javascript|ts|typescript|json|python|py" 指定
+           （text／plain／markdown／md／http／yaml／yml／toml／sql／ini／diff／mermaid／powershell／java = 不上色），
            不写就按内容猜；猜不出的（普通输出、题面文字）原样不动。
      已手写过 .syn-* 的块整块跳过——手工优先，自动不覆盖。
      ═══════════════════════════════════════════════════════════════ */
@@ -175,7 +177,12 @@
 
     /* 围栏里的常见别名：`py` 与 `bash` 指的是同一套配色 */
     py: function (html, t) { return LANGS.python(html, t); },
-    bash: function (html, t) { return LANGS.sh(html, t); }
+    bash: function (html, t) { return LANGS.sh(html, t); },
+    /* 围栏里常见的同义写法 */
+    shell: function (html, t) { return LANGS.sh(html, t); },
+    javascript: function (html, t) { return LANGS.js(html, t); },
+    ts: function (html, t) { return LANGS.js(html, t); },
+    typescript: function (html, t) { return LANGS.js(html, t); }
   };
 
   /* 按内容猜语言；猜不出返回 null（原样不动，普通输出不该被染色） */
@@ -217,12 +224,13 @@
     el.innerHTML = html;
   }
 
-  /* 语言从最近的 data-lang 容器上取；没写就猜 */
+  /* 语言从最近的 data-lang 容器上取；没写就猜。两条路都过同一张 LANGS 表：表里没有的键不上色 */
   function langOf(block, holder) {
     var scope = block.closest('[data-lang]') || holder.closest('[data-lang]');
     var attr = scope && scope.getAttribute('data-lang');
     if (attr) return Object.prototype.hasOwnProperty.call(LANGS, attr) ? attr : null;   /* text 及未知值 = 不上色 */
-    return detect((holder.textContent || ''));
+    var guessed = detect(holder.textContent || '');
+    return guessed && Object.prototype.hasOwnProperty.call(LANGS, guessed) ? guessed : null;
   }
 
   function highlightAll(scope) {
