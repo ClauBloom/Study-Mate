@@ -69,8 +69,12 @@ test('generated agents declare the host frontmatter and stay complete', () => {
     assert.match(content, /^mainAgent: false$/m);
     assert.match(content, /^commandExecutionPolicy: auto$/m);
     for (const tool of AGENT_TOOLS[role]) assert.ok(content.includes(`  - ${tool}\n`), `${role}: tool ${tool} missing`);
+    // 角色可派工是预设层的既定能力，工具表里少一项就等于把它悄悄关掉。
+    assert.ok(AGENT_TOOLS[role].includes('invoke_subagent'), `${role}: 工具表丢了派工工具 invoke_subagent`);
     assert.ok(content.includes('<subject_path>/.stage/'), `${role}: staging path missing`);
   }
+  assert.ok(agents.get('learning-coach').includes('read_url_content'),
+    'learning-coach 必须能在 Antigravity 里读来源原文');
 });
 
 test('adaptation fails loudly when a skill anchor drifts', () => {

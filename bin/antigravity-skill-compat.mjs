@@ -19,7 +19,7 @@ export const AGENT_TOOLS = {
   'resource-scout': ['view_file', 'write_to_file', 'search_web', 'read_url_content', 'invoke_subagent'],
   'image-scout': ['view_file', 'write_to_file', 'search_web', 'read_url_content', 'run_command', 'invoke_subagent'],
   'curriculum-designer': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent'],
-  'learning-coach': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent'],
+  'learning-coach': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent', 'read_url_content'],
   'practice-evaluator': ['view_file', 'write_to_file', 'run_command', 'invoke_subagent'],
 };
 

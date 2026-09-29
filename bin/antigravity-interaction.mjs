@@ -17,7 +17,7 @@ export const AGY_HOST_GUIDE = `## Antigravity 宿主约定（导出时生成）
 - **Python 引擎执行与沙箱策略**：依赖环境要求 Python 3.9+、PyYAML（\`yaml\`）与 JSON Schema（\`jsonschema\`）。
   - **执行参数**：调用 Python 引擎脚本一律执行 \`python3 -B '<root>/scripts/<脚本名>.py' ...\`（带 \`-B\` 防止在只读插件目录生成 \`__pycache__\`）。
   - **路径与转义**：参数必须使用完整绝对路径，统一单引号包裹；严禁未转义拼接学生输入。
-  - **沙箱策略（run_command）**：优先在标准沙箱执行（\`BypassSandbox: false\`）；仅在需要外部网络抓取（如 \`image-scout\` 采图）或工作区外部目录搬移时提权使用 \`BypassSandbox: true\`，且提权时保持 \`toolAction\` 与 \`toolSummary\` 逐字一致。
+  - **沙箱策略（run_command）**：优先在标准沙箱执行（\`BypassSandbox: false\`）；仅在需要外部网络抓取（\`image-scout\` 采图、\`learning-coach\` 读来源原文）或工作区外部目录搬移时提权使用 \`BypassSandbox: true\`，且提权时保持 \`toolAction\` 与 \`toolSummary\` 逐字一致。
 - **逐次显式传参与状态幂等**：调用主页生成器始终显式传参 \`'<LEARN_WORKSPACE>'\`；各命令都传脚本与数据的绝对路径。工具调用之间不假设环境变量、工作目录（Cwd）或 shell 状态保留。跨会话只信任盘上真实存在的文件（\`MEMORY.md\`、\`curriculum.yaml\`、\`progress.yaml\`、\`assessments/\`、\`sessions/\`），严禁以聊天记忆替代磁盘恢复。
 - **原样无损搬运与质量防线**：子代理交付物从 \`.stage/.../deliver/\` 搬入科目目录时，必须保留原有相对路径，使用标准文件复制工具或 Python \`shutil.copy2\` / \`shutil.copytree(..., dirs_exist_ok=True)\` 原样合并，严禁通过 LLM 转录重写导致长文本或代码截断。合并前必须严格执行四大校验防线：大纲过 \`check_curriculum.py\`、图片库过 \`check_pool.py\`、课件预检过 \`render_lesson.py --check\`、最终课件过 \`check_lesson.py\`；未通过校验严禁合盘。
 - **HTML 课件呈现与导读 Artifact**：课件渲染并校验通过后，总控在回复中提供可点击的绝对文件超链接（\`[打开课件：<标题>](file://<绝对路径>)\`），提示学生用现代浏览器打开享受 Sayo UI 侧栏导航、滚动监听与离线 KaTeX 公式；同时可在 \`<appDataDir>/brain/<conversation-id>/\` 输出一份伴学 Markdown Artifact（如包含 Mermaid 依赖拓扑的路线图或本节核心导读），提升伴学阅读体验。
