@@ -46,6 +46,7 @@ bash scripts/tests/run_tests.sh --browser  # 默认功能回归 + 浏览器测�
 | `test_quiz_attr.py`、`test_quiz_code.py` | 题库属性转义、JSON 与代码围栏处理 |
 | `test_lesson_figure.py`、`test_lesson_links.py`、`test_naming_nav.py` | 图片和本地引用可达、课件命名与导航 |
 | `test_pool.py`、`test_lesson_scripts.py` | 图片库校验、课件重排、空题理由写入与失败保护 |
+| `test_curriculum.py`、`test_lessonfile.py` | 课程大纲模块（位次、课型、前后邻居、依赖层级、坏大纲的判决）与课件文件名／页面路径约定 |
 | `test_render_lesson.py`、`test_attachment_render.py` | 课件和附件渲染、题库锚点、转义、数学式、输出与检查器对接 |
 | `quiz_dom_test.js`、`toc_dom_test.js` | 题目判分、展开、代码和公式展示，侧栏目录与移动端行为 |
 | `scripts/release/release.test.mjs` | 版本计算、更新记录、历史 tag、PR 去重、制品校验与重试保护 |

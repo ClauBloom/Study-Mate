@@ -35,10 +35,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError:                                   # pragma: no cover - 环境缺 pyyaml
-    yaml = None
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import curriculum  # noqa: E402  课程大纲的唯一口径（位次/标题/类型/邻居）
 
 USAGE = '用法：python3 scripts/apply_empty_reasons.py <科目目录> <节点id> <TSV 文件> [--dry-run]'
 
@@ -90,39 +88,16 @@ def parse_args(argv):
 
 def node_index(subject_path, node_id, problems):
     """节点在 `curriculum.yaml` 的 `nodes:` 里的位次（1 起）；读不了 / 不在大纲里回 None。"""
-    path = os.path.join(subject_path, 'curriculum.yaml')
-    if yaml is None:                                  # pragma: no cover - 环境缺 pyyaml
-        problems.add(path, 1, '读不了 curriculum.yaml：需要 pyyaml（python3 -m pip install pyyaml）')
+    cur, load_problems = curriculum.load(subject_path)
+    if load_problems:
+        problem = load_problems[0]                    # 严格口径：坏大纲不动手
+        problems.add(problem.path, problem.line, problem.message)
         return None
-    if not os.path.isfile(path):
-        problems.add(path, 1, f'找不到大纲文件（科目目录 {subject_path} 里应有 curriculum.yaml）')
-        return None
-    try:
-        data = yaml.safe_load(Path(path).read_text(encoding='utf-8'))
-    except (OSError, UnicodeDecodeError) as exc:
-        problems.add(path, 1, f'大纲文件读不出来（要 UTF-8）：{exc}')
-        return None
-    except yaml.YAMLError as exc:
-        mark = getattr(exc, 'problem_mark', None)
-        problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
-        return None
-    nodes = data.get('nodes') if isinstance(data, dict) else None
-    if nodes is not None and not isinstance(nodes, list):
-        problems.add(path, 1, '大纲的 nodes: 必须是列表')
-        return None
-    ids = [str(node['id']) for node in nodes or []
-           if isinstance(node, dict) and node.get('id')]
-    if not ids:
-        problems.add(path, 1, '大纲里没有 nodes:（内容文件的序号按它算）')
-        return None
-    if len(ids) != len(set(ids)):
-        problems.add(path, 1, '大纲的 nodes: 有重复节点 id，先修好大纲再回填理由')
-        return None
-    if node_id not in ids:
-        problems.add(path, 1, f'节点 {node_id} 不在 curriculum.yaml 的 nodes: 里——'
-                              '内容文件名与序号都按它算（核对节点 id 是否写对）')
-        return None
-    return ids.index(node_id) + 1
+    index = cur.index_of(node_id)
+    if index is None:
+        problems.add(cur.path, 1, f'节点 {node_id} 不在 curriculum.yaml 的 nodes: 里——'
+                                  '内容文件名与序号都按它算（核对节点 id 是否写对）')
+    return index
 
 
 def split_line(part):

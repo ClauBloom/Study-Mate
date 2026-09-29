@@ -94,6 +94,10 @@ import sys
 from html.parser import HTMLParser
 from urllib.parse import unquote
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import curriculum    # noqa: E402  课程大纲的唯一口径（位次/课型/邻居）
+import lessonfile    # noqa: E402  文件名与引用清单的唯一口径
+
 try:
     import yaml
 except ImportError:      # pragma: no cover - 环境缺 pyyaml 时降级
@@ -104,12 +108,8 @@ except ImportError:      # pragma: no cover - 环境缺 pyyaml 时降级
 # 检查项 1：课件文件名与同目录编号（R4）
 # 节点 id 允许点号分段（如 hello.first、exp.first-blood、cpp.stl），文件名沿用同一 id，
 # 所以短横线之外还要容许点号；分隔符不许连续、不许落在结尾。
-LESSON_NAME_RE = re.compile(r'^(\d{4})-(?:[a-z0-9]+[.-])*[a-z0-9]+\.html$')
-NUMBERED_NAME_RE = re.compile(r'^(\d{4})-.*\.html$')
 
 # 检查项 2/3：共享层与科目组件引用（按 href/src 属性值比对，不吃注释里的路径）
-SHARED_REFS = ('sayo.css', 'learn-theme.css', 'learn-theme.js', 'sayo.js')
-SUBJECT_REFS = ('../assets/style.css', '../assets/quiz.js')
 
 # 检查项 4（提示）：字段是纯文本，这些 Markdown/HTML 标记不会被解析、会原样显示。
 # 保守集合：`1. ` 这类行首编号**不算**——作者的枚举写法本来就是这样；围栏里的内容不看。
@@ -122,8 +122,7 @@ MARKDOWN_RE = (
     re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*[ >/]'),  # <b> 之类
 )
 
-# 检查项 9/10：引用是否外链（任何 scheme: 或协议相对 //，与 gen_home 的 SCHEME_RE 同口径）
-SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
+# 检查项 9/10：引用是否外链——口径在 lessonfile.SCHEME_RE（渲染器与主页生成器同一份）
 
 # 检查项 4：题目结构里的 ``` 围栏（与 templates/assets/quiz.js 的渲染口径一致）
 # 围栏行 = 行首可有缩进 + 三个反引号 + 可选语言标签；行内的单个反引号不算。
@@ -140,7 +139,6 @@ THEME_CHECKBOX_ID = 'lesson-theme-checkbox'
 
 # 检查项 11：有数学式的页面必须引用离线 KaTeX（渲染器写出的 .math-inline / .math-block）
 MATH_MARK_RE = re.compile(r'class="[^"]*\bmath-(?:inline|block)\b', re.I)
-MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 # 题目正文（data-quiz 里）的公式：静态看不到 .math-inline 元素，得扫属性
 QUIZ_ATTR_RE = re.compile(r'data-quiz\s*=\s*(["\'])(.*?)\1', re.S)
 MATH_PAIR_RE = re.compile(r'\$[^\s$][^$\n]*[^\s$]\$|\$[^\s$]\$')
@@ -173,7 +171,7 @@ def local_target(path, value):
     与检查项 9 同口径：先去掉 `#…` 与 `?…`，`%xx` 解码，再按页面所在目录解析。
     """
     raw = html.unescape(value).strip()
-    if not raw or raw.startswith('#') or SCHEME_RE.match(raw):
+    if not raw or raw.startswith('#') or lessonfile.SCHEME_RE.match(raw):
         return None
     relative = unquote(raw.split('#', 1)[0].split('?', 1)[0])
     if not relative:
@@ -188,64 +186,33 @@ class SubjectData:
     """读 <科目>/curriculum.yaml，记下每个节点的 `kind`（概念／实操／实验）。
 
     课型决定检查怎么判实操：`概念` 不配 lab；`实操` 与 `实验` 必须有 lab 与产物。
+    位次、课型、前后邻居的唯一口径在 `curriculum` 模块——这里只把「读不出来」
+    翻成检查器自己的结果（哪些检查项降级成提示、哪些直接失败）。
     """
 
     def __init__(self, subject_dir):
         self.dir = subject_dir
-        self.kinds = {}
-        self.order = []
-        self.error = None
-        if yaml is None:
-            self.error = '未安装 pyyaml'
-            return
-        path = os.path.join(subject_dir, 'curriculum.yaml')
-        try:
-            with open(path, encoding='utf-8') as handle:
-                curriculum = yaml.safe_load(handle) or {}
-        except (OSError, UnicodeDecodeError) as exc:
-            self.error = f'读不出 {path}（{exc}）'
-            return
-        except Exception as exc:                      # yaml.YAMLError 及结构异常
-            self.error = f'{path} 不是合法 YAML（{exc}）'
-            return
-        nodes = curriculum.get('nodes') if isinstance(curriculum, dict) else None
-        if not isinstance(nodes, list):
-            self.error = f'{path} 的 nodes 必须是节点数组'
-            return
-        for position, node in enumerate(nodes, 1):
-            node_id = node.get('id') if isinstance(node, dict) else None
-            if not isinstance(node_id, str) or not re.fullmatch(r'[a-z0-9]+([.-][a-z0-9]+)*', node_id):
-                self.error = f'{path} 的 nodes 第 {position} 项缺少合法的节点 id'
-                return
-            if node_id in self.kinds:
-                self.error = f'{path} 里有重复 id: {node_id}'
-                return
-            self.kinds[node_id] = str(node.get('kind') or '').strip()
-            self.order.append(node_id)
+        cur, problems = curriculum.load(subject_dir)
+        self.error = problems[0].message if problems else None
+        self._cur = cur
 
     def kind_of(self, node):
-        return self.kinds.get(str(node)) or None
+        return (self._cur.kind_of(node) or None) if self._cur is not None else None
 
     def index_of(self, node):
         """节点在 `nodes:` 里的序号（从 1 起；课件编号就用它）；不在大纲里返回 None。"""
-        try:
-            return self.order.index(str(node)) + 1
-        except ValueError:
-            return None
+        return self._cur.index_of(node) if self._cur is not None else None
 
     def neighbors(self, node):
         """(上一个节点 id, 下一个节点 id)——到头的那个是 None。"""
-        index = self.index_of(node)
-        if index is None:
+        if self._cur is None:
             return None, None
-        prev_id = self.order[index - 2] if index >= 2 else None
-        next_id = self.order[index] if index < len(self.order) else None
-        return prev_id, next_id
+        return self._cur.neighbors(self._cur.index_of(node))
 
 
 def lab_number_of(path):
     """课件编号（0002 → 2）；文件名不合格时返回 None，交给检查项 1 报。"""
-    match = LESSON_NAME_RE.match(os.path.basename(path))
+    match = lessonfile.LESSON_NAME_RE.match(os.path.basename(path))
     return int(match.group(1)) if match else None
 
 
@@ -326,7 +293,7 @@ def check_name(path):
     """检查项 1：文件名 NNNN-dash-case.html + 同目录编号规则（R4）。"""
     problems = []
     name = os.path.basename(path)
-    match = LESSON_NAME_RE.match(name)
+    match = lessonfile.LESSON_NAME_RE.match(name)
     if not match:
         problems.append(f'文件名 {name!r} 不符合 NNNN-dash-case.html（四位数字 + 小写短横线）')
         return problems
@@ -343,7 +310,7 @@ def check_name(path):
     for entry in entries:
         if entry == name:
             continue
-        other = NUMBERED_NAME_RE.match(entry)
+        other = lessonfile.NUMBERED_NAME_RE.match(entry)
         if other:
             others.append(int(other.group(1)))
 
@@ -362,14 +329,14 @@ def check_name(path):
 def check_shared_refs(text):
     """检查项 2：共享层引用齐全（sayo.css / learn-theme.css / learn-theme.js / sayo.js）。"""
     refs = ref_values(text)
-    return [f'共享层引用缺失：{required}' for required in SHARED_REFS
+    return [f'共享层引用缺失：{required}' for required in lessonfile.SHARED_REFS
             if not any(required in ref for ref in refs)]
 
 
 def check_subject_refs(text):
     """检查项 3：科目组件引用齐全（../assets/style.css、../assets/quiz.js）。"""
     refs = ref_values(text)
-    return [f'科目组件引用缺失：{required}' for required in SUBJECT_REFS
+    return [f'科目组件引用缺失：{required}' for required in lessonfile.SUBJECT_REFS
             if not any(required in ref for ref in refs)]
 
 
@@ -891,7 +858,7 @@ def check_images(text, path):
         if not value:
             problems.append('<img> 没有 src')
             continue
-        if SCHEME_RE.match(value):
+        if lessonfile.SCHEME_RE.match(value):
             notes.append(f'图片用了外链（{value[:60]}）——离线打开会裂；'
                          f'建议从科目图片库 assets/img/pool/ 挑本地文件引用')
         else:
@@ -980,7 +947,7 @@ def check_math_refs(text):
     if not page_has_math(text):
         return []
     refs = ref_values(text)
-    return [f'页面里有数学式，但缺少引用：{required}' for required in MATH_REFS
+    return [f'页面里有数学式，但缺少引用：{required}' for required in lessonfile.MATH_REFS
             if not any(required in ref for ref in refs)]
 
 

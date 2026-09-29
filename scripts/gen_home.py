@@ -37,6 +37,10 @@ import urllib.parse
 
 import yaml
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import curriculum     # noqa: E402  课程大纲的唯一口径（位次/课型/层级）
+import lessonfile     # noqa: E402  文件名与引用清单的唯一口径
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES = os.path.join(ROOT, 'templates')
 
@@ -238,7 +242,6 @@ WHY_RE = re.compile(r'^##\s*Why\s*$', re.M | re.I)
 ANY_HEADING_RE = re.compile(r'^#{1,6}\s', re.M)
 SENTENCE_RE = re.compile(r'^(.+?[。！？!?])')
 DATE_RE = re.compile(r'(\d{4}-\d{2}-\d{2})')
-LESSON_FILE_RE = re.compile(r'^(\d{4})-.*\.html$')
 RECORD_FILE_RE = re.compile(r'^(\d{4})-')
 SESSION_FILE_RE = re.compile(r'^(\d{4}-\d{2}-\d{2})')
 # 链接自检跳过的值：外部链接（任何 scheme:，如 http:/mailto:/ftp:/file:/blob:，
@@ -457,35 +460,40 @@ def progress_map(prog):
     return out
 
 
+def curriculum_outline(cur, slug=None):
+    """读成 dict 的 `curriculum.yaml` → `Curriculum|None`；问题按「种类 + 细节」去重告警。
+
+    位次、课型、层级、坏节点判决的唯一口径在 `curriculum` 模块；这里只做
+    「坏文件不掀翻整次生成」那一层：能读多少算多少，逐条告警。
+    """
+    outline, problems = curriculum.from_data(cur)
+    for problem in problems:
+        prefix = f'{slug}: ' if slug else ''
+        warn(prefix + problem.message, key=('curriculum', slug, problem.code, problem.detail))
+    return outline
+
+
 def curriculum_nodes(cur, prog, slug=None):
     """大纲节点列表（顺序即展示顺序），状态/掌握度用 progress.yaml 覆盖。
 
     progress.yaml 里多出来的 id 不属于本大纲：告警后忽略（大纲是课程结构的真值来源）。
     没有大纲时返回 []（调用方据此渲染空路线图）。
     """
-    raw_nodes = (cur or {}).get('nodes')
-    if not isinstance(raw_nodes, list):
+    outline = curriculum_outline(cur, slug)
+    if outline is None:
         return []
     live = progress_map(prog)
     nodes = []
-    for raw in raw_nodes:
-        if not isinstance(raw, dict) or not raw.get('id'):
-            continue
-        node_id = str(raw['id'])
-        state = live.pop(node_id, {})
-        status = str(state.get('status') or raw.get('status') or '未开始')
+    for node in outline.nodes:
+        node = dict(node)
+        state = live.pop(node['id'], {})
+        status = str(state.get('status') or '' or '未开始')
         if slug and status not in NODE_STATUS_CLASS:
-            warn(f'{slug}: 节点 {node_id} 的状态 {status!r} 不在 schema 枚举里'
+            warn(f'{slug}: 节点 {node["id"]} 的状态 {status!r} 不在 schema 枚举里'
                  f'（按“未开始”的样式渲染，状态文本仍写原值）', key=('node-status', slug, status))
-        nodes.append({
-            'id': node_id,
-            'title': str(raw.get('title') or node_id),
-            'kind': str(raw.get('kind') or ''),
-            'objective': str(raw.get('objective') or ''),
-            'prerequisites': [str(p) for p in (raw.get('prerequisites') or [])],
-            'status': status,
-            'mastery': clamp01(state['mastery'] if 'mastery' in state else raw.get('mastery', 0)),
-        })
+        node['status'] = status
+        node['mastery'] = clamp01(state['mastery'] if 'mastery' in state else 0)
+        nodes.append(node)
     if live and slug:
         warn(f'{slug}: progress.yaml 里有 curriculum.yaml 之外的节点，已忽略：{"、".join(sorted(live))}')
     if slug:
@@ -524,6 +532,7 @@ def subject_nodes(cur, prog, slug=None):
     """卡片统计用的节点视图：有课程大纲就用它；没有就退回 progress.yaml 自己的节点。"""
     if isinstance((cur or {}).get('nodes'), list):
         return curriculum_nodes(cur, prog, slug)
+    curriculum_outline(cur, slug)          # 大纲写坏了也要说一声，别静默当没有
     return progress_nodes(prog)
 
 
@@ -561,7 +570,7 @@ def subject_summary(slug, ws):
     if status and status not in SUBJECT_STATUS_TAG:
         warn(f'{slug}/subject.yaml 的状态 {status!r} 不在 schema 枚举里'
              f'（徽标不带颜色，状态文本仍写原值）', key=('subject-status', slug, status))
-    total, done, mastery, current = node_stats(subject_nodes(cur, prog))
+    total, done, mastery, current = node_stats(subject_nodes(cur, prog, slug))
     return {
         'slug': slug,
         'name': str(subj.get('name') or slug),
@@ -706,7 +715,7 @@ def lesson_files(slug, ws):
     rows = []
     for path in glob.glob(os.path.join(glob.escape(subject_dir(ws, slug)), 'lessons', '*.html')):
         name = os.path.basename(path)
-        match = LESSON_FILE_RE.match(name)
+        match = lessonfile.NUMBERED_NAME_RE.match(name)
         rows.append((match.group(1) if match else '', name, path))
     rows.sort(key=lambda row: (row[0] or 'zzzz', row[1]))
     return rows
@@ -732,7 +741,7 @@ def lesson_node_id(name, known_ids):
     而页头是写给学生看的可读文字（「0001 · 第一份能提交的代码」）。两个来源各推一次，
     对不上时谁也看不出来——归属只留这一个。
     """
-    match = LESSON_FILE_RE.match(name)
+    match = lessonfile.NUMBERED_NAME_RE.match(name)
     if not match:
         return None
     node_id = name[len(match.group(1)) + 1:-len('.html')]
@@ -746,7 +755,7 @@ def lessons_by_node(slug, ws, nodes):
     for number, name, path in lesson_files(slug, ws):
         node_id = lesson_node_id(name, known_ids)
         if node_id is None:
-            match = LESSON_FILE_RE.match(name)
+            match = lessonfile.NUMBERED_NAME_RE.match(name)
             got = name[len(match.group(1)) + 1:-len('.html')] if match else None
             reason = (f'文件名里的节点 id {got!r} 不在 curriculum.yaml 的 nodes: 里'
                       if got else '文件名不是 <序号>-<节点id>.html（4 位序号）')
@@ -754,35 +763,6 @@ def lessons_by_node(slug, ws, nodes):
             continue
         grouped.setdefault(node_id, []).append((number, name, lesson_title(path)))
     return grouped
-
-
-def node_levels(nodes):
-    """按 prerequisites 算最长路径层级（第 1 层 = 无前置）；未知前置忽略，成环也不死循环。"""
-    known = {node['id'] for node in nodes}
-    prereq = {node['id']: [p for p in node['prerequisites'] if p in known] for node in nodes}
-    depth, on_stack = {}, set()
-    for node in nodes:
-        if node['id'] in depth:
-            continue
-        stack = [(node['id'], False)]
-        while stack:
-            node_id, resolved = stack.pop()
-            if resolved:
-                on_stack.discard(node_id)
-                parents = [depth[p] for p in prereq[node_id] if p in depth]
-                depth[node_id] = 0 if not parents else 1 + max(parents)
-                continue
-            if node_id in depth or node_id in on_stack:
-                continue                  # 回边：跳过这条，别绕圈
-            on_stack.add(node_id)
-            stack.append((node_id, True))
-            for parent in prereq[node_id]:
-                if parent not in depth and parent not in on_stack:
-                    stack.append((parent, False))
-    levels = {}
-    for node in nodes:
-        levels.setdefault(depth.get(node['id'], 0), []).append(node)
-    return levels
 
 
 def prereq_chips(node, nodes):
@@ -846,7 +826,10 @@ def render_roadmap_html(slug, cur, prog, ws):
     if not nodes:
         return ''
     lessons = lessons_by_node(slug, ws, nodes)
-    levels = node_levels(nodes)
+    outline = curriculum_outline(cur, slug)
+    by_id = {node['id']: node for node in nodes}
+    levels = {level: [by_id[node['id']] for node in group if node['id'] in by_id]
+              for level, group in (outline.levels() if outline else {}).items()}
     blocks = []
     for level in sorted(levels):
         cards = '\n'.join(render_node_html(node, nodes, lessons.get(node['id'], []))

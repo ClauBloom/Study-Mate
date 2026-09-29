@@ -45,6 +45,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, 'templates', 'lesson.html')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gen_home                                        # noqa: E402  占位符替换口径与它一致
+import curriculum                                      # noqa: E402  课程大纲的唯一口径
+import lessonfile                                      # noqa: E402  文件名与引用清单的唯一口径
 
 USAGE = '用法：python3 scripts/render_lesson.py <科目目录> <节点id> [--check]'
 
@@ -68,7 +70,6 @@ PLACEHOLDER = '<!-- @LEARN:{} -->'
 # 数学式：行内 `$…$`、块级 `$$…$$`（整段就是它）。作者写 TeX，渲染器只包成占位元素，
 # 排版在浏览器里由离线 KaTeX（共享层 templates/assets/katex/ + lesson-math.js）完成。
 # **有数学式的页面才注入这三个引用**：老课件与非数学课因此零改动、零 diff。
-MATH_REFS = ('katex/katex.min.css', 'katex/katex.min.js', 'lesson-math.js')
 BLOCK_MATH_RE = re.compile(r'^\$\$(.+)\$\$$', re.S)
 # 题库里的行内公式（够用的近似：两个 $ 之间首尾非空白、不跨行）
 MATH_PAIR_RE = re.compile(r'\$[^\s$][^$\n]*[^\s$]\$|\$[^\s$]\$')
@@ -98,7 +99,6 @@ HTML_TAG_RE = re.compile(r'^</?([a-zA-Z][a-zA-Z0-9]*)\b')
 TAG_SHAPE_RE = re.compile(r'</?([a-zA-Z][a-zA-Z0-9]*)(?:\s[^<>]*)?/?>')
 ASCII_WORD_RE = re.compile(r'[0-9A-Za-z]')
 SEPARATOR_CELL_RE = re.compile(r'^:?-{3,}:?$')
-SCHEME_RE = re.compile(r'^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)')
 TITLE_SOFT_LIMIT = 16                                  # 节点标题建议 ≤16 字（超了只提示）
 HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.S)      # 模板注释（定位 DOCTYPE 时要先遮掉）
 HTML_COMMENT_OPEN = '<!--'                             # 内容文件里的注释（手写时代的标记写法）
@@ -196,68 +196,14 @@ def line_of(text, needle):
 # 大纲：curriculum.yaml 的 nodes（序号 / 标题 / 前后邻居）
 # ══════════════════════════════════════════════════════════════════
 
-class Outline:
-    """`nodes:` 的顺序就是课件编号与上/下节课指针的唯一来源（与 check_lesson.py 同口径）。"""
-
-    def __init__(self, path, nodes):
-        self.path = path
-        self.ids = [node['id'] for node in nodes]
-        self.titles = {node['id']: node['title'] for node in nodes}
-
-    def index_of(self, node_id):
-        """节点在 `nodes:` 里的位次（1 起）；不在大纲里返回 None。"""
-        try:
-            return self.ids.index(node_id) + 1
-        except ValueError:
-            return None
-
-    def title_of(self, node_id):
-        return self.titles.get(node_id) or node_id
-
-    def neighbors(self, index):
-        """(上一个节点 id, 下一个节点 id)——到头的那个是 None；index 从 1 起。"""
-        prev_id = self.ids[index - 2] if index >= 2 else None
-        next_id = self.ids[index] if index < len(self.ids) else None
-        return prev_id, next_id
-
-
 def load_outline(subject_dir, problems):
-    path = os.path.join(subject_dir, 'curriculum.yaml')
-    if yaml is None:                                   # pragma: no cover - 环境缺 pyyaml
-        problems.add(path, 1, '读不了 curriculum.yaml：需要 pyyaml（python3 -m pip install pyyaml）')
+    """大纲：位次、标题、前后邻居的唯一口径在 `curriculum` 模块（与校验器、主页同一处）。"""
+    cur, load_problems = curriculum.load(subject_dir)
+    if load_problems:
+        for problem in load_problems:
+            problems.add(problem.path, problem.line, problem.message)
         return None
-    if not os.path.isfile(path):
-        problems.add(path, 1, '找不到大纲文件（科目目录里应有 curriculum.yaml）')
-        return None
-    raw = read_text(path, problems, '大纲文件')
-    if raw is None:
-        return None
-    try:
-        data = yaml.safe_load(raw)
-    except yaml.YAMLError as exc:
-        mark = getattr(exc, 'problem_mark', None)
-        problems.add(path, getattr(mark, 'line', 0) + 1, f'大纲不是合法 YAML：{exc}')
-        return None
-    nodes = data.get('nodes') if isinstance(data, dict) else None
-    if not isinstance(nodes, list):
-        problems.add(path, 1, '大纲的 nodes 必须是节点数组')
-        return None
-    rows = []
-    seen = set()
-    for position, node in enumerate(nodes, 1):
-        node_id = node.get('id') if isinstance(node, dict) else None
-        if not isinstance(node_id, str) or not re.fullmatch(r'[a-z0-9]+([.-][a-z0-9]+)*', node_id):
-            problems.add(path, 1, f'nodes 第 {position} 项缺少合法的节点 id（小写字母数字，以点或短横线分段）')
-            return None
-        if node_id in seen:
-            problems.add(path, 1, f'大纲里有重复 id: {node_id}（课件编号无法唯一确定）')
-            return None
-        seen.add(node_id)
-        rows.append({'id': node_id, 'title': str(node.get('title') or node_id)})
-    if not rows:
-        problems.add(path, 1, '大纲里没有 nodes:（课件编号与上下节课指针都按它算）')
-        return None
-    return Outline(path, rows)
+    return cur
 
 
 def load_subject_name(subject_dir):
@@ -1136,7 +1082,7 @@ class Renderer:
     def render_figure(self, block, indent):
         src, line = block['src'], block['line']
         local_path = unquote(src.split('#', 1)[0].split('?', 1)[0])
-        if SCHEME_RE.match(src) or os.path.isabs(local_path):
+        if lessonfile.SCHEME_RE.match(src) or os.path.isabs(local_path):
             self.problems.add(self.path, line, f'::: figure 只接受本地相对路径（现在是 {src}）——'
                                                '图从科目图片库 assets/img/pool/ 挑')
         else:
@@ -1335,7 +1281,7 @@ def render_nav(outline, index):
         number = outline.index_of(neighbor)
         label = '上节课' if direction == 'prev' else '下节课'
         lines += [f'    <a class="lesson-nav__link lesson-nav__link--{direction}"'
-                  f' href="{number:04d}-{neighbor}.html">',
+                  f' href="{lessonfile.lesson_name(number, neighbor, "html")}">',
                   f'      <span class="lesson-nav__dir">{label}</span>',
                   f'      <span class="lesson-nav__title">{gen_home.esc(outline.title_of(neighbor))}'
                   '</span>',
@@ -1348,9 +1294,9 @@ def math_refs_html(enabled):
     """有数学式的页面才注入 KaTeX 三个引用；没有就返回空串（模板那一行整行消失）。"""
     if not enabled:
         return ''
-    base = '../../../assets/'
+    base = lessonfile.asset_prefix('lesson')
     lines = []
-    for ref in MATH_REFS:
+    for ref in lessonfile.MATH_REFS:
         if ref.endswith('.css'):
             lines.append(f'<link rel="stylesheet" href="{base}{ref}">')
         else:
@@ -1415,9 +1361,9 @@ def main(argv):
         return 1
 
     lessons_dir = os.path.join(subject_dir, 'lessons')
-    md_path = os.path.join(lessons_dir, f'{index:04d}-{node_id}.md')
-    quiz_path = os.path.join(lessons_dir, f'{index:04d}-{node_id}.quiz.json')
-    out_path = os.path.join(lessons_dir, f'{index:04d}-{node_id}.html')
+    md_path = os.path.join(lessons_dir, lessonfile.lesson_name(index, node_id, 'md'))
+    quiz_path = os.path.join(lessons_dir, lessonfile.lesson_name(index, node_id, 'quiz.json'))
+    out_path = os.path.join(lessons_dir, lessonfile.lesson_name(index, node_id, 'html'))
     if not os.path.isfile(md_path):
         problems.add(md_path, 1, '找不到内容文件（讲解角色先产出这一课的 .md，再渲染）')
         problems.report()

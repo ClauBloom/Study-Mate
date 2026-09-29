@@ -7,9 +7,10 @@ import { findPython } from '../../bin/studymate.mjs';
 const groups = {
   core: {
     python: [
-      'test_attachment_render.py', 'test_dsh_presets.py', 'test_interaction_state.py',
-      'test_lesson_figure.py', 'test_lesson_links.py', 'test_lesson_scripts.py',
-      'test_naming_nav.py', 'test_pool.py', 'test_quiz_attr.py', 'test_quiz_code.py',
+      'test_attachment_render.py', 'test_curriculum.py', 'test_dsh_presets.py',
+      'test_interaction_state.py', 'test_lesson_figure.py', 'test_lesson_links.py',
+      'test_lesson_scripts.py', 'test_lessonfile.py', 'test_naming_nav.py', 'test_pool.py',
+      'test_quiz_attr.py', 'test_quiz_code.py',
       'test_render_lesson.py', 'test_templates.py', 'test_workspace_config.py',
     ],
     node: ['quiz_dom_test.js', 'toc_dom_test.js'],
