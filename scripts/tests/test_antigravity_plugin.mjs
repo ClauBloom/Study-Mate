@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { buildAntigravityPlugin } from '../../bin/antigravity-plugin.mjs';
 import { findPython } from '../../bin/studymate.mjs';
-import { AGENT_ROLES, AGENT_TOOLS } from '../../bin/antigravity-skill-compat.mjs';
+import { AGENT_ROLES, AGENT_TOOLS, adaptAntigravitySkill, adaptAntigravityAgent } from '../../bin/antigravity-skill-compat.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const python = findPython();
@@ -168,4 +168,19 @@ test('CLI exports Antigravity plugin via build-antigravity', t => {
   assert.match(result.stdout, /Antigravity 插件已构建/);
   assert.ok(fs.existsSync(path.join(output, 'studymate/plugin.json')));
   assert.ok(fs.existsSync(path.join(output, 'studymate-antigravity.zip')));
+});
+
+test('CRLF line endings in source skills adapt cleanly without residual carriage returns', () => {
+  const source = fs.readFileSync(path.join(root, '.dsh/skills/learning-system/SKILL.md'), 'utf8');
+  const crlf = source.replaceAll('\r\n', '\n').replaceAll('\n', '\r\n');
+  const adapted = adaptAntigravitySkill(crlf, 'learning-system');
+  assert.ok(adapted.includes('Antigravity 宿主约定'));
+  assert.doesNotMatch(adapted, /\r/);
+
+  for (const role of AGENT_ROLES) {
+    const roleSource = fs.readFileSync(path.join(root, '.dsh/skills', role, 'SKILL.md'), 'utf8');
+    const roleCrlf = roleSource.replaceAll('\r\n', '\n').replaceAll('\n', '\r\n');
+    const agent = adaptAntigravityAgent(roleCrlf, role);
+    assert.doesNotMatch(agent, /\r/);
+  }
 });
