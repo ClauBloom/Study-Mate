@@ -156,7 +156,26 @@
       html = html.replace(/\b(true|false|null)\b/g, function (m) { return t('syn-keyword', m); });
       html = html.replace(/\b(-?\d+(?:\.\d+)?)\b/g, function (m) { return t('syn-number', m); });
       return html;
-    }
+    },
+
+    /* Python：课件里的脚本与库调用 */
+    python: function (html, t) {
+      html = html.replace(/((?:[rbfuRBFU]{0,2})"""[\s\S]*?"""|(?:[rbfuRBFU]{0,2})'''[\s\S]*?'''|(?:[rbfuRBFU]{0,2})"(?:[^"\\\n]|\\.)*"|(?:[rbfuRBFU]{0,2})'(?:[^'\\\n]|\\.)*'|#[^\n]*)/g,
+        function (m) { return t(m[0] === '#' ? 'syn-comment' : 'syn-string', m); });
+      html = html.replace(/(^|\n)([ \t]*)(@[A-Za-z_][\w.]*)/g,
+        function (m, a, b, c) { return a + b + t('syn-macro', c); });
+      html = html.replace(/\b(def|class|return|if|elif|else|for|while|break|continue|pass|import|from|as|with|try|except|finally|raise|lambda|global|nonlocal|assert|del|yield|await|async|in|is|not|and|or|True|False|None)\b/g,
+        function (m) { return t('syn-keyword', m); });
+      html = html.replace(/\b(int|float|str|bytes|bool|list|tuple|dict|set|frozenset|complex|object|type|range|enumerate|zip|len|print|min|max|sum|abs|round|sorted|reversed|open|isinstance|self|cls|Exception|ValueError|TypeError|IndexError|KeyError|RuntimeError|StopIteration)\b/g,
+        function (m) { return t('syn-type', m); });
+      html = html.replace(/(?<!&#)\b(\d+(?:\.\d+)?)\b/g, function (m) { return t('syn-number', m); });
+      html = html.replace(/\b([A-Za-z_]\w*)(?=\s*\()/g, function (m) { return t('syn-func', m); });
+      return html;
+    },
+
+    /* 围栏里的常见别名：`py` 与 `bash` 指的是同一套配色 */
+    py: function (html, t) { return LANGS.python(html, t); },
+    bash: function (html, t) { return LANGS.sh(html, t); }
   };
 
   /* 按内容猜语言；猜不出返回 null（原样不动，普通输出不该被染色） */

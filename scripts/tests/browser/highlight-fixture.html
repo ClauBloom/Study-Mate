@@ -94,6 +94,19 @@ console.log(x);</code></pre>
   id: string;
   minutes?: number;
 }</code></pre>
+<pre id="b19" data-lang="python"><code># 整幅加 50：数组一次算完
+import numpy as np
+
+def brighten(img, delta=50):
+    &quot;&quot;&quot;整体提亮，返回新数组。&quot;&quot;&quot;
+    return np.clip(img.astype(&#39;int16&#39;) + delta, 0, 255).astype(&#39;uint8&#39;)
+
+result = brighten(img, 50)
+print(f&quot;shape={result.shape}, max={result.max()}&quot;)</code></pre>
+<pre id="b20" data-lang="python"><code>pattern = r&quot;&quot;&quot;^\d+   # digits
+\s*$&quot;&quot;&quot;
+msg = f&quot;&quot;&quot;hello {name}
+bye {name}&quot;&quot;&quot;</code></pre>
 
 </article>
 </body>
