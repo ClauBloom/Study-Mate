@@ -24,7 +24,7 @@ npm test
 | `npm run test:dsh` | 真实 DSH 启动与 Web 预设，需要指定 DSH 包目录 |
 | `npm run test:dsh-cli` | 真实 DSH CLI 安装、更新、卸载，还需要 `pnpm` |
 
-语法、文案与真实宿主兼容检查保留为本地按需命令，不作为每次提交和发布的默认门禁。改动相应模块时可以单独运行。`scripts/release/checks.mjs` 显式列出默认功能套件，新增测试文件不会自动扩张 Actions 检查范围。
+语法、文案与真实宿主兼容检查保留为本地按需命令，不作为每次提交和发布的默认门禁。改动相应模块时可以单独运行。`scripts/release/checks.mjs` 显式列出各层套件——**显式的代价是新增套件会静默地永远不跑**，所以那里有一条覆盖断言：`scripts/tests/` 下的每个文件必须属于某个组（core / `--static` / `--browser`）、package.json 的按需入口（`test:dsh` 等），或在 `MANUAL_ONLY` 里明确登记为手动脚本。漏登记时跑门禁会直接报出文件名并以退出码 2 停下。
 
 旧入口继续可用：
 
