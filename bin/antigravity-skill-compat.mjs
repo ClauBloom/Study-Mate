@@ -317,7 +317,7 @@ function adaptAntigravityController(body) {
 
   result = replaceRequired(
     result,
-    /## 会话结束\n[\s\S]*?(?=## 子 agent 派发规范)/,
+    /## 会话结束\r?\n[\s\S]*?(?=## 子 agent 派发规范)/,
     '## 会话结束\n\n学生明确暂停/结束或当前学习单元已完成时执行收尾：\n1. 按 `record-keeping` 写会话摘要，更新当前科目进度、记录阶段与下一步。\n2. 刷新主页，输出已保存位置与下次恢复点。不追加挽留弹窗。\n\n',
     'Antigravity session end'
   );
@@ -412,6 +412,7 @@ function adaptAntigravityController(body) {
 assertToolNotes();
 
 export function adaptAntigravitySkill(content, name) {
+  content = content.replaceAll('\r\n', '\n');
   const { frontmatter, body } = splitFrontmatter(content);
 
   let adaptedBody = body.replaceAll('.dsh/skills/', 'skills/').replaceAll('.dsh/skills', 'skills');
@@ -460,6 +461,7 @@ export function adaptAntigravitySkill(content, name) {
 }
 
 export function adaptAntigravityAgent(skillContent, name) {
+  skillContent = skillContent.replaceAll('\r\n', '\n');
   const { body } = splitFrontmatter(skillContent);
   const tools = AGENT_TOOLS[name] || ['view_file', 'write_to_file', 'run_command'];
   const displayName = AGENT_DISPLAY_NAMES[name] || `StudyMate · ${name}`;
