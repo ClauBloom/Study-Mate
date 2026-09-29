@@ -12,6 +12,7 @@
 用法：python3 scripts/tests/test_templates.py
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -84,6 +85,23 @@ def main():
     check(f'templates/subject.yaml 的 status 取值合法（{status}）',
           status in (schema['properties']['status'].get('enum') or []),
           f'不在 {schema["properties"]["status"].get("enum")} 里')
+
+    # ── 三、围栏语言：渲染器认可的着色标签必须与前端配色表一一对应 ──────────
+    # 真出过事——`python` 在渲染器里畅通无阻（原样写进 data-lang），而 learn-theme.js
+    # 的 LANGS 没有这个键：Python 课件的 36 个代码块全部不上色，且没有任何报错。
+    source = read('scripts/render_lesson.py')
+    match = re.search(r'^COLORED_LANGS = \(([^)]*)\)', source, re.M)
+    check('渲染器仍有 COLORED_LANGS 白名单', match is not None)
+    colored = re.findall(r"'([a-z]+)'", match.group(1)) if match else []
+
+    js = read('templates/assets/learn-theme.js')
+    block = js.split('var LANGS = {', 1)[1].split('\n  };', 1)[0]
+    keys = re.findall(r'^    ([a-z]+): function', block, re.M)
+
+    check('前端配色表与渲染器白名单逐个相等',
+          sorted(keys) == sorted(colored),
+          f'前端={sorted(keys)} 渲染器={sorted(colored)}')
+    check('python 两边都有', 'python' in keys and 'python' in colored)
 
     print(f'\n{total - failures}/{total} 通过')
     return 1 if failures else 0
