@@ -28,7 +28,7 @@
    约定：只用一个 data-theme 属性；**不要**用 Sayo 自带的 data-syo-theme，两套属性会打架。
 
    代码块高亮：课件里的 <pre><code> 和 .syo-editor 会自动上色，讲解角色写纯文本即可；
-   要指定语言就在容器上写 data-lang="cpp|sh|html|js|json|term"（text = 不上色）。
+   要指定语言就在容器上写 data-lang="cpp|sh|bash|term|html|js|json|python|py"（text = 不上色）。
    ═══════════════════════════════════════════════════════════════ */
 (function (global) {
   'use strict';
@@ -90,7 +90,7 @@
      颜色由 sayo.css（暗色）+ learn-theme.css（亮色）给，这里不碰颜色。
 
      作用对象：<pre><code>…</code></pre> 与 .syo-editor-code 里的 .line 行。
-     语言：容器上写 data-lang="cpp|sh|html|js|json|term" 指定（text = 不上色），
+     语言：容器上写 data-lang="cpp|sh|bash|term|html|js|json|python|py" 指定（text = 不上色），
            不写就按内容猜；猜不出的（普通输出、题面文字）原样不动。
      已手写过 .syn-* 的块整块跳过——手工优先，自动不覆盖。
      ═══════════════════════════════════════════════════════════════ */

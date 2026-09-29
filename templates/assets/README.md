@@ -65,8 +65,9 @@
 课件的代码块**不用手写高亮**：页面加载时 `learn-theme.js` 会给 `<pre><code>` 与 `.syo-editor-code` 里的
 代码自动上色（token 类沿用 Sayo 的 `.syn-*`，颜色随亮/暗主题走）。
 
-- 语言按内容猜：`cpp` / `sh` / `term`（终端与编译器输出）/ `html` / `js` / `json`；猜不出来就**保持原样**（程序输出、题面文字不该被染色）
-- 要指定就写 `data-lang="cpp|sh|html|js|json|term"`；`data-lang="text"` = 明确不上色
+- 不写 `data-lang` 时按内容猜：认得出 `cpp` / `sh` / `term` / `html` / `js` / `json` 这几类，猜不出来就**保持原样**（程序输出、题面文字不该被染色）；**python 不在猜测表里**，要上色请显式写 `data-lang="python"`
+- 要指定就写 `data-lang="cpp|sh|bash|term|html|js|json|python|py"`（`bash` 同 `sh`，`py` 同 `python`）；明确不上色写 `data-lang="text"`（`plain` / `markdown`（`md` 同）/ `http` 同）
+- 这份清单必须与 `scripts/render_lesson.py` 的 `COLORED_LANGS` / `PLAIN_LANGS` 一致；代码两侧（渲染器白名单 ↔ `var LANGS` 键）由 `scripts/tests/test_templates.py` 钉住，**本文件与 `docs/课件内容格式.md` 不参与那条断言**，改这里要手工对齐
 - 一个块里只要手写过 `.syn-*`，整块跳过——手工优先，自动不覆盖
 - 猜错的常见场合：整块贴的都是「命令 + 输出」混排时按首行判定，可用 `data-lang` 纠正
 
